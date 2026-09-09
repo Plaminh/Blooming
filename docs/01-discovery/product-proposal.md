@@ -90,7 +90,7 @@ Plant deterioration represents prolonged abandonment without meaningful activity
 | Scope growth | Red | Keep retained goals/reminders and plant behavior at the documented minimal depth; exclude integrations and game systems. |
 | API and hosting cost | Amber | Minimize prompts, cap requests, observe usage, and preserve a non-AI input path. |
 | Solo development capacity | Amber | Use a modular monolith, reuse one canonical document per concern, and defer non-critical polish. |
-| Core web stack | Green | Next.js, Spring Boot, PostgreSQL, and Docker are suitable for the intended scale. |
+| Core web stack | Green | Next.js, FastAPI/Python, PostgreSQL, and Docker are suitable for the intended scale. |
 
 ## 9. Delivery sequence
 

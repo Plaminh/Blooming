@@ -2,7 +2,7 @@
 
 ## Approach
 
-Implement the scheduler as pure Java domain code. One immutable request produces feasibility, one ordered `PlanBlock[]`, warnings, and exact unscheduled work. Domain code has no HTTP, database, UI, clock, LLM, or filesystem dependency.
+Implement the scheduler as pure Python domain code. One immutable request produces feasibility, one ordered `PlanBlock[]`, warnings, and exact unscheduled work. Domain code has no HTTP, database, UI, clock, LLM, or filesystem dependency.
 
 ## Delivery increments
 

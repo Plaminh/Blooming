@@ -20,7 +20,7 @@ Testing establishes that the six required MVP blocks work together without compr
 | Layer | Purpose |
 |---|---|
 | Domain/property | Scheduling, time, plant, and state-transition invariants. |
-| Integration | Transactions, JPA mappings, JWT ownership, jobs, email adapter, and idempotency. |
+| Integration | Transactions, SQLAlchemy mappings, JWT ownership, jobs, email adapter, and idempotency. |
 | API | Schemas, validation/errors, authorization, structured AI boundary, and side effects. |
 | UI/E2E | Home/Mr. Bloom, Today, Goals, authentication/settings, recovery, and reminder-action flows. |
 | AI/security/privacy | Evaluation dataset, schema/injection failures, prompt minimization, secrets/logs, and authorization abuse. |

@@ -5,7 +5,7 @@
 ```mermaid
 flowchart TD
     User["Person: User"] -->|HTTPS| Web["Web App\nNext.js + TypeScript"]
-    Web -->|HTTPS/JSON| API["Blooming API\nSpring Boot + Java 21"]
+    Web -->|HTTPS/JSON| API["Blooming API\nFastAPI + Python"]
     API -->|SQL/TLS| DB[("PostgreSQL")]
     API -->|HTTPS| LLM["External LLM Provider"]
     API -->|HTTPS| Email["Email Provider"]
@@ -14,7 +14,7 @@ flowchart TD
 | Container | Responsibility/services | Technology | Data owned | Communication |
 |---|---|---|---|---|
 | Web App | Render planning/focus UI, collect input, maintain presentation state, call API | Next.js, React, TypeScript | Ephemeral form/view state; no authoritative plan data | HTTPS/JSON to API |
-| Blooming API | Validate input, calculate/schedule/re-plan, orchestrate persistence, protect AI boundary | Spring Boot, Java 21 | Authoritative business behavior; persisted through repositories | REST/JSON, SQL, provider HTTPS |
+| Blooming API | Validate input, calculate/schedule/re-plan, orchestrate persistence, protect AI boundary | FastAPI, Python | Authoritative business behavior; persisted through repositories | REST/JSON, SQL, provider HTTPS |
 | PostgreSQL | Store users/settings, plans, tasks, PlanBlocks, FocusRuns, goals/reminders, and plant/activity state | PostgreSQL | Durable product data | SQL over encrypted provider connection |
 | LLM Provider | Interpret natural language into a draft schema | Selected and privacy-reviewed before conversational integration | Provider processing only; no Blooming source of truth | HTTPS request/response |
 | Email Provider | Deliver basic milestone reminder email | One provider, selected before reminder integration | Delivery metadata only; no Blooming source of truth | HTTPS request/response |
@@ -41,9 +41,13 @@ flowchart TD
 
 ## 3. Backend components
 
+The current skeleton contains routers under `backend/app/api/routes/` and shared
+configuration under `backend/app/core/`. Only health is implemented. The service,
+domain, and adapter locations below are future logical boundaries, not existing code.
+
 ```mermaid
 flowchart TD
-    Controller["REST controllers"] --> AppService["Application services"]
+    Controller["FastAPI routers"] --> AppService["Application services"]
     AppService --> Domain["Planning domain"]
     AppService --> Repository["Repository ports"]
     Adapter["Persistence adapters"] --> Repository
@@ -52,10 +56,10 @@ flowchart TD
 
 | Component | Responsibility | Dependencies | Planned code location |
 |---|---|---|---|
-| Planning controller | Map HTTP preview/save/edit/re-plan requests and errors | Application services, DTO validation | `backend/src/main/java/.../planning/api/` |
+| Planning router | Map HTTP preview/save/edit/re-plan requests and errors | Application services, DTO validation | `backend/app/api/routes/planning.py` |
 | Planning application service | Coordinate validation, scheduler, repositories, and transactions | Domain services, repository ports | `.../planning/application/` |
-| Scheduling domain | Normalize intervals, preserve fixed events in output, calculate exact Break demand, enforce deadlines, validate/lock fixed Tasks, place flexible work, and verify invariants | Java domain types only | `.../planning/domain/` |
-| Planning persistence adapter | Map domain records to PostgreSQL/JPA entities | Repository ports, JPA | `.../planning/infrastructure/persistence/` |
+| Scheduling domain | Normalize intervals, preserve fixed events in output, calculate exact Break demand, enforce deadlines, validate/lock fixed Tasks, place flexible work, and verify invariants | Python domain types only | `.../planning/domain/` |
+| Planning persistence adapter | Map domain records to PostgreSQL/SQLAlchemy entities | Repository ports, SQLAlchemy; Alembic migrations | `.../planning/infrastructure/persistence/` |
 | AI interpretation adapter | Call provider and map untrusted output into draft DTO | Provider client, schema validator | `.../planning/infrastructure/ai/` |
 | Focus module | Manage execution state, timer events, and outcomes | Clock port, repositories | `.../focus/` |
 | Goal/reminder modules | Manage roadmaps, local-time reminders, notifications, and idempotent delivery | repositories, clock, email adapter | `.../goal/`, `.../reminder/`, `.../notification/` |
@@ -67,7 +71,7 @@ flowchart TD
 sequenceDiagram
     actor User
     participant UI as Planning UI
-    participant API as Planning Controller
+    participant API as Planning Router
     participant App as Planning Service
     participant Domain as Scheduler
     User->>UI: Submit structured request
@@ -85,7 +89,7 @@ The preview flow does not read or write PostgreSQL and does not call the LLM pro
 ## 5. Dependency rules
 
 - Domain code may depend only on domain types and standard language libraries.
-- API, JPA, LLM, and framework annotations must not appear in scheduling domain classes.
+- API, SQLAlchemy, LLM, and framework dependencies must not appear in scheduling domain classes.
 - Application services depend on repository/clock/provider interfaces; infrastructure implements them.
 - Frontend feature components use the typed API client rather than issuing inconsistent ad-hoc requests.
 - The AI adapter may produce a planning draft but cannot invoke or replace domain rules internally.

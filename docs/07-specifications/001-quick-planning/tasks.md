@@ -2,7 +2,7 @@
 
 ## Delivery goal
 
-Implement a pure Java scheduler in two evidence-producing increments. No completion date or completed status is claimed.
+Implement a pure Python scheduler in two evidence-producing increments. No completion date or completed status is claimed.
 
 ## Increment A — domain preparation and ordering
 

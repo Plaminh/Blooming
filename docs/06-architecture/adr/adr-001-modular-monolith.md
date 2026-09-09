@@ -35,3 +35,10 @@ Blooming will use a modular monolith: one Spring Boot deployable API organized b
 ## Reconsider when
 
 A measured scaling, ownership, security, or deployment requirement cannot be met reasonably within one deployable application.
+
+## Stack update: 9 September 2026
+
+The backend now uses FastAPI/Python, with PostgreSQL, SQLAlchemy, and Alembic
+as the persistence direction. The original decision above retains its historical
+framework wording; the accepted modular-monolith boundaries remain unchanged.
+Only the FastAPI skeleton and health endpoint are currently implemented.

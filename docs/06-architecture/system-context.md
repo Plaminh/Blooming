@@ -5,8 +5,8 @@
 | Area | Technology | Purpose |
 |---|---|---|
 | Frontend | Next.js, React, and TypeScript | Home/Mr. Bloom, Today, Goals, focus, settings, and integrated plant experience |
-| Backend | Spring Boot and Java 21 | API, validation, deterministic domain logic, and application orchestration |
-| Database | PostgreSQL with Spring Data JPA/Hibernate | Durable user, plan, execution, goal/reminder, and plant state |
+| Backend | FastAPI and Python | API, validation, deterministic domain logic, and application orchestration |
+| Database | PostgreSQL with SQLAlchemy and Alembic | Durable user, plan, execution, goal/reminder, and plant state |
 | External AI service | Provider-agnostic LLM API | Natural-language interpretation into structured planning data |
 | Local environment | Docker Compose | Reproducible service startup |
 

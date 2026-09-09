@@ -17,15 +17,15 @@ Mr. Bloom is an old AI robot and the central conversational guide. Mature, calm,
 | Layer | Direction |
 |---|---|
 | Frontend | Next.js, React, TypeScript |
-| Backend | Java, Spring Boot modular monolith |
-| Persistence | PostgreSQL with Spring Data JPA/Hibernate |
+| Backend | Python, FastAPI modular monolith |
+| Persistence | PostgreSQL with SQLAlchemy; Alembic migrations |
 | Authentication | JWT |
 | AI | Direct LLM API integration with validated structured output |
-| Email/deployment | Scheduled Spring Boot service, one email provider, Docker |
+| Email/deployment | Scheduled Python service (planned), one email provider, Docker |
 
 ## Status
 
-This is documentation for an unimplemented project; it does not claim a deployed application or completed features. Google Calendar, analytics, learned estimates, teams/social features, multiple plants/economy, pet/world systems, complex web push, multiple agents, LangChain, and LangGraph are outside the MVP.
+The backend currently provides a FastAPI skeleton with a health endpoint; product features remain unimplemented. This documentation does not claim a deployed application or completed features. Google Calendar, analytics, learned estimates, teams/social features, multiple plants/economy, pet/world systems, complex web push, multiple agents, LangChain, and LangGraph are outside the MVP.
 
 ## Documentation
 
