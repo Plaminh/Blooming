@@ -10,6 +10,8 @@
 
 The feature accepts a complete structured planning request and returns an honest deterministic preview: exact feasibility, one ordered `PlanBlock[]` timeline containing generated `FOCUS`/`BREAK` blocks and unchanged `FIXED_EVENT` blocks, warnings, and exact unscheduled work.
 
+This increment is domain and API-contract work. The product surface is a Windows/Linux desktop application; the scheduler itself does not depend on UI, weather, or widget presentation.
+
 Increment A covers domain models, validation, interval normalization, feasibility, fixed-Task reservation, and dependency-aware ordering. Increment B covers flexible placement, splitting, breaks, reasons, invariant verification, repeatability, and performance. HTTP/UI integration follows under `PB-003`.
 
 ## Scope

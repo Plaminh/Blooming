@@ -2,7 +2,7 @@
 
 ## Delivery goal
 
-Implement a pure Java scheduler in two evidence-producing increments. No completion date or completed status is claimed.
+Implement a pure Python scheduler in two evidence-producing increments. No completion date or completed status is claimed.
 
 ## Increment A — domain preparation and ordering
 
@@ -32,7 +32,7 @@ Implement a pure Java scheduler in two evidence-producing increments. No complet
 
 ## Scope control
 
-- This feature increment does not implement REST/UI, persistence, Mr. Bloom, FocusRun, re-planning, goals/reminders, or plant behavior; those remain required product-MVP work.
+- This feature increment does not implement REST/UI, persistence, Mr. Bloom, FocusRun, re-planning, goals/reminders, garden, widget, or weather behavior; those remain required product-MVP work.
 - Do not add learned estimates, preferred-time scoring, randomization, solver libraries, calendar integration, or AI scheduling authority.
 - A new edge case must be expressed as a test and resolved with the smallest rule-consistent behavior.
 

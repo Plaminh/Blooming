@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Blooming desktop frontend
 
-## Getting Started
+The intended desktop UI is **Svelte + TypeScript + Vite**, hosted by **Tauri 2**. Product decisions live in `../docs/02-product/Blooming-Concept-Updated.md`.
 
-First, run the development server:
+This folder currently still contains a leftover **Next.js / React** scaffold. That scaffold is not the product frontend. Do not treat Next.js routing, React components, or a web-only deployment as Blooming architecture.
+
+## Product surfaces
+
+| Surface | Role |
+|---|---|
+| Today | Planning chat, Task Draft, timeline, task selection, Pomodoro setup, re-planning |
+| Goals | Goal, Roadmap, Milestone, Reminder actions |
+| Settings | Account, timezone, focus defaults, widget behavior, quiet hours, Mr. Bloom name, PlantType, weather-context preferences |
+| Mr. Bloom widget | Lightweight always-on-top window; WidgetState plus composed time/weather/plant layers |
+
+The full application opens on Today. There is no Home screen, separate chat screen, or Garden screen.
+
+## Widget rules
+
+Functional WidgetState: `DEFAULT`, `REMINDER`, `FOCUSING`, `SESSION_RESULT`, `HIDDEN`.
+
+Visual WidgetContext is independent from WidgetState: time-of-day (`MORNING`, `AFTERNOON`, `EVENING`, `NIGHT`) and optional WeatherContext (`CLEAR`, `CLOUDY`, `RAINY`, `STORMY`, `FOGGY`, `SNOWY`, `UNKNOWN`). The rendered widget composes WidgetState + WidgetContext + PlantType/GardenState. Do not ship a unique screen for every combination.
+
+Time and weather must not affect scheduling, reminder timing, or Heart Progress. If weather-aware visuals are disabled, use time-only WidgetContext with no weather overlay. If weather is unavailable, WeatherContext may be `UNKNOWN` and presentation remains time-only.
+
+## Plant presentation
+
+Select artwork from PlantType (`POTHOS`, `CACTUS`, `BONSAI`, `SUNFLOWER`, `LOTUS`) plus the shared GardenState stage. Switching PlantType is visual only.
+
+## Local development (current leftover scaffold)
+
+Until the Svelte/Tauri tree replaces this folder, the existing Next.js commands only run the leftover scaffold and must not be cited as the product stack.
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The product local loop is a Tauri desktop shell talking to the FastAPI backend, not a Vercel web deploy.

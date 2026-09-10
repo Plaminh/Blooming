@@ -23,12 +23,12 @@
 
 ## Decision
 
-Blooming will use a modular monolith: one Spring Boot deployable API organized by product modules such as planning, focus, and reward. Each module separates API, application, domain, and infrastructure concerns where useful.
+Blooming will use a modular monolith: one FastAPI deployable API organized by product modules such as planning, focus, reminders, garden, and weather. Each module separates API, application, domain, and infrastructure concerns where useful. The desktop shell is a separate Tauri application and is not a second backend.
 
 ## Consequences
 
 - Positive: simple deployment and transactions while retaining explainable module boundaries.
-- Positive: domain logic can be tested without web/database/AI infrastructure.
+- Positive: domain logic can be tested without HTTP/database/AI infrastructure.
 - Tradeoff: module boundaries require architecture tests and code review rather than network enforcement.
 - Follow-up: avoid creating empty future modules; add a module only when its feature enters implementation.
 

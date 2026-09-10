@@ -9,7 +9,7 @@
 
 ## Description and trigger
 
-This use case extends Quick Plan when calculated demand exceeds available capacity or when fragmentation, a deadline, or a fixed-Task conflict prevents all requested work from being placed.
+This use case extends Daily Planning (UC-PLAN-01) when calculated demand exceeds available capacity or when fragmentation, a deadline, or a fixed-Task conflict prevents all requested work from being placed.
 
 ## Preconditions
 

@@ -31,6 +31,7 @@ Blooming will accept ISO 8601 timestamps with explicit offsets, store persistent
 - Positive: local date and future timezone behavior can be reconstructed.
 - Tradeoff: serialization and day-boundary tests are mandatory.
 - Follow-up: include `Asia/Ho_Chi_Minh`, overnight windows, and one daylight-saving timezone in boundary tests.
+- Follow-up: Tauri resolves WidgetContext time-of-day (`MORNING`, `AFTERNOON`, `EVENING`, `NIGHT`) locally from the configured timezone. That presentation context must not become a scheduler, reminder-timing, or Heart Progress input.
 
 ## Reconsider when
 

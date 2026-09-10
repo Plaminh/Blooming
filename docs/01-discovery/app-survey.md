@@ -71,7 +71,7 @@ This survey examines products that represent four parts of Blooming's intended l
 
 - Strength: progress becomes emotionally visible without requiring complex game mechanics.
 - Weakness for Blooming's target: focus is largely separate from planning feasibility and re-planning.
-- Lesson for Blooming: reward completed execution, not merely task creation; keep the first garden state simple and avoid punitive loss of earned progress.
+- Lesson for Blooming: reward completed execution, not merely task creation; keep one GardenState, selectable PlantType, and avoid punitive loss of Heart Progress.
 
 ## 3. Comparison matrix
 
@@ -82,15 +82,15 @@ This survey examines products that represent four parts of Blooming's intended l
 | Overload handling | Quantified capacity plus unscheduled tasks | At-risk deadline signals | Explicit workload guidance | No equivalent capacity evidence found | No | Transparent overload is a central differentiation. |
 | Editing and re-planning | Manual edits plus history-preserving re-plan | Yes | Yes | Yes on supported features/platforms | No | Blooming must treat user control as part of correctness. |
 | Focus execution | Timer linked to planned session and actual outcome | Not central in reviewed evidence | Tracks work/time | Focus sessions included | Core feature | Link the plan directly to actual execution. |
-| Plant continuity | One active plant, meaningful-activity growth, Water Reserve, and non-punitive recovery | No | No | No core garden loop | Core tree/forest loop | Use a single integrated plant, not a forest or pet economy. |
+| Plant continuity | One active PlantType over a shared GardenState and Heart Progress; switching plants is visual only | No | No | No core garden loop | Core tree/forest loop | Use one GardenState and preset PlantType variants, not a forest, inventory, or pet economy. |
 
 ## 4. Conclusions for Blooming
 
 - Patterns to adopt: Motion's automatic recovery, Sunsama's deliberate capacity review, Structured's visual editable timeline, and Forest's immediate visible reward.
 - Patterns to avoid: hiding overload, making the LLM the source of schedule truth, over-automating without explanation, and building a large reward economy before the planning loop works.
-- Market gap pursued by Blooming: one personal loop that combines conversational capture, explicit overload detection, deterministic scheduling, focus execution, and history-preserving re-planning.
-- Differentiation: Blooming separates semantic interpretation from scheduling correctness and explains what could not fit instead of silently producing an impossible plan.
-- MVP decision: prioritize scheduling correctness and the daily loop first while retaining minimal long-term goals/reminders and one non-punitive plant system; defer integrations and advanced gamification.
+- Market gap pursued by Blooming: one personal desktop loop that combines conversational capture, explicit overload detection, deterministic scheduling, widget follow-through, focus execution, and history-preserving re-planning.
+- Differentiation: Blooming separates semantic interpretation from scheduling correctness, follows the plan through a context-aware widget, and explains what could not fit instead of silently producing an impossible plan.
+- MVP decision: prioritize scheduling correctness and the daily loop first while retaining the widget, desktop reminders, Heart Progress, PlantType, and presentation-only weather; defer integrations and advanced gamification.
 
 ## Sources
 

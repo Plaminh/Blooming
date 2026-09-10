@@ -1,34 +1,41 @@
 # Blooming
 
-Blooming is an adaptive conversational personal planner that turns natural-language daily intentions and long-term goals into realistic plans, guides focus sessions, recovers unfinished schedules when reality changes, connects milestones to future Daily Plans through reminders, and represents sustained progress through one living plant.
+Blooming is a Windows and Linux desktop daily planner that turns natural-language intentions into realistic Daily Plans, supports Pomodoro execution, repairs unfinished work when reality changes, and reflects lasting progress in one living garden.
 
-Mr. Bloom is an old AI robot and the central conversational guide. Mature, calm, practical, and concise, he challenges unrealistic plans, supports recovery without excessive enthusiasm, and remains non-judgmental when the user falls behind. His distant-future mission to help restore plant life supplies atmosphere without becoming a pet, quest, campaign, or multi-agent system.
+Mr. Bloom is a small robot cat and Blooming's visual identity: warm, concise, occasionally enthusiastic, and honest about unrealistic plans. Planning is the product core. The optional Mr. Bloom widget keeps the plan present on the desktop without keeping the full application open.
+
+The frozen product concept is `02-product/Blooming-Concept-Updated.md`.
 
 ## Core capabilities
 
-- Mr. Bloom turns language into reviewable Task Drafts and Roadmap Drafts, asks only material clarification questions, and explains realistic recovery choices.
-- Deterministic scheduling validates availability, deadlines, fixed/flexible Tasks, non-Task fixed events, duration, priority, dependencies, precise breaks, buffers, edits, and `COMFORTABLE`/`TIGHT`/`OVERLOADED` status, returning one ordered PlanBlock timeline.
-- Today supports focus countdown, pause/resume, `DONE`, `FINISHED_EARLY`, `NEED_MORE_TIME`, and `SKIP`, with planned and actual time kept separate.
-- Goals provide editable milestones and local-time in-app/basic email reminders that can start tomorrow's plan after confirmation.
-- One backend-owned plant uses growth/health states, Water Reserve, meaningful activity, and Rest Mode. Missed work is recoverable, not punishment.
+- Planning chat in the full application turns language into a reviewable Task Draft. Mr. Bloom asks only material clarification questions.
+- Deterministic scheduling validates availability, deadlines, fixed/flexible Tasks, duration, priority, dependencies, breaks, buffers, edits, and Reality Check (`COMFORTABLE` / `TIGHT` / `OVERLOADED`), returning one ordered PlanBlock timeline.
+- Today supports task selection, Pomodoro setup, and FocusRun outcomes `DONE`, `NEED_MORE_TIME`, `SKIP`, and `FINISHED_EARLY`. Planned and actual time stay separate.
+- Goals provide an editable Goal → Roadmap → Milestone chain. Reminders ask whether to confirm a Daily Plan; they never auto-create detailed tasks.
+- FastAPI stores reminder state. Tauri evaluates due times locally, shows a tray red-dot for unread due reminders, and displays Mr. Bloom's widget bubble. There is no OS toast and no per-second backend polling.
+- Heart Progress is permanent visual progress, not currency. One shared GardenState grows through `DORMANT` → `SPROUTING` → `GROWING` → `BLOOMING` → `FLOURISHING`. PlantType (`POTHOS`, `CACTUS`, `BONSAI`, `SUNFLOWER`, `LOTUS`) is visual only; switching it does not reset progress.
+- Widget functional states (`DEFAULT`, `REMINDER`, `FOCUSING`, `SESSION_RESULT`, `HIDDEN`) are separate from WidgetContext (time-of-day plus optional WeatherContext). Time and weather never affect scheduling, reminders, or Heart Progress.
 
 ## Technology
 
 | Layer | Direction |
 |---|---|
-| Frontend | Next.js, React, TypeScript |
-| Backend | Java, Spring Boot modular monolith |
-| Persistence | PostgreSQL with Spring Data JPA/Hibernate |
+| Desktop shell | Tauri 2 / Rust |
+| Desktop UI | Svelte + TypeScript + Vite |
+| Backend API | Python + FastAPI + Pydantic |
+| Persistence | PostgreSQL + SQLAlchemy |
 | Authentication | JWT |
-| AI | Direct LLM API integration with validated structured output |
-| Email/deployment | Scheduled Spring Boot service, one email provider, Docker |
+| AI | Remote LLM API with validated structured output |
+| Weather context | Remote weather API through FastAPI, coarse cache only |
+| Deployment | Dockerized backend |
 
 ## Status
 
-This is documentation for an unimplemented project; it does not claim a deployed application or completed features. Google Calendar, analytics, learned estimates, teams/social features, multiple plants/economy, pet/world systems, complex web push, multiple agents, LangChain, and LangGraph are outside the MVP.
+This documentation describes the frozen MVP concept and intended implementation. It does not claim a completed product. Mobile, web-only, and macOS releases, OS notifications, email/push reminders, shops, inventory, currency, gacha, plant death, multiple gardens, weather-driven planning, and continuous GPS tracking are outside the MVP.
 
 ## Documentation
 
+- Product concept (source of truth): `02-product/Blooming-Concept-Updated.md`
 - Discovery: `01-discovery/`
 - Product: `02-product/`
 - Management: `03-management/`

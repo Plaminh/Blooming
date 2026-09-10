@@ -2,6 +2,8 @@
 
 This pack is based on the useful documentation structure from AmeThyst, cleaned up for a solo portfolio project and extended for Blooming's scheduling and AI behavior.
 
+**Source of truth for product decisions:** `02-product/Blooming-Concept-Updated.md`. Other documents must not preserve conflicting stack, widget, plant, reminder, or scope behavior.
+
 ## Design rule
 
 - Keep one canonical copy of each project document.
@@ -17,6 +19,7 @@ This package now contains both reusable templates and Blooming's current project
 - Files ending in `_template.md` and `07-specifications/feature-template/` are reusable blank templates.
 - Filled documents use the final filename without `_template`, for example `product-proposal.md`.
 - `project-readme.md` is Blooming's current project README; this `README.md` explains the documentation package.
+- `02-product/Blooming-Concept-Updated.md` is the frozen MVP concept.
 - `07-specifications/001-quick-planning/` contains the implementation-ready specification, two-increment plan, tasks, and tests for the deterministic scheduler.
 - Test results, bug reports, AI evaluation results, deployment/release documents, sprint reports, and the reflective report must be instantiated only when real evidence exists.
 
@@ -42,6 +45,7 @@ This package now contains both reusable templates and Blooming's current project
 
 ## Added for Blooming
 
+- Frozen product concept: `02-product/Blooming-Concept-Updated.md` is the single source of truth for MVP product decisions.
 - MVP scope: prevents the full product vision from becoming the first release.
 - Product backlog: separates future ideas from committed work.
 - Domain glossary and scheduler business rules: prevents ambiguity in Task, PlanBlock, FocusRun, overload, breaks, and re-planning.

@@ -1,4 +1,4 @@
-# Use-Case Specification: UC-PLAN-01 Create Quick Plan
+# Use-Case Specification: UC-PLAN-01 Create Daily Plan
 
 | Field | Value |
 |---|---|
@@ -9,7 +9,7 @@
 
 ## Description and trigger
 
-The user wants to organize a specific period of one day. The use case begins when the user opens Quick Plan and chooses to enter structured planning information.
+The user wants to organize a specific period of one day. The use case begins when the user opens Today and chooses to enter structured planning information.
 
 ## Preconditions
 

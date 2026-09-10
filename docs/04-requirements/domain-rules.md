@@ -10,9 +10,15 @@
 | `FocusRun` | Actual execution record linked to a focus block; planned and actual time are separate. |
 | `PlanRevision` | A meaningful re-plan, retaining the protected before-state and reason. |
 | `Goal` / `Milestone` | A long-term desired outcome and its editable high-level roadmap step; a roadmap is not a complete future task list. |
-| `Reminder` / `Notification` | The scheduled trigger and a delivered in-app/email message. |
-| `PlantState` | The one active plant's backend-owned growth stage, health stage, Water Reserve, and history reference. |
-| `MeaningfulActivity` / `RewardEvent` / `RestPeriod` | Auditable cause of plant support/growth, reward outcome, and intentional pause of Water Reserve decay. |
+| `Reminder` / `ReminderAction` | FastAPI-stored reminder definition/state. Milestone ReminderAction values are `CREATE_PLAN`, `MARK_COMPLETED`, `MOVE_MILESTONE`, and `REMIND_LATER`. Focus/task widget actions `START_FOCUS` and `OPEN_BLOOMING` are not Milestone ReminderAction values. |
+| `HeartEvent` | An auditable Heart Progress reward. Heart Progress is permanent visual progress, not spendable currency. |
+| `GardenState` | The one shared garden progression: `DORMANT` → `SPROUTING` → `GROWING` → `BLOOMING` → `FLOURISHING`. |
+| `PlantType` | The currently selected visual plant: `POTHOS`, `CACTUS`, `BONSAI`, `SUNFLOWER`, or `LOTUS`. It does not own separate progress. |
+| `WidgetState` | Functional widget state: `DEFAULT`, `REMINDER`, `FOCUSING`, `SESSION_RESULT`, or `HIDDEN`. |
+| `WidgetContext` | Time-of-day and optional WeatherContext used only for visual presentation. It remains independent from `WidgetState`. |
+| `WeatherContext` | Coarse presentation category: `CLEAR`, `CLOUDY`, `RAINY`, `STORMY`, `FOGGY`, `SNOWY`, or `UNKNOWN`. |
+| `WeatherSnapshot` | Cached current WeatherContext and freshness metadata, not a location-history trail. |
+| `PlanningSession` / `PlanningMessage` | Runtime/domain concepts for full-application planning chat. They do not require storing raw message text in PostgreSQL. The widget does not own a chat session. |
 
 ## Scheduling and recovery rules
 
@@ -24,7 +30,7 @@
 | BR-004 | The scheduler must use windows, fixed events, duration, priority, deadline, core/optional, fixed/flexible, dependencies, breaks, buffers, and splitting rules. |
 | BR-005 | Reality Check returns `COMFORTABLE`, `TIGHT`, or `OVERLOADED`. An overload explains the conflict and offers removing optional work, reducing scope/duration, keeping the core outcome, moving work, or choosing priority. |
 | BR-006 | Every manual or conversational time-affecting edit must be validated by deterministic scheduling code. |
-| BR-007 | The AI layer may extract/suggest/explain, but cannot authoritatively set timestamps, feasibility, conflicts, fixed events, reminder execution, plant state, Water Reserve, or database state. |
+| BR-007 | The AI layer may extract/suggest/explain, but cannot authoritatively set timestamps, feasibility, conflicts, fixed events, reminder execution, Heart Progress, GardenState, PlantType, WeatherContext, or database state. |
 | BR-008 | A re-plan may adjust only unfinished flexible future work and upcoming breaks. It preserves completed FocusRuns, actual history, fixed events, locked fixed-Task PlanBlocks, and the active session unless the user requests a change. |
 | BR-009 | Focus outcomes are exactly `DONE`, `FINISHED_EARLY`, `NEED_MORE_TIME`, and `SKIP`. |
 | BR-010 | `NEED_MORE_TIME` and `SKIP` create a recoverable remaining-work decision; they do not rewrite past execution. |
@@ -35,19 +41,19 @@
 |---|---|
 | BR-011 | A Milestone has expected outcome, deadline, order, status, and reminder configuration. Moving one warns about downstream milestones and offers an equal-day shift. |
 | BR-012 | The default reminder is 20:00 in the user's timezone, one day before the milestone deadline. |
-| BR-013 | Reminder actions are `CREATE_TOMORROWS_PLAN`, `MARK_COMPLETED`, `MOVE_MILESTONE`, and `REMIND_LATER`; tasks enter a Daily Plan only after user confirmation. |
-| BR-014 | Reminder delivery is idempotent per milestone, scheduled local date/time, channel, and action. The MVP channels are in-app and basic email. |
+| BR-013 | Milestone ReminderAction values are `CREATE_PLAN`, `MARK_COMPLETED`, `MOVE_MILESTONE`, and `REMIND_LATER`; tasks enter a Daily Plan only after user confirmation. Focus/task widget actions may include `START_FOCUS`, `REMIND_LATER`, and `OPEN_BLOOMING`; `START_FOCUS` and `OPEN_BLOOMING` are not Milestone ReminderAction values. |
+| BR-014 | Reminder persistence is idempotent per reminder occurrence and action. FastAPI stores definitions and state. Tauri evaluates synchronized due times locally. The MVP presents due reminders through the tray red-dot and the widget bubble. There is no OS toast, email, or push in the MVP. |
 
-## Plant and Rest Mode
+## Heart Progress, garden, widget, and weather
 
 | ID | Rule |
 |---|---|
-| BR-015 | There is one active plant. Growth stages are `SEED`, `SPROUT`, `YOUNG`, `MATURE`, `BLOOM`; health stages are `HEALTHY`, `DRY`, `WILTING`, `CRITICAL`, `DEAD`. |
-| BR-016 | Water Reserve is a countdown to the next worse health state. Only prolonged abandonment without meaningful activity or Rest Mode causes deterioration. |
-| BR-017 | Completing planned/recovery work, re-planning and continuing, an active-plan Mr. Bloom check-in, and enabling Rest Mode may be meaningful activity. Opening the application is not. |
-| BR-018 | A deadline passing, incomplete plan, longer task, actively re-planned skip, delayed recovering milestone, or active Rest Mode must not directly wilt the plant. |
-| BR-019 | Rest Mode pauses Water Reserve decay, plant growth, and wilting; it may have an expected return date. |
-| BR-020 | Death preserves all user data and dead-plant history, grants a new seed, does not reset the account, and does not impose streak punishment. |
+| BR-015 | There is one GardenState at a time. Growth stages are `DORMANT`, `SPROUTING`, `GROWING`, `BLOOMING`, and `FLOURISHING`. |
+| BR-016 | Heart Progress increases only for a valid completed focus session, task, core objective, milestone, or recovery plan. Opening Blooming grants no progress. The same completion cannot grant repeated rewards. |
+| BR-017 | Switching PlantType changes visual artwork only. Heart Progress, GardenState stage, and execution history are preserved. No inventory, shop, currency, or per-plant progression exists. |
+| BR-018 | Missing a task, taking longer, delaying a milestone, or re-planning does not erase Heart Progress or punish the user. Permanent plant death is outside the MVP. |
+| BR-019 | Time-of-day (`MORNING`, `AFTERNOON`, `EVENING`, `NIGHT`) and WeatherContext affect only visual presentation (widget ambience and garden ambient layers). They must not change scheduler decisions, task priority, reminder timing, Heart Progress, or planning logic. |
+| BR-020 | If weather-aware visuals are disabled, omit the weather overlay and use time-only WidgetContext; WeatherContext is not required to be `UNKNOWN`. If weather fetch is unavailable or invalid, WeatherContext may be `UNKNOWN` and presentation is time-only. `UNKNOWN` never affects scheduling, reminder timing, Heart Progress, or planning. Weather is cached coarsely; continuous GPS and location history are not stored. |
 
 ## Time and validation
 
