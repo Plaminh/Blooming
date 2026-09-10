@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "frontend",
+  "productName": "Blooming",
   "version": "0.1.0",
   "identifier": "com.plaminh.blooming",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "frontend",
+        "title": "Blooming",
         "width": 800,
         "height": 600
       }
