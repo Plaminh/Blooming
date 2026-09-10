@@ -1,7 +1,12 @@
+# Environment and secrets
 .env
+.env.*
+!.env.example
+!**/.env.example
 
 # Python
 .venv/
+venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -9,3 +14,35 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+*.egg-info/
+
+# Node / SvelteKit
+node_modules/
+.svelte-kit/
+.vite/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Tauri / Rust
+target/
+
+# Local database files and exports
+pgdata/
+postgres-data/
+*.dump
+*.backup
+*.sql.gz
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# Operating system
+.DS_Store
+Thumbs.db
+desktop.ini
