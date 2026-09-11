@@ -3,6 +3,10 @@ installed:
 settings:
   auto_execute_hooks: true
 hooks:
+  before_specify:
+  - extension: git
+    command: speckit.git.branch
+    enabled: false
   after_specify:
   - extension: agent-context
     command: speckit.agent-context.update
