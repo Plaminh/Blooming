@@ -1,50 +1,109 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: none -> 1.0.0
+- Modified principles:
+  - N/A (New Constitution)
+- Added sections:
+  - 1. Spec-driven development
+  - 2. Planning correctness and deterministic ownership
+  - 3. Clear architectural boundaries
+  - 4. Type safety and explicit contracts
+  - 5. Simple, maintainable implementation
+  - 6. Testable behavior and quality gates
+  - 7. Recoverable and accessible user experience
+  - 8. Resource efficiency and platform scope
+  - 9. Security and privacy
+  - 10. Controlled scope and change management
+- Removed sections: N/A
+- Templates requiring updates (⚠ pending / ✅ updated):
+  - .specify/templates/plan-template.md (✅ updated)
+  - .specify/templates/spec-template.md (✅ checked, no update needed)
+  - .specify/templates/tasks-template.md (✅ updated)
+- Follow-up TODOs: none
+-->
+# Blooming Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### 1. Spec-driven development
+- Every substantial feature must follow Specify → Clarify → Plan → Tasks → Analyze → Implement → Verify against the specification, plan, tasks, and acceptance scenarios.
+- Implementation must remain traceable to user stories and acceptance scenarios.
+- Product requirements must not be invented during implementation.
+- Small bug fixes may use a lighter workflow only when they do not change product behavior or architecture.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### 2. Planning correctness and deterministic ownership
+- Blooming’s primary purpose is realistic daily planning and recovery.
+- AI may interpret natural language, ask clarification, suggest, and explain.
+- AI output is untrusted and must be schema-validated.
+- Deterministic application code owns scheduling, conflicts, timestamps, reminders, focus state, rewards, persistence, and authorization.
+- The UI must never invent authoritative domain state. Explicit development fixtures and non-production mock flows are permitted when isolated from production integrations, clearly identified as examples, and incapable of being mistaken for persisted authoritative data.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### 3. Clear architectural boundaries
+- Desktop shell: Tauri 2 and Rust.
+- Desktop UI: SvelteKit, TypeScript, and Vite.
+- Backend: FastAPI, Python, and Pydantic.
+- Persistence: PostgreSQL and SQLAlchemy.
+- The backend remains a modular monolith unless evidence justifies another architecture.
+- The main application and desktop widget are separate presentation surfaces with shared typed concepts.
+- Frontend feature modules must not directly own backend business rules.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### 4. Type safety and explicit contracts
+- Avoid untyped data and implicit state transitions.
+- External input, AI output, API responses, and persisted data must be validated at their trust boundaries.
+- Canonical domain terms and enum values must be defined once and reused.
+- Planned values and actual execution values must remain distinct.
+- API contracts must be documented before frontend and backend integration.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### 5. Simple, maintainable implementation
+- Prefer the smallest design that satisfies the current specification.
+- Do not create speculative stores, services, repositories, abstractions, or dependencies.
+- Keep route files and controllers thin.
+- Organize code by cohesive feature and expose intentional public interfaces.
+- Reuse components only when genuine reuse exists.
+- Preserve existing user work and avoid unrelated rewrites.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### 6. Testable behavior and quality gates
+- Critical domain invariants require automated tests.
+- Frontend state transitions and recovery paths require component or integration tests.
+- Backend endpoints require authorization, validation, and ownership tests.
+- Desktop timer, reminder, sleep recovery, and window-lifecycle behavior require integration evidence when implemented.
+- Formatting, type checking, linting, and relevant automated tests must pass before a feature is considered complete.
+- A feature is not complete merely because it renders successfully.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### 7. Recoverable and accessible user experience
+- Critical screens must define loading, empty, validation, partial, failure, and recovery behavior.
+- User-entered data must be preserved after recoverable failures.
+- Completed history must not be silently rewritten.
+- Important status must not rely on color alone.
+- Core full-application flows must be keyboard operable.
+- Desktop messages must remain useful, dismissible, and non-intrusive.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### 8. Resource efficiency and platform scope
+- The MVP targets Windows and Linux desktop environments.
+- The widget must remain lightweight when the main application is closed.
+- Hidden animations must pause.
+- Timers and reminders must not poll the backend every second.
+- External data must use bounded, coarse refresh and caching where appropriate.
+- Mobile, web-only, macOS, local LLM inference, and unnecessary background services are outside the current platform scope unless introduced by a future approved specification.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### 9. Security and privacy
+- Provider secrets and API keys must exist only in backend-controlled configuration and must never be embedded in the frontend.
+- Authentication and authorization must be enforced by the backend.
+- Logs must not expose tokens, passwords, personal planning content, or provider secrets.
+- Store only the location precision required by the approved weather feature.
+- New external services require an explicit specification of data sent, failure behavior, and cost limits.
+
+### 10. Controlled scope and change management
+- The frozen product concept is the canonical source for product scope, but it may be revised through an explicit documented decision.
+- Specifications must reference canonical product decisions rather than duplicate conflicting versions.
+- Out-of-scope ideas must not enter implementation tasks silently.
+- Each feature branch must have one clear deliverable and verifiable completion criteria.
+- Do not commit, push, merge, delete, or rewrite unrelated work without explicit authorization.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- This constitution takes precedence over feature plans and task lists.
+- Any intentional violation must be documented in the feature plan with rationale, impact, and a simpler alternative considered.
+- Constitution changes require a reason, affected-artifact review, and semantic version update.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-09-11 | **Last Amended**: 2026-09-11

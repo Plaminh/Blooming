@@ -40,7 +40,15 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] Does the plan align with the Spec-driven development workflow?
+- [ ] Does the plan preserve the approved Tauri 2/Rust, SvelteKit/TypeScript/Vite, FastAPI/Python/Pydantic, and PostgreSQL/SQLAlchemy boundaries?
+- [ ] Does deterministic application code remain authoritative while AI output and external input are validated at trust boundaries?
+- [ ] Are explicit contracts and type safety boundaries defined?
+- [ ] Is the proposed implementation the simplest that satisfies the spec?
+- [ ] Are testable behavior and quality gates defined?
+- [ ] Does the UX handle loading, partial, and failure states gracefully?
+- [ ] Are resource efficiency and platform scope strictly followed?
+- [ ] Are security and privacy principles respected?
 
 ## Project Structure
 
