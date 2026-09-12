@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { WidgetView } from "$lib/features/widget";
+  import { CompanionWidget } from "$lib/features/companion-widget";
+  import { pausedFixture } from "$lib/features/companion-widget/fixtures";
 </script>
 
-<WidgetView />
+<CompanionWidget presentation={pausedFixture} />

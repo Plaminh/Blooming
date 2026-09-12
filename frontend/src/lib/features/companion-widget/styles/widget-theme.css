@@ -1,0 +1,74 @@
+/*
+ * Shared visual tokens only. State-specific geometry (panel, character, timer,
+ * and action placement) is set per kind from `model/layout.ts`.
+ */
+.companion-widget {
+  --widget-width: 680px;
+  --widget-height: 289px;
+  --widget-border: 3px;
+  --widget-radius: 4px;
+  --widget-stroke: 4px;
+  --widget-title-height: 54px;
+  --widget-navy: #0e3052;
+  --widget-title-bar: #387b99;
+  --widget-title-bar-edge: #63c5cf;
+  --widget-title: #d5e2e9;
+  --widget-cream: #faefd5;
+  --widget-cream-stroke: #173754;
+  --widget-primary: #489d58;
+  --widget-primary-stroke: #2a705a;
+  --widget-primary-label: #cee4d1;
+  --widget-heading: #213d59;
+  --widget-item: #445d73;
+  --widget-item-alt: #435c72;
+  --widget-bullet: #0e3052;
+  --widget-bullet-stroke: #708291;
+  --widget-font: "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+
+  box-sizing: border-box;
+  width: var(--widget-width);
+  height: var(--widget-height);
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  background: var(--widget-navy);
+  color: var(--widget-title);
+  font-family: var(--widget-font);
+  line-height: 1.2;
+  user-select: none;
+}
+
+.companion-widget::before {
+  content: "";
+  position: absolute;
+  inset: var(--widget-border);
+  z-index: 7;
+  pointer-events: none;
+  border: 1px solid var(--widget-title-bar-edge);
+}
+
+.companion-widget::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  border: var(--widget-border) solid var(--widget-navy);
+  border-radius: 3px;
+}
+
+.companion-widget *,
+.companion-widget *::before,
+.companion-widget *::after {
+  box-sizing: border-box;
+}
+
+.companion-widget img {
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+.companion-widget :focus-visible {
+  outline: 2px solid var(--widget-cream);
+  outline-offset: 2px;
+}
