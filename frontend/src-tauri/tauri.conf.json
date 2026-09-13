@@ -20,6 +20,20 @@
         "decorations": false,
         "transparent": false,
         "resizable": true
+      },
+      {
+        "label": "main",
+        "title": "Blooming",
+        "url": "/auth",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1000,
+        "minHeight": 700,
+        "center": true,
+        "visible": false,
+        "decorations": false,
+        "transparent": false,
+        "resizable": true
       }
     ],
     "security": {

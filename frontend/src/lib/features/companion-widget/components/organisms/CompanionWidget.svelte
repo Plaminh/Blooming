@@ -1,6 +1,10 @@
 <script lang="ts">
   import "../../styles/widget-theme.css";
   import type { CompanionWidgetProps } from "../../types/presentation";
+  import {
+    desktopWindowService,
+    type DesktopWindowService,
+  } from "$lib/platform/desktopWindow";
   import { actionsFor } from "../../model/actions";
   import { widgetLayoutStyle } from "../../model/layout";
   import WidgetSceneBackground from "../molecules/WidgetSceneBackground.svelte";
@@ -16,7 +20,30 @@
   import ReminderPanel from "../molecules/ReminderPanel.svelte";
   import ActionGroup from "../molecules/ActionGroup.svelte";
 
-  let { presentation }: CompanionWidgetProps = $props();
+  let {
+    presentation,
+    windowService = desktopWindowService,
+  }: CompanionWidgetProps & { windowService?: DesktopWindowService } = $props();
+
+  function openMainOnDoubleClick(node: HTMLElement) {
+    const handleDoubleClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest('button, input, a, header, [role="button"], [data-no-open-main]')
+      ) {
+        return;
+      }
+      void windowService.openMainWindow();
+    };
+
+    node.addEventListener('dblclick', handleDoubleClick);
+    return {
+      destroy() {
+        node.removeEventListener('dblclick', handleDoubleClick);
+      },
+    };
+  }
 
   let actions = $derived(actionsFor(presentation));
   let timeText = $derived(
@@ -30,12 +57,13 @@
 </script>
 
 <section
+  use:openMainOnDoubleClick
   class="companion-widget state-{presentation.kind}"
   aria-label="Blooming companion"
   style={widgetLayoutStyle(presentation.kind)}
 >
   <WidgetSceneBackground />
-  <WidgetTitleBar />
+  <WidgetTitleBar {windowService} />
 
   <div class="plant-slot">
     <PlantSprite plant={presentation.activePlant} />

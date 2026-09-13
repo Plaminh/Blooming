@@ -13,6 +13,19 @@ import {
 import type { CompanionWidgetPresentation } from "./types/presentation";
 import { WIDGET_SCENE } from "./model/atlas";
 import { WIDGET_LAYOUTS, MR_BLOOM_POSITION, PANEL_POSITION } from "./model/layout";
+import type { DesktopWindowService } from "$lib/platform/desktopWindow";
+
+function mockWindowService(): DesktopWindowService {
+  return {
+    openMainWindow: vi.fn().mockResolvedValue(undefined),
+    minimizeCurrent: vi.fn().mockResolvedValue(undefined),
+    toggleMaximizeCurrent: vi.fn().mockResolvedValue(false),
+    isCurrentMaximized: vi.fn().mockResolvedValue(false),
+    hideCurrent: vi.fn().mockResolvedValue(undefined),
+    closeCurrent: vi.fn().mockResolvedValue(undefined),
+    startDraggingCurrent: vi.fn().mockResolvedValue(undefined),
+  };
+}
 
 const fixtures: CompanionWidgetPresentation[] = [
   pausedFixture,
@@ -26,6 +39,32 @@ function follows(first: Element, second: Element): boolean {
 }
 
 describe("CompanionWidget", () => {
+  it("opens main exactly once for a genuine surface double-click, never a single click", async () => {
+    const user = userEvent.setup();
+    const windowService = mockWindowService();
+    const { container } = render(CompanionWidget, {
+      props: { presentation: pausedFixture, windowService },
+    });
+    const character = container.querySelector(".character-anchor") as HTMLElement;
+
+    await user.click(character);
+    expect(windowService.openMainWindow).not.toHaveBeenCalled();
+    await user.dblClick(character);
+    expect(windowService.openMainWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not open main when an interactive widget control is double-clicked", async () => {
+    const user = userEvent.setup();
+    const windowService = mockWindowService();
+    render(CompanionWidget, {
+      props: { presentation: pausedFixture, windowService },
+    });
+
+    await user.dblClick(screen.getByRole("button", { name: "RESUME" }));
+    await user.dblClick(screen.getByRole("button", { name: "Minimize" }));
+    expect(windowService.openMainWindow).not.toHaveBeenCalled();
+  });
+
   it("uses the supplied leaf PNG only as the decorative title logo", () => {
     const { container } = render(CompanionWidget, { props: { presentation: pausedFixture } });
     const logo = container.querySelector(".logo img") as HTMLImageElement;

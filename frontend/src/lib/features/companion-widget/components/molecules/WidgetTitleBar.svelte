@@ -1,49 +1,22 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import {
+    desktopWindowService,
+    type DesktopWindowService,
+  } from "$lib/platform/desktopWindow";
   import WindowControlButton from "../atoms/WindowControlButton.svelte";
 
-  type WindowHandle = {
-    minimize: () => Promise<void>;
-    toggleMaximize: () => Promise<void>;
-    close: () => Promise<void>;
-  };
-
-  let windowHandle: WindowHandle | null = $state(null);
-
-  onMount(() => {
-    let cancelled = false;
-    void import("@tauri-apps/api/window")
-      .then(({ getCurrentWindow }) => {
-        if (!cancelled) {
-          windowHandle = getCurrentWindow();
-        }
-      })
-      .catch(() => {
-        windowHandle = null;
-      });
-    return () => {
-      cancelled = true;
-    };
-  });
-
-  async function runWindowAction(action: keyof WindowHandle) {
-    try {
-      await windowHandle?.[action]();
-    } catch {
-      // Browser preview and unsupported host APIs intentionally no-op.
-    }
-  }
+  let { windowService = desktopWindowService }: { windowService?: DesktopWindowService } = $props();
 
   function minimize() {
-    void runWindowAction("minimize");
+    void windowService.minimizeCurrent();
   }
 
   function toggleMaximize() {
-    void runWindowAction("toggleMaximize");
+    void windowService.toggleMaximizeCurrent();
   }
 
   function closeWindow() {
-    void runWindowAction("close");
+    void windowService.closeCurrent();
   }
 </script>
 
