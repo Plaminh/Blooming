@@ -1,0 +1,115 @@
+:root {
+  --bloom-canvas: #f0e7d5;
+  --bloom-surface-cream: #fcf6e8;
+  --bloom-surface-cream-alt: #fbf3e3;
+  --bloom-surface-dark-cream: #f7eeda;
+  --bloom-border-subtle: #cac4b4;
+  --bloom-border-dark: #a9a18f;
+  --bloom-frame: #0e4f66;
+  --bloom-titlebar-bg: #3c8da5;
+  --bloom-titlebar-edge: #65bdc4;
+  --bloom-titlebar-text: #f3f6ec;
+  --bloom-primary-green: #66a46e;
+  --bloom-primary-green-border: #317053;
+  --bloom-primary-green-hover: #589763;
+  --bloom-text-dark-blue: #174b70;
+  --bloom-text-control-blue: #214966;
+  --bloom-text-muted-blue: #557685;
+  --bloom-radius: 4px;
+  --bloom-display-font: "Cascadia Mono", "Lucida Console", Consolas, monospace;
+  --bloom-body-font: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+.desktop-titlebar {
+  z-index: 10;
+  display: flex;
+  width: 100%;
+  height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 4px;
+  border-bottom: 2px solid var(--bloom-frame);
+  background: var(--bloom-titlebar-bg);
+  box-shadow: inset 0 2px 0 var(--bloom-titlebar-edge);
+  user-select: none;
+}
+
+.desktop-titlebar__brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+  pointer-events: none;
+}
+
+.desktop-titlebar__logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+.desktop-titlebar__title {
+  color: var(--bloom-titlebar-text);
+  font-family: var(--bloom-display-font);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-shadow: 1px 1px 0 #19566f;
+  transform: translateY(1px);
+}
+
+.desktop-titlebar__controls {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  gap: 7px;
+  padding-right: 13px;
+}
+
+.desktop-window-control {
+  display: grid;
+  width: 32px;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  place-items: center;
+  border: 2px solid #173754;
+  border-radius: 1px;
+  background: #faefd5;
+  box-shadow: inset 0 -2px 0 #d6cbb1;
+  color: #173754;
+  cursor: pointer;
+}
+
+.desktop-window-control:hover {
+  background: #fff9ea;
+}
+
+.desktop-window-control--close:hover {
+  background: #f3c8bd;
+}
+
+.desktop-window-control:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+}
+
+.desktop-window-control svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

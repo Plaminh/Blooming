@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  --color-bg: #f4f4f5;
+  --color-bg: var(--bloom-canvas);
   --color-surface: #ffffff;
   --color-text: #18181b;
   --color-muted: #52525b;
@@ -12,7 +12,7 @@
   --space-3: 0.75rem;
   --space-4: 1rem;
   --space-5: 1.5rem;
-  --font-sans: Inter, "Segoe UI", sans-serif;
+  --font-sans: var(--bloom-body-font);
 }
 
 *,
