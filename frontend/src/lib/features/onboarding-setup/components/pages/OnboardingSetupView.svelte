@@ -3,7 +3,7 @@
   import type { DesktopWindowService } from '$lib/platform/desktopWindow';
   import { desktopWindowService } from '$lib/platform/desktopWindow';
   import { OnboardingSetupState, type OnboardingSetupData } from '../../model/OnboardingSetupState.svelte';
-  import DesktopTitleBar from '../organisms/DesktopTitleBar.svelte';
+  import DesktopTitleBar from '$lib/shared/components/organisms/DesktopTitleBar.svelte';
   import OnboardingBrandPanel from '../organisms/OnboardingBrandPanel.svelte';
   import OnboardingSetupForm from '../organisms/OnboardingSetupForm.svelte';
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import DesktopTitleBar from '$lib/features/onboarding-setup/components/organisms/DesktopTitleBar.svelte';
+  import DesktopTitleBar from '$lib/shared/components/organisms/DesktopTitleBar.svelte';
   import AppSidebar from '$lib/shared/components/organisms/AppSidebar.svelte';
   import MyGoalsPanel from '$lib/features/goals/components/organisms/MyGoalsPanel.svelte';
   import GoalDetailsPanel from '$lib/features/goals/components/organisms/GoalDetailsPanel.svelte';
