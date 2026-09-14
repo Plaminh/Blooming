@@ -1,10 +1,10 @@
 <script lang="ts">
-  import TodayIcon from '../atoms/TodayIcon.svelte';
+  import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
   let { timeText, durationText }: { timeText: string; durationText: string } = $props();
 </script>
 
 <div class="next-session-content">
-  <TodayIcon name="event" scale={0.75} />
+  <AppIcon name="event" scale={0.75} />
   <div>
     <p>{timeText}</p>
     <span>{durationText}</span>

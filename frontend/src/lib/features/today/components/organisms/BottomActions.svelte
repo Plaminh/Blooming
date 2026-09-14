@@ -1,15 +1,15 @@
 <script lang="ts">
-  import TodayIcon from '../atoms/TodayIcon.svelte';
+  import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
   let { onEdit, onReplan }: { onEdit: () => void; onReplan: () => void } = $props();
 </script>
 
 <footer class="bottom-actions">
   <button class="action edit" onclick={onEdit}>
-    <TodayIcon name="pencil" scale={0.7} />
+    <AppIcon name="pencil" scale={0.7} />
     <span>EDIT MANUALLY</span>
   </button>
   <button class="action replan" onclick={onReplan}>
-    <TodayIcon name="replan" scale={0.7} />
+    <AppIcon name="replan" scale={0.7} />
     <span>REPLAN WITH MR. BLOOM</span>
   </button>
 </footer>

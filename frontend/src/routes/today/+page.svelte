@@ -1,8 +1,8 @@
 <script lang="ts">
   import DesktopTitleBar from '$lib/features/onboarding-setup/components/organisms/DesktopTitleBar.svelte';
+  import AppSidebar from '$lib/shared/components/organisms/AppSidebar.svelte';
   import BottomActions from '$lib/features/today/components/organisms/BottomActions.svelte';
   import RightRail from '$lib/features/today/components/organisms/RightRail.svelte';
-  import TodaySidebar from '$lib/features/today/components/organisms/TodaySidebar.svelte';
   import TodayTimeline from '$lib/features/today/components/organisms/TodayTimeline.svelte';
   import type { FocusPreset, Task } from '$lib/features/today/types';
 
@@ -76,7 +76,7 @@
   <div class="today-window">
     <DesktopTitleBar />
     <div class="today-content">
-      <TodaySidebar />
+      <AppSidebar activeRoute="TODAY" />
       <main class="today-main">
         <TodayTimeline
           {tasks}

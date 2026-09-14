@@ -1,15 +1,18 @@
 <script lang="ts">
   import PlantSprite from '$lib/features/companion-widget/components/atoms/PlantSprite.svelte';
-  import TodayIcon from '../atoms/TodayIcon.svelte';
+  import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
   import SidebarNavigationItem from '../molecules/SidebarNavigationItem.svelte';
+  import { goto } from '$app/navigation';
+
+  let { activeRoute = 'TODAY' }: { activeRoute?: string } = $props();
 </script>
 
 <div class="sidebar">
   <nav class="sidebar-nav" aria-label="Primary navigation">
-    <SidebarNavigationItem label="TODAY" icon="today" active />
-    <SidebarNavigationItem label="GOALS" icon="goals" />
-    <SidebarNavigationItem label="MR. BLOOM" icon="chat" />
-    <SidebarNavigationItem label="SETTINGS" icon="settings" />
+    <SidebarNavigationItem label="TODAY" icon="today" active={activeRoute === 'TODAY'} onClick={() => goto('/today')} />
+    <SidebarNavigationItem label="GOALS" icon="goals" active={activeRoute === 'GOALS'} onClick={() => goto('/goals')} />
+    <SidebarNavigationItem label="MR. BLOOM" icon="chat" active={activeRoute === 'MR. BLOOM'} />
+    <SidebarNavigationItem label="SETTINGS" icon="settings" active={activeRoute === 'SETTINGS'} />
   </nav>
 
   <div class="sidebar-bottom">
@@ -22,7 +25,7 @@
         <span>24</span>
       </div>
       <div class="counter">
-        <TodayIcon name="water" scale={0.72} label="Water" />
+        <AppIcon name="water" scale={0.72} label="Water" />
         <span>3</span>
       </div>
     </div>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Task } from '$lib/features/today/types';
-  import TodayIcon from '../atoms/TodayIcon.svelte';
+  import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
   import TaskStatusBadge from '../atoms/TaskStatusBadge.svelte';
 
   let { task, selected, onSelect }: { task: Task; selected: boolean; onSelect: (id: string) => void } = $props();
@@ -12,7 +12,7 @@
   onclick={() => onSelect(task.id)}
   aria-pressed={selected}
 >
-  <span class="task-icon"><TodayIcon name={task.iconRef} scale={0.88} /></span>
+  <span class="task-icon"><AppIcon name={task.iconRef} scale={0.88} /></span>
   <span class="task-copy">
     <strong>{task.title}</strong>
     <span>{task.startTime} – {task.endTime}</span>

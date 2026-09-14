@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { Task, FocusPreset } from '$lib/features/today/types';
-  import TodayIcon from '../atoms/TodayIcon.svelte';
+  import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
   import FocusPresetOption from '../atoms/FocusPresetOption.svelte';
   import NextSessionSummary from '../molecules/NextSessionSummary.svelte';
+  import GardenPanel from '$lib/shared/components/organisms/GardenPanel.svelte';
 
   let { task, nextTask, selectedFocusPreset, onPresetSelect, onStartFocus }: {
     task: Task | undefined;
@@ -28,7 +29,7 @@
     <div class="task-body">
       {#if task}
         <div class="task-summary">
-          <TodayIcon name={task.iconRef} scale={1.02} />
+          <AppIcon name={task.iconRef} scale={1.02} />
           <div>
             <h3>{task.title}</h3>
             <p class="task-time">{task.startTime} – {task.endTime} {task.durationString}</p>
@@ -37,12 +38,12 @@
         </div>
         <div class="divider"></div>
         <div class="meta-row">
-          <TodayIcon name="category" scale={0.72} />
+          <AppIcon name="category" scale={0.72} />
           <span class="meta-label">Category</span>
           <span class="category-badge">{task.category}</span>
         </div>
         <div class="meta-row notes-row">
-          <TodayIcon name="notes" scale={0.72} />
+          <AppIcon name="notes" scale={0.72} />
           <span class="meta-label">Notes</span>
           <span class="note-copy">{task.notes ?? 'No additional notes.'}</span>
         </div>
@@ -54,7 +55,7 @@
 
   <section class="panel next-session" aria-labelledby="next-session-heading">
     <header class="plain-header">
-      <TodayIcon name="calendar" scale={0.75} />
+      <AppIcon name="calendar" scale={0.75} />
       <h2 id="next-session-heading">NEXT SESSION</h2>
     </header>
     <NextSessionSummary
@@ -90,24 +91,7 @@
     </div>
   </section>
 
-  <section class="panel garden" aria-labelledby="garden-heading">
-    <header class="panel-strip">
-      <img src="/assets/widget/icons/leaf-icon.png" alt="" />
-      <h2 id="garden-heading">YOUR GARDEN</h2>
-    </header>
-    <div class="garden-scene" aria-hidden="true">
-      <img class="sky" src="/assets/widget/backgrounds/default-sky.png" alt="" />
-      <img class="bushes" src="/assets/widget/backgrounds/background-bushes.png" alt="" />
-      <span class="flower f1"></span><span class="flower f2"></span><span class="flower f3"></span>
-      <span class="flower f4"></span><span class="flower f5"></span><span class="flower f6"></span>
-      <span class="ground"></span>
-    </div>
-    <footer class="garden-footer">
-      <TodayIcon name="sprout" scale={0.72} />
-      <strong>UNLOCKED PLANTS</strong>
-      <span>1 / 5</span>
-    </footer>
-  </section>
+  <GardenPanel />
 </div>
 
 <style>
@@ -219,16 +203,6 @@
   .start-focus:disabled { opacity: 0.55; cursor: not-allowed; }
   .start-focus:focus-visible { outline: 2px solid #00aeea; outline-offset: 2px; }
   .play { width: 0; height: 0; border-top: 11px solid transparent; border-bottom: 11px solid transparent; border-left: 17px solid white; }
-  .garden { display: grid; grid-template-rows: 37px 1fr 55px; }
-  .garden-scene { position: relative; min-height: 0; overflow: hidden; border-bottom: 5px solid #bfb8a9; background: #6fcdf5; }
-  .garden-scene img { position: absolute; max-width: none; height: auto; image-rendering: pixelated; }
-  .sky { left: 0; bottom: -10px; width: 100%; }
-  .bushes { left: -50%; bottom: -69px; width: 200%; }
-  .ground { position: absolute; inset: auto 0 0; height: 10px; background: #f5d18a; border-top: 3px solid #196d54; }
-  .flower { position: absolute; bottom: 12px; width: 6px; height: 22px; background: #2a9561; }
-  .flower::before { content: ''; position: absolute; top: 0; left: -5px; width: 16px; height: 9px; background: #ff77a8; box-shadow: inset 5px 0 #ffd9a2, inset -5px 0 #ff8db8; }
-  .f1 { left: 16%; }.f2 { left: 31%; }.f3 { left: 47%; }.f4 { left: 62%; }.f5 { left: 78%; }.f6 { left: 91%; }
-  .garden-footer { display: flex; align-items: center; gap: 7px; padding: 0 12px; font-family: var(--bloom-body-font); font-size: 15px; color: #064798; }
-  .garden-footer span:last-child { margin-left: auto; }
+
   .empty-state { padding: 20px; font-family: var(--bloom-body-font); }
 </style>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import TodayIcon from '../atoms/TodayIcon.svelte';
+  import AppIcon from '../atoms/AppIcon.svelte';
 
   let {
     label,
@@ -15,7 +15,7 @@
 </script>
 
 <button class="nav-item" class:active onclick={onClick} aria-current={active ? 'page' : undefined}>
-  <TodayIcon name={icon} scale={0.82} />
+  <AppIcon name={icon} scale={0.82} />
   <span>{label}</span>
 </button>
 
