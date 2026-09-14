@@ -1,5 +1,5 @@
-<script lang="ts">
-  type IconName =
+<script lang="ts" module>
+  export type IconName =
     | 'today'
     | 'goals'
     | 'chat'
@@ -18,8 +18,21 @@
     | 'sprout'
     | 'user'
     | 'clock'
-    | 'bell';
+    | 'bell'
+    | 'send'
+    | 'edit'
+    | 'close'
+    | 'drag-indicator'
+    | 'rocket'
+    | 'chevron-right'
+    | 'local_cafe'
+    | 'directions_walk'
+    | 'check_circle'
+    | 'check'
+    | 'bug';
+</script>
 
+<script lang="ts">
   let { name, scale = 1, label }: { name: IconName; scale?: number; label?: string } = $props();
 
   // Map known icons to real assets. Unknown icons will not render a background image until assets are provided.
