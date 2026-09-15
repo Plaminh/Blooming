@@ -1,17 +1,19 @@
 <script lang="ts">
-  import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
+  import AppIcon, { type IconSize } from '$lib/shared/components/atoms/AppIcon.svelte';
 
   let { 
     label, 
     disabled = false, 
     variant = 'primary', 
     icon,
+    iconSize,
     onclick
   }: { 
     label: string; 
     disabled?: boolean; 
     variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; 
     icon?: 'play';
+    iconSize?: IconSize;
     onclick?: () => void;
   } = $props();
 </script>
@@ -21,7 +23,7 @@
   {disabled}
   {onclick}
 >
-  {#if icon}<AppIcon name={icon} scale={1.25} />{/if}
+  {#if icon}<AppIcon name={icon} size={iconSize} scale={1.25} />{/if}
   <span>{label}</span>
 </button>
 
@@ -31,17 +33,17 @@
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 70px;
-    gap: 14px;
+    height: 58px;
+    gap: 10px;
     border: 2px solid #9e9a8f;
     border-radius: 5px;
     cursor: pointer;
-    padding: 10px 16px;
+    padding: 8px 12px;
     font-family: var(--bloom-display-font);
-    font-size: 23px;
+    font-size: 19px;
     text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: -0.055em;
+    font-weight: var(--bloom-action-weight);
+    letter-spacing: var(--bloom-action-tracking);
     transition: background 0.15s ease;
   }
   
@@ -51,7 +53,7 @@
   }
   
   .primary {
-    background: linear-gradient(180deg, #58ad68 0%, #3e9755 100%);
+    background: var(--bloom-action-primary-bg);
     color: #ffffff;
     border-color: #227846;
   }

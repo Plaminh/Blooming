@@ -21,11 +21,11 @@
   .draft-milestone-summary {
     display: flex;
     width: 100%;
-    height: 84px;
+    height: 64px;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 9px 10px 9px 20px;
+    gap: 8px;
+    padding: 7px 9px 7px 12px;
     border: 2px solid #d1cabd;
     border-radius: 5px;
     background: #fffaf0;
@@ -35,32 +35,32 @@
     display: flex;
     min-width: 0;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 
   .milestone-copy strong {
     overflow: hidden;
     color: #06459a;
     font-family: var(--bloom-body-font);
-    font-size: 23px;
+    font-size: 17px;
     font-weight: 600;
     line-height: 1.1;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .milestone-copy :global(.target-date) { font-size: 18px; }
+  .milestone-copy :global(.target-date) { font-size: 14px; }
 
   .milestone-actions {
     display: flex;
     flex: 0 0 auto;
-    gap: 8px;
+    gap: 6px;
   }
 
   button {
     display: grid;
-    width: 54px;
-    height: 54px;
+    width: 42px;
+    height: 42px;
     padding: 0;
     place-items: center;
     border: 2px solid #c4c2b8;

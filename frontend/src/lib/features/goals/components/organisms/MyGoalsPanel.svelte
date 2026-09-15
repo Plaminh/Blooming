@@ -38,7 +38,7 @@
     overflow: hidden;
   }
   .panel-body {
-    padding: 12px 13px;
+    padding: 10px;
     flex: 1;
     overflow-y: auto;
   }
@@ -47,13 +47,13 @@
   }
   .btn-create {
     width: 100%;
-    background: linear-gradient(#4bad6a, #269553);
+    background: var(--bloom-action-primary-bg);
     border: 1px solid #1a7847;
     border-radius: 5px;
     color: white;
-    height: 55px;
+    height: 46px;
     font-family: var(--bloom-display-font);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 800;
     letter-spacing: -0.05em;
     padding: 0 12px;
@@ -62,11 +62,11 @@
     justify-content: center;
     gap: 11px;
     cursor: pointer;
-    margin-bottom: 13px;
+    margin-bottom: 8px;
   }
   .icon-plus {
     font-family: var(--bloom-body-font);
-    font-size: 34px;
+    font-size: 29px;
     font-weight: 300;
     line-height: 1;
   }

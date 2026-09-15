@@ -25,7 +25,7 @@
     place-items: center;
     border: 1px solid #aaa79f;
     border-radius: 5px;
-    background: linear-gradient(#fffdf7, #f3eee2);
+    background: var(--bloom-action-secondary-bg);
     box-shadow: inset 0 -1px 0 #d4cec0;
     color: #064a9c;
     cursor: pointer;

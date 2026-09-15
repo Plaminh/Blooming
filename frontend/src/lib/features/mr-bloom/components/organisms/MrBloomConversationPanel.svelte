@@ -25,7 +25,7 @@
     {#if $mrBloomStore.isWaitingForResponse}
       <div class="loading-container">
         <div class="avatar-container">
-          <ChatAvatar />
+          <ChatAvatar thinking />
         </div>
         <div class="bubble">
           <LoadingDots />
@@ -43,7 +43,7 @@
           onclick={() => handleSuggestion("Plan my day. I have 6 hours.")}
         />
         <PromptSuggestion 
-          icon="sprout"
+          icon="goals"
           title="CREATE A LONG-TERM GOAL"
           description="Build a clear roadmap with milestones."
           onclick={() => handleSuggestion("I want to complete the MVP by June 30")}
@@ -70,23 +70,23 @@
 
   .panel-header {
     flex: 0 0 auto;
-    padding: 15px 21px 0;
+    padding: 12px 18px 0;
   }
   
   .messages-container {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 11px 18px 16px;
+    padding: 8px 14px 12px;
     display: flex;
     flex-direction: column;
   }
   
   .suggestions {
-    margin-top: 19px;
+    margin-top: 12px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 9px;
   }
   
   .composer-container {
@@ -95,8 +95,8 @@
   
   .loading-container {
     display: flex;
-    gap: 18px;
-    margin-bottom: 24px;
+    gap: 12px;
+    margin-bottom: 16px;
     width: 100%;
   }
   
@@ -105,7 +105,7 @@
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    width: 148px;
+    width: var(--bloom-chat-avatar-slot);
     flex-shrink: 0;
   }
   

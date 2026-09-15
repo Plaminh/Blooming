@@ -54,7 +54,10 @@
 
   button {
     font-family: var(--bloom-display-font);
-    font-size: 16px;
+    font-size: 19px;
+    font-weight: var(--bloom-action-weight);
+    letter-spacing: var(--bloom-action-tracking);
+    line-height: 1.25;
     padding: 10px 24px;
     border-radius: 4px;
     cursor: pointer;

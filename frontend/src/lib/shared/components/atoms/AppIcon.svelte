@@ -1,4 +1,6 @@
 <script lang="ts" module>
+  export type IconSize = 'navigation' | 'task-type' | 'detail' | 'roadmap-milestone' | 'goal-list' | 'goal-detail' | 'control' | 'garden-balance' | 'garden-cost' | 'counter-water';
+
   export type IconName =
     | 'today'
     | 'goals'
@@ -34,38 +36,62 @@
 </script>
 
 <script lang="ts">
-  let { name, scale = 1, label }: { name: IconName; scale?: number; label?: string } = $props();
+  let { name, size, scale = 1, label }: {
+    name: IconName;
+    size?: IconSize;
+    scale?: number;
+    label?: string;
+  } = $props();
+
+  // Semantic sizes take precedence; legacy scales keep other assets unchanged.
+  const iconSizes: Record<IconSize, string> = {
+    navigation: 'var(--bloom-icon-navigation)',
+    'task-type': 'var(--bloom-icon-task-type)',
+    detail: 'var(--bloom-icon-detail)',
+    'roadmap-milestone': 'var(--bloom-icon-roadmap-milestone)',
+    'goal-list': 'var(--bloom-icon-goal-list)',
+    'goal-detail': 'var(--bloom-icon-goal-detail)',
+    control: 'var(--bloom-icon-control)',
+    'garden-balance': 'var(--bloom-icon-garden-balance)',
+    'garden-cost': 'var(--bloom-icon-garden-cost)',
+    'counter-water': 'var(--bloom-icon-counter-water)'
+  };
 
   // Map known icons to real assets. Unknown icons will not render a background image until assets are provided.
   const iconAssets: Partial<Record<IconName, string>> = {
-    goals: '/assets/widget/icons/leaf-icon.png',
-    sprout: '/assets/widget/icons/leaf-icon.png'
+    sprout: '/assets/icons/leaf-icon.png',
+    water: '/assets/icons/water-icon.png'
   };
 
   const src = $derived(iconAssets[name]);
   
   // Base size fallback if no intrinsic size from image
   const defaultSize = 24;
+  const renderedSize = $derived(size ? iconSizes[size] : `${defaultSize * scale}px`);
 </script>
 
 {#if src}
   <img 
     class="app-icon" 
+    data-icon={name}
+    data-icon-size={size}
     {src} 
     alt={label || ""} 
     aria-hidden={!label} 
-    style:width="{defaultSize * scale}px" 
+    style:width={renderedSize}
     style:height="auto" 
   />
 {:else}
   <svg
     class="app-icon fallback-svg"
+    data-icon={name}
+    data-icon-size={size}
     viewBox="0 0 24 24"
     role={label ? 'img' : undefined}
     aria-label={label}
     aria-hidden={!label}
-    style:width="{defaultSize * scale}px"
-    style:height="{defaultSize * scale}px"
+    style:width={renderedSize}
+    style:height={renderedSize}
     fill="currentColor"
   >
     {#if name === 'settings'}
@@ -80,26 +106,19 @@
     {:else if name === 'bell'}
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
       <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-    {:else if name === 'water'}
-      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="#48c8f4"></path>
-    {:else if name === 'today'}
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-      <line x1="16" y1="2" x2="16" y2="6"></line>
-      <line x1="8" y1="2" x2="8" y2="6"></line>
-      <line x1="3" y1="10" x2="21" y2="10"></line>
+    {:else if name === 'today' || name === 'calendar' || name === 'event'}
+      <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+      <path d="M8 3v4m8-4v4M3 10h18"></path>
+      <path d="M7 14h1m3 0h1m3 0h1M7 17h1m3 0h1m3 0h1"></path>
     {:else if name === 'goals'}
-      <circle cx="12" cy="12" r="10"></circle>
-      <circle cx="12" cy="12" r="6"></circle>
-      <circle cx="12" cy="12" r="2"></circle>
+      <path d="M6 21V3" stroke="currentColor"></path>
+      <path d="M6 4h12l-2.7 4L18 12H6Z" stroke="currentColor"></path>
+      <path d="M3.5 21h5" stroke="currentColor"></path>
     {:else if name === 'chat'}
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
       <circle cx="8" cy="10" r="1" fill="currentColor" stroke="none"></circle>
       <circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"></circle>
       <circle cx="16" cy="10" r="1" fill="currentColor" stroke="none"></circle>
-    {:else if name === 'calendar'}
-      <path d="M4 5h16a2 2 0 0 1 2 2v14H2V7a2 2 0 0 1 2-2Z" fill="currentColor" stroke="none"></path>
-      <path d="M7 3v5m10-5v5" stroke-width="2.5"></path>
-      <path d="M5 10h14v2H5zm1 4h3v2H6zm5 0h3v2h-3zm5 0h2v2h-2zM6 18h3v2H6zm5 0h3v2h-3z" fill="#e6f6ff" stroke="none"></path>
     {:else if name === 'send'}
       <path d="M3 11.5 21 3l-6.7 18-3.2-7.1L3 11.5Z" fill="currentColor" stroke="none"></path>
       <path d="m11.1 13.9 4.6-5"></path>

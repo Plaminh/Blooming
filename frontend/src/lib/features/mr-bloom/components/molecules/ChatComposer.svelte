@@ -41,6 +41,7 @@
     label="Send" 
     variant="primary" 
     size="large"
+    iconSize="detail"
     disabled={disabled || value.trim().length === 0}
     onclick={handleSubmit} 
   />
@@ -52,7 +53,7 @@
     gap: 10px;
     align-items: center;
     width: 100%;
-    padding: 14px 15px 28px 16px;
+    padding: 10px 14px 18px;
     background: transparent;
   }
 </style>

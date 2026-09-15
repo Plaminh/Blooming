@@ -27,8 +27,8 @@
 <style>
   .chat-message {
     display: flex;
-    gap: 18px;
-    margin-bottom: 12px;
+    gap: 12px;
+    margin-bottom: 8px;
     width: 100%;
   }
   
@@ -41,7 +41,7 @@
     flex-direction: column;
     align-items: center;
     gap: 1px;
-    width: 148px;
+    width: var(--bloom-chat-avatar-slot);
     flex-shrink: 0;
   }
   
@@ -49,14 +49,14 @@
     font-family: var(--bloom-body-font);
     font-weight: 700;
     color: #064798;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 500;
     line-height: 1.2;
     text-align: center;
   }
 
   .initial .name {
-    margin-top: 10px;
+    margin-top: 6px;
   }
   
   .time {
@@ -68,10 +68,10 @@
   .bubble {
     background: #f1f9ff;
     border: 2px solid #91c9ee;
-    padding: 20px 22px;
+    padding: 14px 16px;
     border-radius: 7px;
     font-family: var(--bloom-body-font);
-    font-size: 23px;
+    font-size: 18px;
     color: #071f66;
     line-height: 1.4;
     position: relative;
@@ -85,7 +85,7 @@
   .assistant .bubble::before {
     content: '';
     position: absolute;
-    top: 62px;
+    top: 31px;
     left: -19px;
     width: 0;
     height: 0;
@@ -96,7 +96,7 @@
   .assistant .bubble::after {
     content: '';
     position: absolute;
-    top: 60px;
+    top: 29px;
     left: -14px;
     width: 0;
     height: 0;
@@ -105,10 +105,10 @@
   }
 
   .assistant.initial .bubble {
-    width: 389px;
-    height: 86px;
-    min-height: 86px;
-    margin-top: 35px;
+    width: 360px;
+    height: 72px;
+    min-height: 72px;
+    margin-top: 8px;
     padding-block: 0;
     box-sizing: border-box;
     display: flex;
@@ -120,7 +120,7 @@
     border-color: #a9e0f5;
     border-bottom-right-radius: 0;
     position: relative;
-    padding-bottom: 24px; /* Space for time */
+    padding-bottom: 20px; /* Space for time */
   }
   
   .user .bubble::before {

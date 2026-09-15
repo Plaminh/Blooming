@@ -9,6 +9,7 @@
   let {
     activeRoute = 'TODAY',
     variant = 'standard',
+    artworkVariant = variant,
     showSidebar = true,
     canvasWidth = 'var(--bloom-app-canvas-width)',
     canvasHeight = 'var(--bloom-app-canvas-height)',
@@ -19,6 +20,7 @@
   }: {
     activeRoute?: 'TODAY' | 'GOALS' | 'MR. BLOOM' | 'SETTINGS';
     variant?: 'standard' | 'compact';
+    artworkVariant?: 'standard' | 'compact';
     showSidebar?: boolean;
     canvasWidth?: string;
     canvasHeight?: string;
@@ -31,7 +33,7 @@
 
 <FixedCanvas width={canvasWidth} height={canvasHeight} label="Blooming desktop window">
   <div class="desktop-shell desktop-shell--{variant}" class:without-sidebar={!showSidebar}>
-    <DesktopTitleBar {variant} {windowService} onAction={onTitleBarAction} />
+    <DesktopTitleBar {variant} {artworkVariant} {windowService} onAction={onTitleBarAction} />
     <div class="desktop-shell__body">
       {#if showSidebar}
         <AppSidebar {activeRoute} />
@@ -76,44 +78,6 @@
 
   .desktop-shell--compact .desktop-shell__body {
     grid-template-columns: var(--bloom-sidebar-compact-width) minmax(0, 1fr);
-  }
-
-  .desktop-shell--compact :global(.sidebar) {
-    padding-top: 45px;
-    background: #f4faf6;
-  }
-
-  .desktop-shell--compact :global(.sidebar-nav) {
-    gap: 8px;
-  }
-
-  .desktop-shell--compact :global(.nav-item) {
-    gap: 10px;
-    padding-right: 5px;
-    padding-left: 5px;
-    font-size: 16px;
-    min-height: 56px;
-  }
-
-  .desktop-shell--compact :global(.nav-item .app-icon) {
-    width: 35px !important;
-    height: 35px !important;
-  }
-
-  .desktop-shell--compact :global(.nav-item img.app-icon) {
-    transform: scale(1.5);
-  }
-
-  .desktop-shell--compact :global(.plant-container .plant) {
-    transform: translateY(8px) scale(1.67);
-  }
-
-  .desktop-shell--compact :global(.plant-container) {
-    transform: translateX(1px);
-  }
-
-  .desktop-shell--compact :global(.counters) {
-    transform: translateX(-5px);
   }
 
   .desktop-shell.without-sidebar .desktop-shell__body {

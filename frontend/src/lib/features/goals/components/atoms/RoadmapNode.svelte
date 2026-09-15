@@ -34,15 +34,15 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 55px;
-    height: calc(100% + 21px);
+    width: 48px;
+    height: calc(100% + 8px);
   }
   .roadmap-node-container.last { height: 100%; }
   .roadmap-node-container.draft { height: 100%; }
   .node {
-    width: 55px;
-    height: 55px;
-    flex: 0 0 55px;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
     border: 1px solid #2e7c54;
     border-radius: 50%;
     display: flex;
@@ -50,7 +50,7 @@
     justify-content: center;
     color: white;
     font-family: var(--bloom-body-font);
-    font-size: 25px;
+    font-size: 21px;
     font-weight: 700;
     z-index: 2;
   }
@@ -65,15 +65,9 @@
     border-color: #697f86;
   }
   .connector {
-    width: 5px;
+    width: 4px;
     flex: 1;
     min-height: 20px;
-  }
-  .connector.node-completed {
-    background: linear-gradient(#469a61, #41965e);
-  }
-  .connector.node-in-progress {
-    background: linear-gradient(#41965e, #90a5aa);
   }
   .connector.node-not-started {
     background: #90a5aa;

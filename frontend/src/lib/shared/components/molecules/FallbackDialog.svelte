@@ -43,7 +43,7 @@
     overflow: hidden;
   }
   header {
-    background: linear-gradient(#3998ad, #24859f);
+    background: var(--bloom-titlebar-bg);
     padding: 12px 16px;
     display: flex;
     justify-content: space-between;
@@ -83,7 +83,7 @@
     background: #f7f6ed;
   }
   .btn-primary {
-    background: linear-gradient(#4bad6a, #269553);
+    background: var(--bloom-action-primary-bg);
     border: 1px solid #1a7847;
     border-radius: 5px;
     color: white;

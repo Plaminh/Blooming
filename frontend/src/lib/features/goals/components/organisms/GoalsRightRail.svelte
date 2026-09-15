@@ -45,51 +45,34 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    gap: 14px;
+    gap: 10px;
   }
   .panels-group {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
   }
   .bottom-section {
     margin-top: auto;
-    height: 309px;
-    margin-bottom: 24px;
+    height: 270px;
+    margin-bottom: 8px;
   }
 
   .bottom-section :global(.garden) {
     height: 100%;
-    grid-template-rows: 43px 1fr 67px;
+    grid-template-rows: 39px 1fr 58px;
   }
 
   .bottom-section :global(.garden .panel-strip) {
-    height: 43px;
+    height: 39px;
   }
 
   .bottom-section :global(.garden .garden-footer) {
-    font-size: 18px;
+    font-size: 16px;
   }
 
-  .bottom-section :global(.garden .panel-strip img) {
-    transform: scale(1.7);
-  }
-
-  .bottom-section :global(.garden .sky) {
-    bottom: 22px;
-  }
-
-  .bottom-section :global(.garden .bushes) {
-    left: -100%;
-    bottom: -69px;
-    width: 300%;
-  }
-
-  .bottom-section :global(.garden .ground) {
-    height: 24px;
-    background:
-      repeating-linear-gradient(90deg, rgba(96, 107, 105, 0.2) 0 2px, transparent 2px 32px),
-      repeating-linear-gradient(90deg, #dad7cc 0 24px, #eee9dc 24px 48px);
+  .bottom-section :global(.garden .garden-scene) {
+    --garden-bush-scale: 3;
   }
 
   .bottom-section :global(.garden .flower) {
@@ -113,12 +96,7 @@
     background: inherit;
   }
 
-  .bottom-section :global(.garden .garden-footer img.app-icon) {
-    width: 50px !important;
-    transform: scale(1.5);
-  }
-
   .bottom-section :global(.garden .garden-footer span:last-child) {
-    font-size: 20px;
+    font-size: 18px;
   }
 </style>

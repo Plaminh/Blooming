@@ -18,7 +18,7 @@
     gap: 6px;
     color: #0c61a1;
     font-family: var(--bloom-body-font);
-    font-size: 17px;
+    font-size: 14px;
     white-space: nowrap;
   }
 </style>

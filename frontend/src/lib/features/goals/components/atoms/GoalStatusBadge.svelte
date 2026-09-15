@@ -21,11 +21,11 @@
   .badge {
     display: inline-flex;
     align-items: center;
-    min-height: 39px;
-    padding: 4px 14px;
+    min-height: 30px;
+    padding: 3px 10px;
     border-radius: 4px;
     font-family: var(--bloom-body-font);
-    font-size: 17px;
+    font-size: 14px;
     font-weight: 500;
   }
   .status-completed {

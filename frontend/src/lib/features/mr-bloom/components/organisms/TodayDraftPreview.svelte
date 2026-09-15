@@ -17,7 +17,7 @@
 
     <div class="content">
       <div class="availability-bar">
-        <span class="availability-icon"><AppIcon name="calendar" scale={1.75} /></span>
+        <span class="availability-icon"><AppIcon name="calendar" size="detail" /></span>
         <span>Available · {draft.availability.start} – {draft.availability.end} · {draft.availability.totalHours} hours</span>
       </div>
 
@@ -36,6 +36,7 @@
 
     <DraftReviewActionBar
       primaryLabel="GENERATE TIMELINE"
+      iconSize="control"
       onPrimary={() => mrBloomStore.generateTimeline()}
     />
   {/if}
@@ -56,31 +57,31 @@
     min-height: 0;
     flex: 1;
     flex-direction: column;
-    gap: 18px;
-    padding: 15px 14px 0 16px;
+    gap: 10px;
+    padding: 10px 12px 0;
     overflow-y: auto;
   }
 
   .availability-bar {
     display: flex;
-    min-height: 62px;
-    flex: 0 0 62px;
+    min-height: 50px;
+    flex: 0 0 50px;
     align-items: center;
-    gap: 18px;
-    padding: 8px 17px;
+    gap: 12px;
+    padding: 6px 12px;
     border: 2px solid #70c7ed;
     border-radius: 5px;
-    background: linear-gradient(90deg, #e4f6ff, #d8f1fd);
+    background: var(--bloom-task-active-bg);
     color: #064b91;
     font-family: var(--bloom-body-font);
-    font-size: 21px;
+    font-size: 16px;
   }
 
   .availability-icon {
     display: grid;
-    width: 44px;
-    height: 44px;
-    flex: 0 0 44px;
+    width: var(--bloom-icon-detail);
+    height: var(--bloom-icon-detail);
+    flex: 0 0 var(--bloom-icon-detail);
     place-items: center;
     color: #0b506e;
   }
@@ -88,23 +89,23 @@
   .tasks-list {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 8px;
   }
 
   .add-task-btn {
     display: flex;
-    width: 212px;
-    height: 64px;
-    flex: 0 0 64px;
+    width: 184px;
+    height: 48px;
+    flex: 0 0 48px;
     align-items: center;
-    gap: 18px;
-    padding: 0 24px;
+    gap: 12px;
+    padding: 0 18px;
     border: 2px solid #9e9a8f;
     border-radius: 5px;
     background: #fffaf0;
     color: #064b91;
     font-family: var(--bloom-display-font);
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 800;
     letter-spacing: -0.055em;
     cursor: pointer;
@@ -112,7 +113,8 @@
 
   .add-task-btn span {
     font-family: var(--bloom-body-font);
-    font-size: 39px;
+    font-size: var(--bloom-icon-control);
+    line-height: 1;
     font-weight: 300;
   }
 

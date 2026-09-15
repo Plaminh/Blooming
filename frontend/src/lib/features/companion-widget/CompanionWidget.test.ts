@@ -69,7 +69,7 @@ describe("CompanionWidget", () => {
     const { container } = render(CompanionWidget, { props: { presentation: pausedFixture } });
     const logo = container.querySelector(".logo img") as HTMLImageElement;
 
-    expect(logo).toHaveAttribute("src", "/assets/widget/icons/leaf-icon.png");
+    expect(logo).toHaveAttribute("src", "/assets/icons/leaf-icon.png");
     expect(logo).toHaveAttribute("alt", "");
     expect(container.querySelector(".leaf-balance")).not.toBeInTheDocument();
     expect(container.textContent).not.toContain("125");

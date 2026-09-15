@@ -24,7 +24,7 @@
   <div class="drag" data-tauri-drag-region>
     <span class="logo" data-tauri-drag-region>
       <img
-        src="/assets/widget/icons/leaf-icon.png"
+        src="/assets/icons/leaf-icon.png"
         alt=""
         width="40"
         height="40"
@@ -79,6 +79,7 @@
     display: block;
     width: 40px;
     height: 40px;
+    padding: 8px;
     object-fit: contain;
     image-rendering: crisp-edges;
     image-rendering: pixelated;

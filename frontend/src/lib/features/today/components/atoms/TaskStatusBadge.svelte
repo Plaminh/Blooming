@@ -9,12 +9,12 @@
 <style>
   .badge {
     display: grid;
-    min-width: 131px;
-    height: 42px;
+    min-width: 112px;
+    height: 34px;
     place-items: center;
     border-radius: 5px;
     font-family: var(--bloom-body-font);
-    font-size: 17px;
+    font-size: 14px;
     font-weight: 500;
     white-space: nowrap;
   }

@@ -21,11 +21,11 @@
     </div>
     <div class="counters" aria-label="Garden currency">
       <div class="counter">
-        <img class="leaf-counter" src="/assets/widget/icons/leaf-icon.png" alt="Leaves" />
+        <img class="leaf-counter" src="/assets/icons/leaf-icon.png" alt="Leaves" />
         <span>24</span>
       </div>
       <div class="counter">
-        <AppIcon name="water" scale={1.25} label="Water" />
+        <span class="water-counter"><AppIcon name="water" size="counter-water" label="Water" /></span>
         <span>3</span>
       </div>
     </div>
@@ -39,15 +39,15 @@
     height: 100%;
     flex-direction: column;
     justify-content: space-between;
-    padding: 25px 9px 0;
+    padding: 45px 9px 0;
     border-right: 1px solid #cfc9b9;
-    background: rgba(255, 251, 240, 0.35);
+    background: #f4faf6;
   }
 
   .sidebar-nav {
     display: flex;
     flex-direction: column;
-    gap: 13px;
+    gap: 8px;
   }
 
   .sidebar-bottom {
@@ -63,11 +63,11 @@
     height: 188px;
     place-items: end center;
     margin-bottom: 6px;
-    transform: translateX(-8px);
+    transform: translateX(1px);
   }
 
   .plant-container :global(.plant) {
-    transform: scale(1.5);
+    transform: scale(var(--bloom-sidebar-plant-scale));
     transform-origin: bottom center;
   }
 
@@ -75,7 +75,7 @@
     display: flex;
     align-items: center;
     gap: 19px;
-    transform: translateX(-8px);
+    transform: translateX(-5px);
   }
 
   .counter {
@@ -91,7 +91,16 @@
   .leaf-counter {
     width: 44px;
     height: 50px;
+    padding: 8px;
     object-fit: contain;
     image-rendering: pixelated;
+  }
+  .water-counter {
+    display: flex;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    align-items: center;
+    justify-content: center;
   }
 </style>

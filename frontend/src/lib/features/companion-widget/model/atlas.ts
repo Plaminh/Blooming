@@ -16,6 +16,19 @@ export type AtlasCell = {
   row: number;
 };
 
+export const MR_BLOOM_CHAT_ANIMATIONS = {
+  idle: {
+    row: 0,
+    frames: [{ col: 2, durationMs: 3000 }, { col: 1, durationMs: 140 }],
+  },
+  thinking: {
+    row: 2,
+    frames: [0, 1, 2, 3].map((col) => ({ col, durationMs: 250 })),
+  },
+} as const;
+
+export type MrBloomChatAnimation = keyof typeof MR_BLOOM_CHAT_ANIMATIONS;
+
 /**
  * Confirmed by inspecting the 4 × 8 sheet, top-left origin, zero-based rows:
  * row 3 waiting/thinking, row 4 alert/waving, row 6 worried/sad, row 7 sleeping.

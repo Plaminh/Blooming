@@ -100,6 +100,7 @@
       secondaryLabel="BACK TO TASKS"
       onSecondary={() => mrBloomStore.backToTasks()}
       primaryLabel="SAVE TO TODAY"
+      iconSize="control"
       onPrimary={() => mrBloomStore.acceptDraft("Excellent. I've locked in your schedule for today.")}
       balanced
     />
@@ -119,11 +120,14 @@
   .content {
     min-height: 0;
     flex: 1;
-    padding: 16px 19px 0 4px;
+    padding: 10px 40px 0 14px;
     overflow-y: auto;
   }
 
   .timeline-container {
+    --timeline-hour-column-width: 88px;
+    --timeline-hour-label-width: 48px;
+    --timeline-marker-offset: 61px;
     position: relative;
     display: flex;
     min-width: 0;
@@ -133,8 +137,8 @@
   .timeline-rail {
     position: absolute;
     top: 37px;
-    bottom: 117px;
-    left: 91px;
+    bottom: 95px;
+    left: calc(var(--timeline-marker-offset) + 4px);
     z-index: 0;
     width: 4px;
     border-radius: 2px;
@@ -143,38 +147,33 @@
 
   .timeline-row {
     position: relative;
-    min-height: 75px;
-    margin-bottom: 11px;
+    min-height: 61px;
+    margin-bottom: 7px;
   }
-
-  .timeline-row:nth-child(3) { margin-bottom: 12px; }
-  .timeline-row:nth-child(4),
-  .timeline-row:nth-child(5) { margin-bottom: 15px; }
-  .timeline-row:nth-child(6) { margin-bottom: 14px; }
 
   .timeline-row:last-child { margin-bottom: 0; }
 
   .timeline-row:last-child::before {
     content: '';
     position: absolute;
-    top: -49px;
-    bottom: 37px;
-    left: 91px;
+    top: -39px;
+    bottom: 30px;
+    left: calc(var(--timeline-marker-offset) + 4px);
     width: 4px;
     background: repeating-linear-gradient(to bottom, #9caab1 0 8px, transparent 8px 15px);
   }
 
   .time-anchor {
     position: absolute;
-    top: 25px;
+    top: 18px;
     left: 0;
     z-index: 2;
-    width: 112px;
+    width: var(--timeline-hour-column-width);
     height: 24px;
   }
 
   .card-column {
     min-width: 0;
-    margin-left: 124px;
+    margin-left: var(--timeline-hour-column-width);
   }
 </style>

@@ -16,7 +16,7 @@
   <title>Settings - Blooming</title>
 </svelte:head>
 
-<DesktopAppShell activeRoute="SETTINGS" variant="standard">
+<DesktopAppShell activeRoute="SETTINGS" variant="compact">
   <main class="settings-main" aria-label="Settings content">
     <div class="settings-scroll-container">
       <div class="settings-inner">

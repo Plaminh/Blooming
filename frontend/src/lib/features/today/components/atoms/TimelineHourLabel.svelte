@@ -20,16 +20,16 @@
     position: absolute;
     left: 0;
     display: flex;
-    width: 112px;
+    width: var(--timeline-hour-column-width, 112px);
     height: 24px;
     align-items: center;
   }
 
   .time-label {
-    width: 72px;
+    width: var(--timeline-hour-label-width, 72px);
     color: #0753a6;
     font-family: var(--bloom-body-font);
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 500;
     text-align: left;
     white-space: nowrap;
@@ -37,7 +37,7 @@
 
   .marker-dot {
     position: absolute;
-    left: 85px;
+    left: var(--timeline-marker-offset, 85px);
     width: 12px;
     height: 12px;
     border: 0;

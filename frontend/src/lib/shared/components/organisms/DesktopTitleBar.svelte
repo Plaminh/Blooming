@@ -9,10 +9,12 @@
 
   let {
     variant = 'standard',
+    artworkVariant = variant,
     windowService = desktopWindowService,
     onAction = () => {},
   }: {
     variant?: 'standard' | 'compact';
+    artworkVariant?: 'standard' | 'compact';
     windowService?: DesktopWindowService;
     onAction?: (action: TitleBarAction) => void;
   } = $props();
@@ -64,9 +66,9 @@
 <header class="desktop-titlebar desktop-titlebar--{variant}" use:draggableTitleBar>
   <div class="desktop-titlebar__brand" aria-label="Blooming">
     <img
-      src="/assets/widget/icons/leaf-icon.png"
+      src="/assets/icons/leaf-icon.png"
       alt=""
-      class="desktop-titlebar__logo"
+      class="desktop-titlebar__logo desktop-titlebar__logo--{artworkVariant}"
       width="40"
       height="40"
     />

@@ -4,7 +4,7 @@
 </script>
 
 <div class="leaf-balance" aria-label="Leaf balance: {balance}">
-  <AppIcon name="sprout" scale={1} />
+  <AppIcon name="sprout" size="garden-balance" />
   <span>{balance}</span>
 </div>
 

@@ -23,7 +23,6 @@
     justify-content: flex-end;
     gap: 10px;
     padding: 12px 14px;
-    border-top: 1px solid #d5d0c4;
   }
   .action {
     display: flex;
@@ -34,7 +33,7 @@
     padding: 0 18px;
     border: 1px solid #aaa79f;
     border-radius: 4px;
-    background: linear-gradient(#fffdf7, #f3eee2);
+    background: var(--bloom-action-secondary-bg);
     color: #074a88;
     font-family: var(--bloom-body-font);
     font-size: 16px;
@@ -46,7 +45,7 @@
   .replan {
     width: 264px;
     border-color: #177d4d;
-    background: linear-gradient(#4cad6b, #299655);
+    background: var(--bloom-action-primary-bg);
     color: #eff9ee;
   }
   .action:hover { filter: brightness(1.04); }

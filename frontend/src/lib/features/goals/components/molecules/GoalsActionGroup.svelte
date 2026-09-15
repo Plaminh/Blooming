@@ -18,9 +18,9 @@
 <style>
   .action-group {
     display: grid;
-    height: 68px;
-    grid-template-columns: 140px minmax(0, 1fr);
-    gap: 10px;
+    height: 56px;
+    grid-template-columns: 132px minmax(0, 1fr);
+    gap: 8px;
   }
   .btn-action {
     width: 100%;
@@ -36,7 +36,7 @@
     font-size: 12px;
     font-weight: 800;
     letter-spacing: -0.055em;
-    padding: 10px;
+    padding: 7px;
     cursor: pointer;
     transition: background 0.1s;
     white-space: nowrap;
@@ -46,7 +46,7 @@
   }
   .primary {
     border-color: #247b4c;
-    background: linear-gradient(180deg, #50ad6a 0%, #32965a 100%);
+    background: var(--bloom-action-primary-bg);
     color: white;
   }
   .primary:hover { background: #3a9e5e; }
