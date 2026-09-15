@@ -1,7 +1,17 @@
 <script lang="ts">
   import type { MilestoneStatus } from '../../models';
 
-  let { number, status, isLast }: { number: number; status: MilestoneStatus; isLast: boolean } = $props();
+  let {
+    number,
+    status,
+    isLast,
+    variant = 'default'
+  }: {
+    number: number;
+    status: MilestoneStatus;
+    isLast: boolean;
+    variant?: 'default' | 'draft';
+  } = $props();
 
   let nodeClass = $derived.by(() => {
     if (status === 'Completed') return 'node-completed';
@@ -10,7 +20,7 @@
   });
 </script>
 
-<div class="roadmap-node-container" class:last={isLast}>
+<div class="roadmap-node-container" class:last={isLast} class:draft={variant === 'draft'}>
   <div class="node {nodeClass}">
     {number}
   </div>
@@ -28,6 +38,7 @@
     height: calc(100% + 21px);
   }
   .roadmap-node-container.last { height: 100%; }
+  .roadmap-node-container.draft { height: 100%; }
   .node {
     width: 55px;
     height: 55px;

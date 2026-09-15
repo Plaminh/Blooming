@@ -1,115 +1,107 @@
 <script lang="ts">
-  import { mrBloomStore, type TimelineDraft, type TodayDraft, type TimelineEntry } from '../../stores/mrBloomStore';
-  import DraftReviewHeader from './DraftReviewHeader.svelte';
-  import DraftReviewActionBar from './DraftReviewActionBar.svelte';
-  import TimelineMarker from '../atoms/TimelineMarker.svelte';
-  import TimelineHourLabel from '../molecules/TimelineHourLabel.svelte';
+  import { mrBloomStore, type TimelineDraft, type TimelineEntry, type TodayDraft } from '../../stores/mrBloomStore';
+  import { addMinutesToTime, formatTimelineDuration, minutesBetween } from '$lib/features/today/timeline';
+  import TimelineHourLabel from '$lib/features/today/components/atoms/TimelineHourLabel.svelte';
   import TimelineTaskSummary from '../molecules/TimelineTaskSummary.svelte';
-  
-  let todayDraft = $derived($mrBloomStore.activeDraft?.type === 'today' ? $mrBloomStore.activeDraft as TodayDraft : null);
-  
-  let draft = $derived.by(() => {
+  import DraftReviewActionBar from './DraftReviewActionBar.svelte';
+  import DraftReviewHeader from './DraftReviewHeader.svelte';
+
+  const todayDraft = $derived($mrBloomStore.activeDraft?.type === 'today' ? $mrBloomStore.activeDraft as TodayDraft : null);
+
+  const draft = $derived.by<TimelineDraft | null>(() => {
     if (!todayDraft) return null;
-    
-    const todayTasks = todayDraft.tasks;
+
     const entries: TimelineEntry[] = [];
-    let currentHour = parseInt(todayDraft.availability.start.split(':')[0]);
-    let currentMin = parseInt(todayDraft.availability.start.split(':')[1]);
-    
-    function addTime(mins: number) {
-      const newMin = (currentMin + mins) % 60;
-      const hoursToAdd = Math.floor((currentMin + mins) / 60);
-      const endHour = currentHour + hoursToAdd;
-      const endMin = newMin;
-      
-      const startStr = `${currentHour.toString().padStart(2, '0')}:${currentMin.toString().padStart(2, '0')}`;
-      const endStr = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
-      
-      currentHour = endHour;
-      currentMin = endMin;
-      
-      return { startStr, endStr };
-    }
-    
-    todayTasks.forEach((task, i) => {
-      const { startStr, endStr } = addTime(task.durationMin);
+    let cursor = todayDraft.availability.start;
+
+    todayDraft.tasks.forEach((task, index) => {
+      const endTime = addMinutesToTime(cursor, task.durationMin);
       entries.push({
-        id: `te-${i}`,
+        id: `timeline-${task.id}`,
         type: 'task',
         title: task.title,
-        startTime: startStr,
-        endTime: endStr,
-        durationLabel: `${task.durationMin} min`,
+        startTime: cursor,
+        endTime,
+        durationLabel: formatTimelineDuration(task.durationMin),
         taskId: task.id,
         icon: task.icon
       });
-      
-      if (i < todayTasks.length - 1) {
-         const breakTime = addTime(15);
-         entries.push({
-           id: `tb-${i}`,
-           type: 'break',
-           title: 'Take a breather',
-           startTime: breakTime.startStr,
-           endTime: breakTime.endStr,
-           durationLabel: '15 min'
-         });
+      cursor = endTime;
+
+      if (index === 0) {
+        const breakEnd = addMinutesToTime(cursor, 30);
+        entries.push({
+          id: 'timeline-break',
+          type: 'break',
+          title: 'Break',
+          startTime: cursor,
+          endTime: breakEnd,
+          durationLabel: '30 min',
+          icon: 'sprout'
+        });
+        cursor = breakEnd;
+      }
+
+      if (index === 1) {
+        const lunchEnd = addMinutesToTime(cursor, 60);
+        entries.push({
+          id: 'timeline-lunch',
+          type: 'break',
+          title: 'Lunch',
+          startTime: cursor,
+          endTime: lunchEnd,
+          durationLabel: '1 hour',
+          icon: 'break'
+        });
+        cursor = lunchEnd;
       }
     });
-    
-    return {
-      type: 'timeline',
-      entries
-    } as TimelineDraft;
+
+    const remainingMinutes = minutesBetween(cursor, todayDraft.availability.end);
+    if (remainingMinutes > 0) {
+      entries.push({
+        id: 'timeline-buffer',
+        type: 'buffer',
+        title: `Buffer · ${remainingMinutes} min`,
+        startTime: cursor,
+        endTime: todayDraft.availability.end,
+        durationLabel: `${remainingMinutes} min`
+      });
+    }
+
+    return { type: 'timeline', entries };
   });
-  
-  function handleBack() {
-    mrBloomStore.backToTasks();
-  }
-  
-  function handleAccept() {
-    mrBloomStore.acceptDraft("Excellent. I've locked in your schedule for today.");
-  }
 </script>
 
 <div class="timeline-draft-preview">
-  {#if draft && draft.type === 'timeline'}
-    <DraftReviewHeader 
-      type="TIMELINE" 
-      title="Your Day" 
-      subtitle="Here's a proposed schedule including buffer times." 
-    />
-    
+  {#if draft}
+    <DraftReviewHeader title="TIMELINE DRAFT" subtitle="Review the schedule before saving it to Today." />
+
     <div class="content">
       <div class="timeline-container">
-        <div class="timeline-rail"></div>
-        
-        {#each draft.entries as entry, i}
+        <span class="timeline-rail" aria-hidden="true"></span>
+        {#each draft.entries as entry, index (entry.id)}
           <div class="timeline-row">
-            <TimelineHourLabel hour={entry.startTime} />
-            <TimelineMarker active={i === 0} />
-            <div class="entry-content">
-              <TimelineTaskSummary {entry} />
+            <div class="time-anchor">
+              <TimelineHourLabel
+                hour={entry.startTime}
+                kind={index === 0 ? 'active' : entry.type === 'buffer' ? 'small' : 'upcoming'}
+              />
+            </div>
+            <div class="card-column">
+              <TimelineTaskSummary {entry} selected={index === 0 || entry.title === 'Lunch'} />
             </div>
           </div>
         {/each}
-        
-        <!-- End of day marker -->
-        {#if draft.entries.length > 0}
-          <div class="timeline-row end-row">
-            <TimelineHourLabel hour={draft.entries[draft.entries.length - 1].endTime} />
-            <TimelineMarker />
-            <div class="entry-content"></div>
-          </div>
-        {/if}
       </div>
     </div>
-    
-    <DraftReviewActionBar 
-      primaryLabel="Save to Today" 
-      onPrimary={handleAccept} 
-      secondaryLabel="Back to tasks"
-      onSecondary={handleBack}
+
+    <DraftReviewActionBar
+      secondaryLabel="BACK TO TASKS"
+      onSecondary={() => mrBloomStore.backToTasks()}
+      primaryLabel="SAVE TO TODAY"
+      onPrimary={() => mrBloomStore.acceptDraft("Excellent. I've locked in your schedule for today.")}
+      balanced
     />
   {/if}
 </div>
@@ -117,57 +109,72 @@
 <style>
   .timeline-draft-preview {
     display: flex;
-    flex-direction: column;
-    height: 100%;
     width: 100%;
-  }
-  
-  .content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px;
-    display: flex;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
     flex-direction: column;
   }
-  
+
+  .content {
+    min-height: 0;
+    flex: 1;
+    padding: 16px 19px 0 4px;
+    overflow-y: auto;
+  }
+
   .timeline-container {
     position: relative;
     display: flex;
+    min-width: 0;
     flex-direction: column;
-    gap: 24px;
   }
-  
+
   .timeline-rail {
     position: absolute;
-    left: 65px; /* 48px label + 17px spacing to center of marker */
-    top: 6px;
-    bottom: 6px;
-    width: 2px;
-    background: #cfc9b9;
-    z-index: 1;
+    top: 37px;
+    bottom: 117px;
+    left: 91px;
+    z-index: 0;
+    width: 4px;
+    border-radius: 2px;
+    background: #9caab1;
   }
-  
+
   .timeline-row {
-    display: flex;
-    gap: 16px;
-    min-height: 48px;
+    position: relative;
+    min-height: 75px;
+    margin-bottom: 11px;
   }
-  
-  .timeline-row.end-row {
-    min-height: 24px;
+
+  .timeline-row:nth-child(3) { margin-bottom: 12px; }
+  .timeline-row:nth-child(4),
+  .timeline-row:nth-child(5) { margin-bottom: 15px; }
+  .timeline-row:nth-child(6) { margin-bottom: 14px; }
+
+  .timeline-row:last-child { margin-bottom: 0; }
+
+  .timeline-row:last-child::before {
+    content: '';
+    position: absolute;
+    top: -49px;
+    bottom: 37px;
+    left: 91px;
+    width: 4px;
+    background: repeating-linear-gradient(to bottom, #9caab1 0 8px, transparent 8px 15px);
   }
-  
-  .entry-content {
-    flex: 1;
-    padding-bottom: 24px;
+
+  .time-anchor {
+    position: absolute;
+    top: 25px;
+    left: 0;
+    z-index: 2;
+    width: 112px;
+    height: 24px;
   }
-  
-  .end-row .entry-content {
-    padding-bottom: 0;
-  }
-  
-  /* Reset padding for global timeline markers alignment */
-  :global(.timeline-row > .timeline-marker) {
-    margin-top: 4px;
+
+  .card-column {
+    min-width: 0;
+    margin-left: 124px;
   }
 </style>

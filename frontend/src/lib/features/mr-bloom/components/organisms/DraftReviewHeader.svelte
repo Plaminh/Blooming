@@ -1,52 +1,43 @@
 <script lang="ts">
-  let { 
-    type, 
-    title, 
-    subtitle 
-  }: { 
-    type: string; 
-    title: string; 
-    subtitle?: string; 
+  import PanelHeading from '../atoms/PanelHeading.svelte';
+
+  let {
+    title,
+    subtitle,
+    type
+  }: {
+    title: string;
+    subtitle?: string;
+    type?: string;
   } = $props();
 </script>
 
-<div class="draft-review-header">
-  <div class="type-label">LIVE DRAFT • {type}</div>
-  <h2 class="title">{title}</h2>
-  {#if subtitle}
-    <p class="subtitle">{subtitle}</p>
-  {/if}
-</div>
+<header class="draft-review-header">
+  {#if type}<div class="type-label">LIVE DRAFT · {type}</div>{/if}
+  <PanelHeading variant="draft">{title}</PanelHeading>
+  {#if subtitle}<p class="subtitle">{subtitle}</p>{/if}
+</header>
 
 <style>
   .draft-review-header {
-    padding: 24px;
-    border-bottom: 1px solid #cfc9b9;
-    flex-shrink: 0;
+    flex: 0 0 auto;
+    padding: 14px 16px 6px;
   }
-  
+
   .type-label {
+    margin-bottom: 5px;
+    color: #78a4bd;
     font-family: var(--bloom-body-font);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
-    color: #92b9d4;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 8px;
+    letter-spacing: 0.05em;
   }
-  
-  .title {
-    font-family: var(--bloom-header-font, 'Pixelify Sans', sans-serif);
-    font-size: 24px;
-    color: #064798;
-    margin: 0;
-    text-transform: uppercase;
-  }
-  
+
   .subtitle {
+    margin: 3px 0 0;
+    color: #146a9b;
     font-family: var(--bloom-body-font);
-    font-size: 15px;
-    color: #064798;
-    margin: 8px 0 0 0;
+    font-size: 19px;
+    line-height: 1.25;
   }
 </style>

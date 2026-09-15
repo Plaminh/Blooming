@@ -78,7 +78,7 @@ function createMrBloomStore() {
       {
         id: '1',
         role: 'assistant',
-        content: 'What would you like to work on?',
+        content: 'Good morning.\nWhat would you like to work on today?',
         timestamp: '09:00'
       }
     ],
@@ -113,28 +113,33 @@ function createMrBloomStore() {
         update(state => {
           let nextDraft: ActiveDraft = null;
           let nextMode: PreviewMode = 'placeholder';
-          let aiResponse = "Here is a draft based on what you asked.";
+          let aiResponse: string;
           
           if (isRoadmap) {
             nextMode = 'roadmap';
+            aiResponse = "I've broken that goal into four outcome-based milestones. Review the roadmap on the right.";
             nextDraft = {
               type: 'roadmap',
-              goalTitle: 'Complete MVP',
-              goalDescription: 'Finish the first playable release.',
+              goalTitle: 'Complete Blooming MVP',
+              goalDescription: 'Build and launch a delightful desktop app.',
               targetDate: 'Jun 30, 2024',
               milestones: [
-                { id: 'm1', title: 'Design core mechanics', targetDate: 'May 15, 2024' },
-                { id: 'm2', title: 'Implement physics engine', targetDate: 'Jun 01, 2024' }
+                { id: 'm1', title: 'Freeze product concept', targetDate: 'Apr 30, 2024' },
+                { id: 'm2', title: 'Build planning core', targetDate: 'May 31, 2024' },
+                { id: 'm3', title: 'Implement desktop widget', targetDate: 'Jun 15, 2024' },
+                { id: 'm4', title: 'Validate MVP', targetDate: 'Jun 30, 2024' }
               ]
             } as RoadmapDraft;
           } else {
             nextMode = 'today';
+            aiResponse = "I've prepared a draft for you to review.";
             nextDraft = {
               type: 'today',
               availability: { start: '09:00', end: '15:00', totalHours: 6 },
               tasks: [
-                { id: 't1', title: 'Review PRs', durationMin: 60, priority: 'Core', icon: 'check' },
-                { id: 't2', title: 'Fix bug #42', durationMin: 120, priority: 'Core', icon: 'bug' }
+                { id: 't1', title: 'Study databases', durationMin: 90, priority: 'Core', icon: 'book' },
+                { id: 't2', title: 'Finish proposal', durationMin: 120, priority: 'Core', icon: 'document' },
+                { id: 't3', title: 'Go for a walk', durationMin: 30, priority: 'Optional', icon: 'shoe' }
               ]
             } as TodayDraft;
           }
@@ -180,8 +185,41 @@ function createMrBloomStore() {
         };
       });
     },
+    updateTaskPriority: (taskId: string, priority: Priority) => {
+      update(state => {
+        if (state.activeDraft?.type !== 'today') return state;
+        return {
+          ...state,
+          activeDraft: {
+            ...state.activeDraft,
+            tasks: state.activeDraft.tasks.map(task => task.id === taskId ? { ...task, priority } : task)
+          }
+        };
+      });
+    },
+    removeTask: (taskId: string) => {
+      update(state => {
+        if (state.activeDraft?.type !== 'today') return state;
+        return {
+          ...state,
+          activeDraft: {
+            ...state.activeDraft,
+            tasks: state.activeDraft.tasks.filter(task => task.id !== taskId)
+          }
+        };
+      });
+    },
     generateTimeline: () => {
-      update(state => ({ ...state, previewMode: 'timeline' }));
+      const now = new Date();
+      const aiTimeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+      update(state => ({
+        ...state,
+        previewMode: 'timeline',
+        chatHistory: [
+          ...state.chatHistory,
+          { id: crypto.randomUUID(), role: 'assistant', content: 'Your timeline is ready. It includes breaks and leaves 30 minutes of buffer.', timestamp: aiTimeStr }
+        ]
+      }));
     },
     backToTasks: () => {
       update(state => ({ ...state, previewMode: 'today' }));

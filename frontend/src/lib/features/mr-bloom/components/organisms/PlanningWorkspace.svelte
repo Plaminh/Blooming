@@ -7,7 +7,7 @@
   import TimelineDraftPreview from './TimelineDraftPreview.svelte';
 </script>
 
-<div class="planning-workspace">
+<div class="planning-workspace" class:has-draft={$mrBloomStore.previewMode !== 'placeholder'}>
   <div class="left-panel">
     <MrBloomConversationPanel />
   </div>
@@ -35,6 +35,11 @@
     gap: 10px;
     padding: 10px 8px 15px 13px;
     background: #f8f3e7;
+  }
+
+  .planning-workspace.has-draft {
+    padding-top: 14px;
+    padding-bottom: 9px;
   }
 
   .left-panel, .right-panel {

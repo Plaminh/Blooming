@@ -114,9 +114,13 @@
     {:else if name === 'document'}
       <path d="M5 2h11l4 4v16H5V2Z" fill="#edf9f4" stroke-width="1.8"></path>
       <path d="M16 2v5h4M8 11h9M8 15h9M8 19h6"></path>
+    {:else if name === 'break'}
+      <path d="M6 2v8m-3-8v5c0 2 1 3 3 3s3-1 3-3V2M6 10v12M16 2v20M16 2c3 2 4 5 4 9h-4" stroke-width="2.2"></path>
     {:else if name === 'pencil'}
       <path d="m4 20 1.2-5.1L16.8 3.3a1.8 1.8 0 0 1 2.5 0l1.4 1.4a1.8 1.8 0 0 1 0 2.5L9.1 18.8 4 20Z"></path>
       <path d="m14.8 5.2 4 4M5.2 14.9l3.9 3.9"></path>
+    {:else if name === 'close'}
+      <path d="M5 5 19 19M19 5 5 19" stroke-width="2.4"></path>
     {:else if name === 'play'}
       <path d="m7 4 12 8-12 8V4Z" fill="currentColor" stroke="none"></path>
     {:else}
