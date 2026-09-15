@@ -24,18 +24,19 @@
 <style>
   .bloom-text-input {
     width: 100%;
-    padding: 12px 16px;
-    border: 1px solid #cfc9b9;
-    border-radius: 4px;
+    height: 72px;
+    padding: 0 14px;
+    border: 2px solid #c9c3b5;
+    border-radius: 7px;
     font-family: var(--bloom-body-font);
-    font-size: 15px;
+    font-size: 19px;
     color: #064798;
-    background: #ffffff;
+    background: rgba(255, 255, 255, 0.7);
     box-sizing: border-box;
   }
   
   .bloom-text-input::placeholder {
-    color: #92b9d4;
+    color: #6aa2c6;
   }
   
   .bloom-text-input:focus {

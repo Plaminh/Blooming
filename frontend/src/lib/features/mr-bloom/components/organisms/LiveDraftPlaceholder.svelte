@@ -1,23 +1,23 @@
 <script lang="ts">
   import PlantSprite from '$lib/features/companion-widget/components/atoms/PlantSprite.svelte';
+  import PanelHeading from '../atoms/PanelHeading.svelte';
 </script>
 
 <div class="live-draft">
   <div class="header">
-    <h2 class="title">LIVE DRAFT</h2>
+    <PanelHeading>LIVE DRAFT</PanelHeading>
   </div>
   
   <div class="content">
     <div class="plant-container">
       <div class="sparkles">
-        <img src="/assets/widget/icons/sparkle-icon.png" class="sparkle s1" alt="" />
-        <img src="/assets/widget/icons/sparkle-icon.png" class="sparkle s2" alt="" />
-        <img src="/assets/widget/icons/sparkle-icon.png" class="sparkle s3" alt="" />
-        <img src="/assets/widget/icons/sparkle-icon.png" class="sparkle s4" alt="" />
-        <img src="/assets/widget/icons/sparkle-icon.png" class="sparkle s5" alt="" />
+        <span class="sparkle s1"></span>
+        <span class="sparkle s2"></span>
+        <span class="sparkle s3"></span>
+        <span class="sparkle s4"></span>
+        <span class="sparkle s5"></span>
       </div>
-      <!-- Frame index 2 or 3 for small sprout -->
-      <PlantSprite plant={{ species: 'monstera', frameIndex: 3 }} />
+      <PlantSprite plant={{ species: 'monstera', frameIndex: 2 }} />
     </div>
     
     <h3 class="heading">Your draft will grow here</h3>
@@ -37,19 +37,10 @@
   }
 
   .header {
-    padding: 16px 24px;
-    border-bottom: 1px solid #cfc9b9;
+    padding: 15px 21px 0;
     flex-shrink: 0;
   }
   
-  .title {
-    font-family: var(--bloom-header-font, 'Pixelify Sans', sans-serif);
-    font-size: 20px;
-    color: #064798;
-    margin: 0;
-    text-transform: uppercase;
-  }
-
   .content {
     flex: 1;
     display: flex;
@@ -58,19 +49,20 @@
     justify-content: center;
     padding: 24px;
     text-align: center;
+    transform: translateY(-46px);
   }
 
   .plant-container {
     position: relative;
-    width: 120px;
-    height: 120px;
+    width: 188px;
+    height: 188px;
     display: grid;
     place-items: end center;
-    margin-bottom: 24px;
+    margin-bottom: 14px;
   }
 
   .plant-container :global(.plant) {
-    transform: scale(2);
+    transform: translateY(6px) scale(1.65);
     transform-origin: bottom center;
   }
   
@@ -78,13 +70,16 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
+    transform: translateY(-10px);
   }
   
   .sparkle {
     position: absolute;
-    width: 12px;
-    height: 12px;
-    image-rendering: pixelated;
+    z-index: 1;
+    width: 7px;
+    height: 17px;
+    background: #8cc75b;
+    box-shadow: 5px 5px 0 #8cc75b;
   }
   
   .s1 { top: 10%; left: 20%; transform: rotate(-20deg); }
@@ -94,17 +89,19 @@
   .s5 { top: 40%; right: 5%; transform: rotate(45deg); }
 
   .heading {
-    font-family: var(--bloom-header-font, 'Pixelify Sans', sans-serif);
-    font-size: 24px;
-    color: #064798;
-    margin: 0 0 12px 0;
+    font-family: var(--bloom-display-font);
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -0.085em;
+    color: #071f66;
+    margin: 0 0 7px 0;
   }
 
   .description {
     font-family: var(--bloom-body-font);
-    font-size: 16px;
-    color: #064798;
-    line-height: 1.5;
+    font-size: 22px;
+    color: #1a6595;
+    line-height: 1.35;
     margin: 0;
   }
 </style>

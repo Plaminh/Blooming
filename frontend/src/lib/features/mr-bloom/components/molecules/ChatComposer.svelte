@@ -49,12 +49,10 @@
 <style>
   .chat-composer {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
     width: 100%;
-    padding: 16px;
-    background: #fdfaf3;
-    border-top: 1px solid #cfc9b9;
-    box-sizing: border-box;
+    padding: 14px 15px 28px 16px;
+    background: transparent;
   }
 </style>

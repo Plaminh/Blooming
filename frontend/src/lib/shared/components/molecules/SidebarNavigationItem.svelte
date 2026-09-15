@@ -15,7 +15,7 @@
 </script>
 
 <button class="nav-item" class:active onclick={onClick} aria-current={active ? 'page' : undefined}>
-  <AppIcon name={icon} scale={0.82} />
+  <AppIcon name={icon} scale={1.62} />
   <span>{label}</span>
 </button>
 
@@ -25,14 +25,14 @@
     align-items: center;
     width: 100%;
     min-height: 58px;
-    gap: 14px;
+    gap: 15px;
     padding: 7px 10px;
     border: 1px solid transparent;
     border-radius: 5px;
     background: transparent;
     color: #064b91;
     font-family: var(--bloom-body-font);
-    font-size: 17px;
+    font-size: 20px;
     font-weight: 700;
     text-align: left;
     white-space: nowrap;
@@ -52,5 +52,9 @@
   .nav-item:focus-visible {
     outline: 2px solid #008ec5;
     outline-offset: -2px;
+  }
+
+  .nav-item :global(img.app-icon) {
+    transform: scale(1.8);
   }
 </style>

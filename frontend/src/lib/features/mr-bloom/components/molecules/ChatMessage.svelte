@@ -5,12 +5,14 @@
   let { message }: { message: ChatMessageType } = $props();
 </script>
 
-<div class="chat-message {message.role}">
+<div class="chat-message {message.role}" class:initial={message.id === '1'}>
   {#if message.role === 'assistant'}
     <div class="avatar-container">
       <ChatAvatar />
       <span class="name">Mr. Bloom</span>
-      <span class="time">{message.timestamp}</span>
+      {#if message.id !== '1'}
+        <span class="time">{message.timestamp}</span>
+      {/if}
     </div>
   {/if}
   
@@ -25,8 +27,8 @@
 <style>
   .chat-message {
     display: flex;
-    gap: 12px;
-    margin-bottom: 24px;
+    gap: 18px;
+    margin-bottom: 12px;
     width: 100%;
   }
   
@@ -38,8 +40,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    width: 60px;
+    gap: 1px;
+    width: 148px;
     flex-shrink: 0;
   }
   
@@ -47,8 +49,14 @@
     font-family: var(--bloom-body-font);
     font-weight: 700;
     color: #064798;
-    font-size: 12px;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.2;
     text-align: center;
+  }
+
+  .initial .name {
+    margin-top: 10px;
   }
   
   .time {
@@ -58,42 +66,53 @@
   }
   
   .bubble {
-    background: #ffffff;
-    border: 1px solid #cfc9b9;
-    padding: 12px 16px;
-    border-radius: 8px;
+    background: #f1f9ff;
+    border: 2px solid #91c9ee;
+    padding: 20px 22px;
+    border-radius: 7px;
     font-family: var(--bloom-body-font);
-    font-size: 15px;
-    color: #064798;
+    font-size: 23px;
+    color: #071f66;
     line-height: 1.4;
     position: relative;
     max-width: 80%;
   }
   
   .assistant .bubble {
-    border-top-left-radius: 0;
+    border-top-left-radius: 7px;
   }
   
   .assistant .bubble::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: -8px;
+    top: 62px;
+    left: -19px;
     width: 0;
     height: 0;
-    border-top: 8px solid #cfc9b9;
-    border-left: 8px solid transparent;
+    border-top: 12px solid #91c9ee;
+    border-left: 18px solid transparent;
   }
   
   .assistant .bubble::after {
     content: '';
     position: absolute;
-    top: 1px;
-    left: -6px;
+    top: 60px;
+    left: -14px;
     width: 0;
     height: 0;
-    border-top: 6px solid #ffffff;
-    border-left: 6px solid transparent;
+    border-top: 9px solid #f1f9ff;
+    border-left: 14px solid transparent;
+  }
+
+  .assistant.initial .bubble {
+    width: 389px;
+    height: 86px;
+    min-height: 86px;
+    margin-top: 35px;
+    padding-block: 0;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
   }
   
   .user .bubble {

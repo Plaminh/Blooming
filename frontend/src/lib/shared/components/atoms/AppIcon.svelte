@@ -37,6 +37,7 @@
 
   // Map known icons to real assets. Unknown icons will not render a background image until assets are provided.
   const iconAssets: Partial<Record<IconName, string>> = {
+    goals: '/assets/widget/icons/leaf-icon.png',
     sprout: '/assets/widget/icons/leaf-icon.png'
   };
 
@@ -79,7 +80,7 @@
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
       <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
     {:else if name === 'water'}
-      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="#d9f7ff"></path>
     {:else if name === 'today'}
       <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
       <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -91,6 +92,18 @@
       <circle cx="12" cy="12" r="2"></circle>
     {:else if name === 'chat'}
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+      <circle cx="8" cy="10" r="1" fill="currentColor" stroke="none"></circle>
+      <circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"></circle>
+      <circle cx="16" cy="10" r="1" fill="currentColor" stroke="none"></circle>
+    {:else if name === 'calendar'}
+      <path d="M4 5h16a2 2 0 0 1 2 2v14H2V7a2 2 0 0 1 2-2Z" fill="currentColor" stroke="none"></path>
+      <path d="M7 3v5m10-5v5" stroke-width="2.5"></path>
+      <path d="M5 10h14v2H5zm1 4h3v2H6zm5 0h3v2h-3zm5 0h2v2h-2zM6 18h3v2H6zm5 0h3v2h-3z" fill="#e6f6ff" stroke="none"></path>
+    {:else if name === 'send'}
+      <path d="M3 11.5 21 3l-6.7 18-3.2-7.1L3 11.5Z" fill="currentColor" stroke="none"></path>
+      <path d="m11.1 13.9 4.6-5"></path>
+    {:else if name === 'chevron-right'}
+      <path d="m9 5 7 7-7 7" stroke-width="3"></path>
     {:else}
       <rect x="2" y="2" width="20" height="20" rx="4" />
     {/if}

@@ -26,30 +26,25 @@
 
 <style>
   .planning-workspace {
-    display: flex;
+    display: grid;
     width: 100%;
     height: 100%;
-    gap: 16px;
-    padding: 16px;
-    box-sizing: border-box;
-    background: #fdfaf3; /* Based on reference */
+    min-width: 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 8px 15px 13px;
+    background: #f8f3e7;
   }
 
   .left-panel, .right-panel {
-    flex: 1;
     display: flex;
+    min-width: 0;
+    min-height: 0;
     flex-direction: column;
-    background: #fffbf2;
-    border: 1px solid #cfc9b9;
+    border: 2px solid #c9c3b5;
     border-radius: 6px;
+    background: rgba(255, 253, 247, 0.72);
     overflow: hidden;
-  }
-  
-  .left-panel {
-    flex: 0 0 45%;
-  }
-  
-  .right-panel {
-    flex: 1;
   }
 </style>

@@ -17,7 +17,7 @@
 
   <div class="sidebar-bottom">
     <div class="plant-container">
-      <PlantSprite plant={{ species: 'monstera', frameIndex: 7 }} />
+      <PlantSprite plant={{ species: 'monstera', frameIndex: 5 }} />
     </div>
     <div class="counters" aria-label="Garden currency">
       <div class="counter">
@@ -25,7 +25,7 @@
         <span>24</span>
       </div>
       <div class="counter">
-        <AppIcon name="water" scale={0.72} label="Water" />
+        <AppIcon name="water" scale={1.25} label="Water" />
         <span>3</span>
       </div>
     </div>
@@ -63,6 +63,7 @@
     height: 188px;
     place-items: end center;
     margin-bottom: 6px;
+    transform: translateX(-8px);
   }
 
   .plant-container :global(.plant) {
@@ -74,6 +75,7 @@
     display: flex;
     align-items: center;
     gap: 19px;
+    transform: translateX(-8px);
   }
 
   .counter {
@@ -82,13 +84,13 @@
     gap: 5px;
     color: #064798;
     font-family: var(--bloom-body-font);
-    font-size: 17px;
+    font-size: 23px;
     font-weight: 700;
   }
 
   .leaf-counter {
-    width: 25px;
-    height: 29px;
+    width: 44px;
+    height: 50px;
     object-fit: contain;
     image-rendering: pixelated;
   }

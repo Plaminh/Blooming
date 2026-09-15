@@ -33,7 +33,7 @@
     align-items: center;
     justify-content: center;
     border: none;
-    border-radius: 4px;
+    border-radius: 7px;
     cursor: pointer;
     background: transparent;
     padding: 8px;
@@ -46,8 +46,9 @@
   }
   
   .primary {
-    background: #a9e0f5; /* Light blue from send button */
-    border: 1px solid #73c2e8;
+    background: #e0f5ff;
+    border: 2px solid #83c4ed;
+    color: #6189a0;
   }
   
   .primary:hover:not(:disabled) {
@@ -73,5 +74,14 @@
 
   .small { padding: 4px; }
   .medium { padding: 8px; }
-  .large { padding: 12px; }
+  .large {
+    width: 72px;
+    height: 72px;
+    padding: 15px;
+  }
+
+  .large :global(.app-icon) {
+    width: 42px !important;
+    height: 42px !important;
+  }
 </style>

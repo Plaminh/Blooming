@@ -5,6 +5,7 @@
   import ChatComposer from '../molecules/ChatComposer.svelte';
   import LoadingDots from '../atoms/LoadingDots.svelte';
   import ChatAvatar from '../atoms/ChatAvatar.svelte';
+  import PanelHeading from '../atoms/PanelHeading.svelte';
   
   function handleSuggestion(content: string) {
     mrBloomStore.submitMessage(content);
@@ -12,6 +13,10 @@
 </script>
 
 <div class="conversation-panel">
+  <header class="panel-header">
+    <PanelHeading>CHAT WITH MR. BLOOM</PanelHeading>
+  </header>
+
   <div class="messages-container">
     {#each $mrBloomStore.chatHistory as message (message.id)}
       <ChatMessage {message} />
@@ -33,13 +38,14 @@
         <PromptSuggestion 
           icon="calendar" 
           title="PLAN MY DAY" 
-          description="Let's build a timeline that balances your tasks and breaks" 
+          description="Turn today or tomorrow into a realistic schedule."
+          selected
           onclick={() => handleSuggestion("Plan my day. I have 6 hours.")}
         />
         <PromptSuggestion 
-          icon="rocket" 
-          title="PLAN A GOAL" 
-          description="Break a big project into actionable milestones" 
+          icon="sprout"
+          title="CREATE A LONG-TERM GOAL"
+          description="Build a clear roadmap with milestones."
           onclick={() => handleSuggestion("I want to complete the MVP by June 30")}
         />
       </div>
@@ -61,20 +67,26 @@
     height: 100%;
     width: 100%;
   }
+
+  .panel-header {
+    flex: 0 0 auto;
+    padding: 15px 21px 0;
+  }
   
   .messages-container {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
-    padding: 24px;
+    padding: 11px 18px 16px;
     display: flex;
     flex-direction: column;
   }
   
   .suggestions {
-    margin-top: 24px;
+    margin-top: 19px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
   }
   
   .composer-container {
@@ -83,7 +95,7 @@
   
   .loading-container {
     display: flex;
-    gap: 12px;
+    gap: 18px;
     margin-bottom: 24px;
     width: 100%;
   }
@@ -93,7 +105,7 @@
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    width: 60px;
+    width: 148px;
     flex-shrink: 0;
   }
   
