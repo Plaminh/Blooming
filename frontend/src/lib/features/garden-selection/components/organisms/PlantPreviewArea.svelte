@@ -16,8 +16,8 @@
       sheetHeight={PLANT_ATLAS.sheetHeight}
       columns={PLANT_ATLAS.columns}
       rows={PLANT_ATLAS.rows}
-      frameIndex={0}
-      displayHeight={360}
+      frameIndex={5}
+      displayHeight={190}
       class="plant-sprite"
     />
     <div class="shadow"></div>
@@ -29,7 +29,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 24px 0;
+    margin: 14px 0 4px;
   }
   .artwork-wrapper {
     position: relative;
@@ -38,11 +38,11 @@
     align-items: center;
   }
   .shadow {
-    width: 240px;
-    height: 32px;
-    background: #d8d3c5; /* A slightly darker cream for the shadow */
+    width: 150px;
+    height: 20px;
+    background: #d8d3c5;
     border-radius: 50%;
-    margin-top: -32px;
+    margin-top: -20px;
     z-index: -1;
   }
 </style>

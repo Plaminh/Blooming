@@ -6,12 +6,12 @@
 
 <style>
   .section-heading {
-    font-family: var(--bloom-title-font);
-    font-size: 24px;
+    font-family: var(--bloom-display-font);
+    font-size: 40px;
     font-weight: 700;
     color: var(--bloom-text-dark-blue);
     margin: 0;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     text-transform: uppercase;
   }
 </style>

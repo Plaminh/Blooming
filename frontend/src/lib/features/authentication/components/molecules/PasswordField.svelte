@@ -33,7 +33,7 @@
   <div class="input-wrapper" class:invalid>
     <div class="input-inner">
       <div class="input-icon">
-        <AuthenticationIcon name="lock" size={22} color="var(--auth-text-muted-blue-alt)" />
+        <AuthenticationIcon name="lock" size={22} color="var(--bloom-text-muted-blue)" />
       </div>
       <input 
         {id}

@@ -12,13 +12,14 @@
   .leaf-balance {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: #ffffff;
-    border: 3px solid #1e3a5f;
-    padding: 8px 16px;
+    gap: 6px;
+    background: var(--bloom-surface-cream-alt);
+    border: 1px solid var(--bloom-border-dark);
+    border-radius: var(--bloom-radius);
+    padding: 3px 9px;
     font-family: var(--bloom-display-font);
     font-size: 24px;
-    color: #1e3a5f;
-    box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 0.2);
+    color: var(--bloom-text-dark-blue);
+    box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.12);
   }
 </style>

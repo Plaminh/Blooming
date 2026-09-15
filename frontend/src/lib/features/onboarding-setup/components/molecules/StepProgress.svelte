@@ -61,19 +61,19 @@
   }
 
   .step-item:nth-child(1) {
-    left: 105px;
+    left: 103px;
   }
 
   .step-item:nth-child(2) {
-    left: 302px;
+    left: 284px;
   }
 
   .step-item:nth-child(3) {
-    left: 513px;
+    left: 478px;
   }
 
   .step-item:nth-child(4) {
-    left: 728px;
+    left: 676px;
   }
 
   .step-circle {

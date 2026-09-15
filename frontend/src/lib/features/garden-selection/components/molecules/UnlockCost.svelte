@@ -25,8 +25,8 @@
     gap: 8px;
     font-family: var(--bloom-display-font);
     font-size: 24px;
-    color: #1e3a5f;
-    margin-top: 16px;
+    color: var(--bloom-text-dark-blue);
+    margin-top: 6px;
   }
   .unlocked span {
     color: #5db95d;

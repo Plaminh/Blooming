@@ -53,7 +53,7 @@
     color: white;
     height: 55px;
     font-family: var(--bloom-display-font);
-    font-size: 18px;
+    font-size: 14px;
     font-weight: 800;
     letter-spacing: -0.05em;
     padding: 0 12px;

@@ -61,7 +61,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #cfc9b9;
+    background-color: var(--bloom-border-subtle);
     border-radius: 12px;
     transition: background-color 0.2s ease;
   }
@@ -88,7 +88,7 @@
   }
 
   input:focus-visible + .toggle-track {
-    outline: 2px solid var(--bloom-text-control-blue);
+    outline: 2px solid var(--bloom-focus);
     outline-offset: 2px;
   }
 

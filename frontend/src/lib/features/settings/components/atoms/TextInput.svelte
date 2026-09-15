@@ -31,10 +31,11 @@
 
 <style>
   .text-input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
   }
 
   label {
@@ -49,22 +50,23 @@
     font-size: 16px;
     color: var(--bloom-text-dark-blue);
     padding: 10px 14px;
-    border: 1px solid #cfc9b9;
+    border: 1px solid var(--bloom-border-subtle);
     border-radius: 4px;
-    background: #ffffff;
+    background: var(--bloom-surface-cream-alt);
   }
 
   input:focus-visible {
-    outline: 2px solid var(--bloom-text-control-blue);
+    outline: 2px solid var(--bloom-focus);
     outline-offset: 2px;
   }
 
   input.has-error {
-    border-color: #d32f2f;
+    border-color: var(--bloom-error);
   }
 
   .error-message {
-    color: #d32f2f;
+    grid-column: 2;
+    color: var(--bloom-error);
     font-size: 13px;
     font-family: var(--bloom-body-font);
   }

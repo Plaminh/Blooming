@@ -33,7 +33,7 @@
     <div class="input-inner">
       {#if iconName}
         <div class="input-icon">
-          <AuthenticationIcon name={iconName} size={25} color="var(--auth-text-muted-blue-alt)" />
+          <AuthenticationIcon name={iconName} size={25} color="var(--bloom-text-muted-blue)" />
         </div>
       {/if}
       <input 

@@ -42,7 +42,7 @@
     justify-content: flex-end;
     align-items: center;
     gap: 16px;
-    margin-top: 32px;
+    margin-top: 16px;
   }
 
   .success-message {
@@ -53,7 +53,7 @@
   }
 
   button {
-    font-family: var(--bloom-title-font);
+    font-family: var(--bloom-display-font);
     font-size: 16px;
     padding: 10px 24px;
     border-radius: 4px;
@@ -64,11 +64,12 @@
 
   button:disabled {
     opacity: 0.5;
+    color: var(--bloom-disabled);
     cursor: not-allowed;
   }
 
   button:focus-visible {
-    outline: 2px solid var(--bloom-text-control-blue);
+    outline: 2px solid var(--bloom-focus);
     outline-offset: 2px;
   }
 

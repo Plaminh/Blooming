@@ -1,6 +1,5 @@
 <script lang="ts">
-  import DesktopTitleBar from '$lib/shared/components/organisms/DesktopTitleBar.svelte';
-  import AppSidebar from '$lib/shared/components/organisms/AppSidebar.svelte';
+  import DesktopAppShell from '$lib/shared/components/organisms/DesktopAppShell.svelte';
   import BottomActions from '$lib/features/today/components/organisms/BottomActions.svelte';
   import RightRail from '$lib/features/today/components/organisms/RightRail.svelte';
   import TodayTimeline from '$lib/features/today/components/organisms/TodayTimeline.svelte';
@@ -72,82 +71,40 @@
   }
 </script>
 
-<div class="today-page">
-  <div class="today-window">
-    <DesktopTitleBar />
-    <div class="today-content">
-      <AppSidebar activeRoute="TODAY" />
-      <main class="today-main">
-        <TodayTimeline
-          {tasks}
-          {currentDate}
-          {selectedTaskId}
-          onSelect={(id) => (selectedTaskId = id)}
-          onDateChange={handleDateChange}
-        />
-        <BottomActions
-          onEdit={() => dispatchAction('edit-schedule')}
-          onReplan={() => dispatchAction('replan-schedule')}
-        />
-      </main>
-      <aside class="today-rail">
-        <RightRail
-          task={selectedTask}
-          {nextTask}
-          {selectedFocusPreset}
-          onPresetSelect={(preset) => (selectedFocusPreset = preset)}
-          onStartFocus={handleStartFocus}
-        />
-      </aside>
-    </div>
+<DesktopAppShell activeRoute="TODAY" variant="compact">
+  <div class="today-content">
+    <main class="today-main">
+      <TodayTimeline
+        {tasks}
+        {currentDate}
+        {selectedTaskId}
+        onSelect={(id) => (selectedTaskId = id)}
+        onDateChange={handleDateChange}
+      />
+      <BottomActions
+        onEdit={() => dispatchAction('edit-schedule')}
+        onReplan={() => dispatchAction('replan-schedule')}
+      />
+    </main>
+    <aside class="today-rail">
+      <RightRail
+        task={selectedTask}
+        {nextTask}
+        {selectedFocusPreset}
+        onPresetSelect={(preset) => (selectedFocusPreset = preset)}
+        onStartFocus={handleStartFocus}
+      />
+    </aside>
   </div>
-</div>
+</DesktopAppShell>
 
 <style>
-  .today-page {
-    --bloom-body-font: "Cascadia Mono", "Lucida Console", Consolas, monospace;
-    --bloom-display-font: "Cascadia Mono", "Lucida Console", Consolas, monospace;
-    display: grid;
-    width: 100vw;
-    height: 100vh;
-    min-width: 1220px;
-    min-height: 800px;
-    place-items: center;
-    overflow: auto;
-    background: #fbfaf5;
-  }
-
-  .today-window {
-    display: flex;
-    width: min(1400px, calc(100vw - 40px));
-    height: min(874px, calc(100vh - 26px));
-    min-width: 1180px;
-    min-height: 774px;
-    flex-direction: column;
-    overflow: hidden;
-    border: 2px solid #0b516b;
-    border-radius: 8px;
-    background: #f5eddc;
-    box-shadow: 0 0 0 1px #29b9ce, inset 0 0 0 1px #d8f6f4;
-  }
-
-  .today-window :global(.desktop-titlebar) {
-    height: 42px;
-    flex-basis: 42px;
-    border-bottom-width: 2px;
-    background: linear-gradient(180deg, #2796ad 0%, #278aa1 100%);
-    box-shadow: inset 0 2px 0 #40d2df;
-  }
-  .today-window :global(.desktop-titlebar__logo) { width: 35px; height: 35px; }
-  .today-window :global(.desktop-titlebar__title) { font-size: 21px; }
-  .today-window :global(.desktop-window-control) { width: 29px; height: 28px; }
-  .today-window :global(.desktop-titlebar__controls) { gap: 7px; padding-right: 9px; }
-
   .today-content {
     display: grid;
+    width: 100%;
+    height: 100%;
     min-height: 0;
-    flex: 1;
-    grid-template-columns: 176px minmax(0, 1fr) 434px;
+    grid-template-columns: minmax(0, 1fr) 390px;
     gap: 9px;
     padding: 9px 9px 10px 0;
   }
@@ -163,9 +120,4 @@
   }
   .today-rail { min-width: 0; min-height: 0; }
 
-  @media (max-width: 1250px), (max-height: 820px) {
-    .today-page { place-items: start; padding: 12px 20px; }
-    .today-window { width: 1180px; height: 774px; }
-    .today-content { grid-template-columns: 155px minmax(0, 1fr) 390px; }
-  }
 </style>

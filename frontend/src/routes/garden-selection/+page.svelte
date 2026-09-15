@@ -1,5 +1,5 @@
 <script lang="ts">
-  import DesktopTitleBar from '$lib/shared/components/organisms/DesktopTitleBar.svelte';
+  import DesktopAppShell from '$lib/shared/components/organisms/DesktopAppShell.svelte';
   import GardenSelectionContent from '$lib/features/garden-selection/components/organisms/GardenSelectionContent.svelte';
 </script>
 
@@ -7,37 +7,25 @@
   <title>Blooming - Choose Your Plant</title>
 </svelte:head>
 
-<div class="garden-selection-page">
-  <DesktopTitleBar />
-  
+<DesktopAppShell
+  variant="compact"
+  showSidebar={false}
+  canvasWidth="var(--bloom-garden-canvas-width)"
+  canvasHeight="var(--bloom-garden-canvas-height)"
+>
   <main class="page-content">
     <GardenSelectionContent />
   </main>
-</div>
+</DesktopAppShell>
 
 <style>
-  :global(body) {
-    background-color: #fbfaf5; /* Cream background */
-    margin: 0;
-    padding: 0;
-  }
-
-  .garden-selection-page {
-    display: flex;
-    flex-direction: column;
-    width: 100vw;
-    height: 100vh;
-    box-sizing: border-box;
-    /* Cyan outer frame */
-    border: 8px solid #29b9ce;
-    overflow: hidden;
-  }
-
   .page-content {
-    flex: 1;
     display: flex;
+    width: 100%;
+    height: 100%;
     justify-content: center;
     position: relative;
-    overflow-y: auto;
+    overflow: hidden;
+    background: var(--bloom-surface-cream);
   }
 </style>

@@ -10,5 +10,5 @@
   aria-label={visible ? "Hide password" : "Show password"}
   onclick={onToggle}
 >
-  <AuthenticationIcon name={visible ? 'eye-off' : 'eye'} size={20} color="var(--auth-text-muted-blue-alt)" />
+  <AuthenticationIcon name={visible ? 'eye-off' : 'eye'} size={20} color="var(--bloom-text-muted-blue)" />
 </button>

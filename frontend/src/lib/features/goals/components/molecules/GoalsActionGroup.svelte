@@ -19,7 +19,7 @@
   .action-group {
     display: grid;
     height: 68px;
-    grid-template-columns: 170px minmax(0, 1fr);
+    grid-template-columns: 140px minmax(0, 1fr);
     gap: 10px;
   }
   .btn-action {
@@ -33,7 +33,7 @@
     border-radius: 5px;
     color: #064b91;
     font-family: var(--bloom-display-font);
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 800;
     letter-spacing: -0.055em;
     padding: 10px;

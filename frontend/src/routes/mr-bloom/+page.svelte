@@ -7,6 +7,6 @@
   <title>Mr. Bloom - Blooming</title>
 </svelte:head>
 
-<DesktopAppShell activeRoute="MR. BLOOM">
+<DesktopAppShell activeRoute="MR. BLOOM" variant="compact">
   <PlanningWorkspace />
 </DesktopAppShell>

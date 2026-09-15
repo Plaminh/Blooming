@@ -52,11 +52,11 @@
 
 <style>
   .panel {
-    background: white;
-    border: 1px solid #cfc9b9;
+    background: var(--bloom-surface-cream-alt);
+    border: 1px solid var(--bloom-border-subtle);
     border-radius: 8px;
-    padding: 24px;
-    margin-bottom: 24px;
+    padding: 18px;
+    margin-bottom: 16px;
     height: 100%;
   }
 
@@ -64,11 +64,11 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
 
   h3 {
-    font-family: var(--bloom-title-font);
+    font-family: var(--bloom-display-font);
     font-size: 18px;
     color: var(--bloom-text-dark-blue);
     margin: 0;
@@ -80,7 +80,7 @@
   }
 
   .toggles {
-    margin-top: 16px;
+    margin-top: 8px;
     display: flex;
     flex-direction: column;
     gap: 12px;

@@ -62,8 +62,8 @@
   
   .top-bar {
     position: absolute;
-    top: 40px;
-    right: 48px;
+    top: 7px;
+    right: 10px;
     z-index: 10;
   }
   
@@ -72,14 +72,14 @@
     flex-direction: column;
     align-items: center;
     width: 100%;
-    max-width: 900px;
-    margin-top: 80px;
+    max-width: 720px;
+    margin-top: 17px;
   }
 
   .carousel-center {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 500px;
+    width: 390px;
   }
 </style>

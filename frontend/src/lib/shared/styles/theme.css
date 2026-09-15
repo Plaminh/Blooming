@@ -15,7 +15,21 @@
   --bloom-text-dark-blue: #174b70;
   --bloom-text-control-blue: #214966;
   --bloom-text-muted-blue: #557685;
+  --bloom-text-placeholder: #8ba0aa;
+  --bloom-text-link: #3f8b58;
+  --bloom-error: #a32929;
+  --bloom-disabled: #9ba4a5;
+  --bloom-focus: #2d7c59;
   --bloom-radius: 4px;
+  --bloom-frame-width: 2px;
+  --bloom-app-canvas-width: 1280px;
+  --bloom-app-canvas-height: 800px;
+  --bloom-garden-canvas-width: 720px;
+  --bloom-garden-canvas-height: 600px;
+  --bloom-titlebar-standard-height: 54px;
+  --bloom-titlebar-compact-height: 44px;
+  --bloom-sidebar-standard-width: 181px;
+  --bloom-sidebar-compact-width: 166px;
   --bloom-display-font: "Cascadia Mono", "Lucida Console", Consolas, monospace;
   --bloom-body-font: Inter, "Segoe UI", Arial, sans-serif;
 }
@@ -24,8 +38,8 @@
   z-index: 10;
   display: flex;
   width: 100%;
-  height: 44px;
-  flex: 0 0 44px;
+  height: var(--bloom-titlebar-standard-height);
+  flex: 0 0 var(--bloom-titlebar-standard-height);
   align-items: center;
   justify-content: space-between;
   padding-left: 4px;
@@ -35,20 +49,31 @@
   user-select: none;
 }
 
+.desktop-titlebar--compact {
+  height: var(--bloom-titlebar-compact-height);
+  flex-basis: var(--bloom-titlebar-compact-height);
+}
+
 .desktop-titlebar__brand {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 11px;
+  gap: 8px;
   pointer-events: none;
 }
 
 .desktop-titlebar__logo {
-  width: 40px;
-  height: 40px;
+  width: 50px;
+  height: 50px;
   object-fit: contain;
   image-rendering: crisp-edges;
   image-rendering: pixelated;
+  transform: translateX(-2px);
+}
+
+.desktop-titlebar--compact .desktop-titlebar__logo {
+  width: 40px;
+  height: 40px;
 }
 
 .desktop-titlebar__title {
@@ -60,6 +85,10 @@
   line-height: 1;
   text-shadow: 1px 1px 0 #19566f;
   transform: translateY(1px);
+}
+
+.desktop-titlebar--compact .desktop-titlebar__title {
+  font-size: 21px;
 }
 
 .desktop-titlebar__controls {
@@ -94,8 +123,17 @@
 }
 
 .desktop-window-control:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--bloom-titlebar-text);
   outline-offset: 1px;
+}
+
+.desktop-titlebar--compact .desktop-window-control {
+  width: 29px;
+  height: 28px;
+}
+
+.desktop-titlebar--compact .desktop-titlebar__controls {
+  padding-right: 9px;
 }
 
 .desktop-window-control svg {

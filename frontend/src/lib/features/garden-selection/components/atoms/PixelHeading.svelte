@@ -10,8 +10,8 @@
 <style>
   .pixel-heading {
     text-align: center;
-    color: #1e3a5f;
-    margin-bottom: 2rem;
+    color: var(--bloom-text-dark-blue);
+    margin-bottom: 8px;
   }
   h1 {
     font-family: var(--bloom-display-font);
@@ -21,7 +21,7 @@
   }
   p {
     font-family: var(--bloom-body-font);
-    font-size: 18px;
-    margin: 8px 0 0 0;
+    font-size: 20px;
+    margin: 0;
   }
 </style>
