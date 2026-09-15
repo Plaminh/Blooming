@@ -8,9 +8,11 @@
   type TitleBarAction = 'minimize' | 'maximize' | 'close';
 
   let {
+    variant = 'standard',
     windowService = desktopWindowService,
     onAction = () => {},
   }: {
+    variant?: 'standard' | 'compact';
     windowService?: DesktopWindowService;
     onAction?: (action: TitleBarAction) => void;
   } = $props();
@@ -59,7 +61,7 @@
   }
 </script>
 
-<header class="desktop-titlebar" use:draggableTitleBar>
+<header class="desktop-titlebar desktop-titlebar--{variant}" use:draggableTitleBar>
   <div class="desktop-titlebar__brand" aria-label="Blooming">
     <img
       src="/assets/widget/icons/leaf-icon.png"

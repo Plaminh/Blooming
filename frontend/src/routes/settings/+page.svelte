@@ -1,6 +1,5 @@
 <script lang="ts">
-  import DesktopTitleBar from '$lib/shared/components/organisms/DesktopTitleBar.svelte';
-  import AppSidebar from '$lib/shared/components/organisms/AppSidebar.svelte';
+  import DesktopAppShell from '$lib/shared/components/organisms/DesktopAppShell.svelte';
   import SectionHeading from '$lib/features/settings/components/atoms/SectionHeading.svelte';
   import AccountPanel from '$lib/features/settings/components/organisms/AccountPanel.svelte';
   import GeneralPanel from '$lib/features/settings/components/organisms/GeneralPanel.svelte';
@@ -17,56 +16,38 @@
   <title>Settings - Blooming</title>
 </svelte:head>
 
-<div class="settings-layout">
-  <DesktopTitleBar />
-  
-  <div class="settings-content-wrapper">
-    <AppSidebar activeRoute="SETTINGS" />
-    
-    <main class="settings-main" aria-label="Settings content">
-      <div class="settings-scroll-container">
-        <div class="settings-inner">
-          <SectionHeading title="SETTINGS" />
-          
-          <AccountPanel />
-          
-          <div class="settings-grid">
-            <div class="grid-column">
-              <GeneralPanel />
-            </div>
-            
-            <div class="grid-column">
-              <FocusTimerPanel />
-              <NotificationsPanel />
-            </div>
+<DesktopAppShell activeRoute="SETTINGS" variant="standard">
+  <main class="settings-main" aria-label="Settings content">
+    <div class="settings-scroll-container">
+      <div class="settings-inner">
+        <SectionHeading title="SETTINGS" />
+
+        <AccountPanel />
+
+        <div class="settings-grid">
+          <div class="grid-column">
+            <GeneralPanel />
           </div>
-          
-          <SettingsActionGroup />
+
+          <div class="grid-column">
+            <FocusTimerPanel />
+            <NotificationsPanel />
+          </div>
         </div>
+
+        <SettingsActionGroup />
       </div>
-    </main>
-  </div>
-</div>
+    </div>
+  </main>
+</DesktopAppShell>
 
 <style>
-  .settings-layout {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-    background-color: var(--bloom-background-cream, #fffbf0);
-  }
-
-  .settings-content-wrapper {
-    display: flex;
-    flex: 1;
-    min-height: 0; /* Important for flex child scrolling */
-  }
-
   .settings-main {
-    flex: 1;
     position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bloom-surface-cream);
   }
 
   .settings-scroll-container {
@@ -76,11 +57,11 @@
     right: 0;
     bottom: 0;
     overflow-y: auto;
-    padding: 60px 80px;
+    padding: 8px 16px 24px;
   }
 
   .settings-inner {
-    max-width: 1000px;
+    max-width: 1036px;
     margin: 0 auto;
   }
 

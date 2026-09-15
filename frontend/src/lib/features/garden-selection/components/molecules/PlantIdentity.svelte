@@ -12,18 +12,17 @@
 <style>
   .plant-identity {
     text-align: center;
-    color: #1e3a5f;
-    margin: 24px 0;
+    color: var(--bloom-text-dark-blue);
+    margin: 4px 0 8px;
   }
   h2 {
     font-family: var(--bloom-display-font);
-    font-size: 32px;
-    margin: 0 0 12px 0;
-    text-transform: uppercase;
+    font-size: 24px;
+    margin: 0 0 2px;
   }
   p {
     font-family: var(--bloom-body-font);
     font-size: 16px;
-    margin: 4px 0;
+    margin: 0;
   }
 </style>

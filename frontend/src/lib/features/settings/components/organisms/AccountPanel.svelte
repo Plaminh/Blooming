@@ -25,22 +25,22 @@
 
 <style>
   .panel {
-    background: white;
-    border: 1px solid #cfc9b9;
+    background: var(--bloom-surface-cream-alt);
+    border: 1px solid var(--bloom-border-subtle);
     border-radius: 8px;
-    padding: 24px;
-    margin-bottom: 24px;
+    padding: 18px;
+    margin-bottom: 16px;
   }
 
   .panel-header {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
 
   h3 {
-    font-family: var(--bloom-title-font);
+    font-family: var(--bloom-display-font);
     font-size: 18px;
     color: var(--bloom-text-dark-blue);
     margin: 0;
@@ -72,19 +72,19 @@
   }
 
   .btn-logout {
-    font-family: var(--bloom-title-font);
+    font-family: var(--bloom-display-font);
     font-size: 14px;
     padding: 8px 16px;
-    border: 1px solid #d32f2f;
+    border: 1px solid var(--bloom-error);
     background: transparent;
-    color: #d32f2f;
+    color: var(--bloom-error);
     border-radius: 4px;
     cursor: pointer;
     text-transform: uppercase;
   }
 
   .btn-logout:focus-visible {
-    outline: 2px solid #d32f2f;
+    outline: 2px solid var(--bloom-error);
     outline-offset: 2px;
   }
 </style>

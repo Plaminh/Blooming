@@ -10,9 +10,9 @@
   .quote-card {
     position: absolute;
     right: 18px;
-    bottom: 20px;
+    bottom: 16px;
     left: 21px;
-    height: 146px;
+    height: 138px;
     padding: 20px 44px;
     border: 1px solid #eadfcb;
     border-radius: 5px;

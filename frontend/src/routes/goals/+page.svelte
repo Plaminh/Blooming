@@ -20,7 +20,14 @@
   <title>Goals - Blooming</title>
 </svelte:head>
 
-<DesktopAppShell activeRoute="GOALS" compact>
+{#snippet goalsOverlay()}
+  <FallbackDialog
+    isOpen={showFallback}
+    onClose={() => (showFallback = false)}
+  />
+{/snippet}
+
+<DesktopAppShell activeRoute="GOALS" variant="compact" overlay={goalsOverlay}>
   <div class="goals-content">
     <div class="col-my-goals">
       <MyGoalsPanel
@@ -43,11 +50,6 @@
   </div>
 </DesktopAppShell>
 
-<FallbackDialog 
-  isOpen={showFallback} 
-  onClose={() => (showFallback = false)} 
-/>
-
 <style>
   .goals-content {
     display: grid;
@@ -55,14 +57,11 @@
     height: 100%;
     min-width: 0;
     min-height: 0;
-    grid-template-columns:
-      minmax(315px, 366fr)
-      minmax(470px, 558fr)
-      minmax(350px, 406fr);
+    grid-template-columns: 285px 455px minmax(0, 1fr);
     gap: 14px;
     padding: 13px 11px 11px 15px;
     overflow: hidden;
-    background: #eef8f4;
+    background: var(--bloom-surface-cream);
   }
 
   .col-my-goals,
@@ -75,9 +74,4 @@
     min-height: 0;
   }
 
-  @media (max-width: 1280px) {
-    .goals-content {
-      grid-template-columns: 315px minmax(470px, 1fr) 350px;
-    }
-  }
 </style>

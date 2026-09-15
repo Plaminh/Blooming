@@ -8,7 +8,7 @@
     alt=""
     class="brand-scene"
     width="432"
-    height="598"
+    height="582"
   />
   <div class="desk-extension" aria-hidden="true"></div>
 
@@ -35,7 +35,7 @@
     left: 0;
     display: block;
     width: 432px;
-    height: 598px;
+    height: 582px;
     max-width: none;
     object-fit: none;
     object-position: top left;
@@ -45,7 +45,7 @@
 
   .desk-extension {
     position: absolute;
-    top: 598px;
+    top: 582px;
     right: 0;
     left: 0;
     height: 36px;
@@ -64,7 +64,7 @@
     position: absolute;
     z-index: 2;
     top: 48px;
-    left: 74px;
+    left: 68px;
   }
 
   .marketing-headline {

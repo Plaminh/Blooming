@@ -137,14 +137,14 @@
   .stepper-slot {
     position: absolute;
     top: 30px;
-    left: 55px;
-    width: 830px;
+    left: 44px;
+    width: 790px;
   }
 
   .form-header {
     position: absolute;
     top: 145px;
-    left: 66px;
+    left: 60px;
   }
 
   .form-title {
@@ -167,21 +167,21 @@
 
   .form-content {
     position: absolute;
-    top: 266px;
-    left: 67px;
-    width: 820px;
+    top: 250px;
+    left: 60px;
+    width: 755px;
   }
 
   .timezone-row {
-    margin-top: 21px;
+    margin-top: 14px;
   }
 
   .preset-row {
-    margin-top: 25px;
+    margin-top: 22px;
   }
 
   .options-row {
-    margin-top: 34px;
+    margin-top: 23px;
   }
 
   .options-list {
@@ -193,7 +193,7 @@
   .form-footer {
     position: absolute;
     right: 31px;
-    bottom: 25px;
+    bottom: 15px;
     left: 28px;
   }
 

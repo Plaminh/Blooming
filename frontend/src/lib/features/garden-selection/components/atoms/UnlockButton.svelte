@@ -8,12 +8,14 @@
 
 <style>
   .unlock-button {
-    background: #5db95d;
+    width: 330px;
+    height: 56px;
+    padding: 0 24px;
+    background: var(--bloom-primary-green);
     color: #ffffff;
-    border: 4px solid #1e3a5f;
+    border: 2px solid var(--bloom-primary-green-border);
     font-family: var(--bloom-display-font);
-    font-size: 24px;
-    padding: 12px 48px;
+    font-size: 27px;
     cursor: pointer;
     text-transform: uppercase;
     box-shadow: inset -4px -4px 0px 0px rgba(0, 0, 0, 0.2);
@@ -25,7 +27,7 @@
     outline-offset: 4px;
   }
   .unlock-button:disabled {
-    background: #9ba4a5;
+    background: var(--bloom-disabled);
     cursor: not-allowed;
     box-shadow: inset -4px -4px 0px 0px rgba(0, 0, 0, 0.1);
   }

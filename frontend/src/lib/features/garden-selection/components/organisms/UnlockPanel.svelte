@@ -29,6 +29,6 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 24px;
+    margin-top: 6px;
   }
 </style>
