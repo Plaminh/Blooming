@@ -19,19 +19,19 @@
   }
   .progress-bar-wrap {
     flex: 1;
-    height: 14px;
+    height: 26px;
     background: #e7e2d5;
-    border-radius: 7px;
+    border-radius: 5px;
     overflow: hidden;
   }
   .progress-fill {
     height: 100%;
     background: #50a469;
-    border-radius: 7px;
+    border-radius: 5px;
   }
   .progress-label {
     font-family: var(--bloom-body-font);
-    font-size: 19px;
+    font-size: 24px;
     font-weight: 700;
     color: #064b91;
   }

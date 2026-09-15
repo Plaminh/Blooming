@@ -3,15 +3,13 @@
   import TargetDateLabel from '../atoms/TargetDateLabel.svelte';
   import RoadmapTimeline from './RoadmapTimeline.svelte';
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
+  import GoalsPanelHeader from '../atoms/GoalsPanelHeader.svelte';
 
   let { goal }: { goal: Goal | null } = $props();
 </script>
 
 <section class="panel goal-details">
-  <header class="panel-header">
-    <img src="/assets/widget/icons/leaf-icon.png" alt="" class="header-icon" />
-    <h2 id="goal-details-heading">GOAL DETAILS</h2>
-  </header>
+  <GoalsPanelHeader title="GOAL DETAILS" id="goal-details-heading" icon />
   
   <div class="panel-body">
     {#if goal}
@@ -45,97 +43,87 @@
 
 <style>
   .panel {
-    background: #f7f6ed;
-    border: 1px solid #d4cdbd;
+    background: rgba(255, 253, 247, 0.78);
+    border: 1px solid #aab6aa;
     border-radius: 6px;
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
   }
-  .panel-header {
-    background: linear-gradient(#3998ad, #24859f);
-    padding: 10px 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .header-icon {
-    width: 20px;
-    height: 20px;
-    object-fit: contain;
-    image-rendering: pixelated;
-  }
-  .panel-header h2 {
-    margin: 0;
-    color: white;
-    font-family: var(--bloom-body-font);
-    font-size: 17px;
-    font-weight: 700;
-  }
   .panel-body {
-    padding: 24px;
+    padding: 21px 14px 20px 21px;
     flex: 1;
     overflow-y: auto;
   }
   .goal-summary {
     display: flex;
-    gap: 20px;
-    margin-bottom: 30px;
+    min-height: 77px;
+    gap: 18px;
+    margin-bottom: 23px;
     align-items: flex-start;
   }
   .summary-icon {
-    width: 48px;
-    height: 48px;
+    width: 54px;
+    height: 58px;
+    flex: 0 0 54px;
     display: flex;
     align-items: center;
     justify-content: center;
   }
   .summary-icon img {
-    max-width: 100%;
-    max-height: 100%;
+    width: 54px;
+    height: 54px;
     object-fit: contain;
     image-rendering: pixelated;
+    transform: scale(1.5);
   }
   .summary-text {
     flex: 1;
+    min-width: 0;
   }
   .summary-text h3 {
     margin: 0 0 6px 0;
     color: #064b91;
-    font-family: var(--bloom-body-font);
-    font-size: 24px;
-    font-weight: 700;
+    font-family: var(--bloom-display-font);
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.06em;
   }
   .summary-text p {
     margin: 0;
     color: #1479ab;
     font-family: var(--bloom-body-font);
-    font-size: 16px;
+    font-size: 17px;
     line-height: 1.4;
+    white-space: nowrap;
   }
   .target-date-box {
     border: 1px solid #dcd7ca;
     background: #fffdf8;
-    padding: 10px 14px;
+    width: 128px;
+    height: 76px;
+    flex: 0 0 128px;
+    padding: 10px 8px;
     border-radius: 6px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    min-width: 110px;
+    box-sizing: border-box;
   }
   .box-label {
     color: #0c61a1;
     font-family: var(--bloom-body-font);
-    font-size: 12px;
+    font-size: 13px;
   }
   .roadmap-heading {
     color: #064b91;
-    font-family: var(--bloom-body-font);
-    font-size: 19px;
-    font-weight: 700;
-    margin: 0 0 20px 0;
+    font-family: var(--bloom-display-font);
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -0.055em;
+    margin: 0 0 19px 0;
   }
   .empty-state {
     display: flex;

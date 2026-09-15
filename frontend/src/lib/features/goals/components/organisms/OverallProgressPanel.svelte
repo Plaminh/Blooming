@@ -1,5 +1,6 @@
 <script lang="ts">
   import ProgressBar from '../atoms/ProgressBar.svelte';
+  import GoalsPanelHeader from '../atoms/GoalsPanelHeader.svelte';
 
   let { completed, total }: { completed: number; total: number } = $props();
   
@@ -7,57 +8,35 @@
 </script>
 
 <section class="panel overall-progress">
-  <header class="plain-header">
-    <img src="/assets/widget/icons/leaf-icon.png" alt="" class="header-icon" />
-    <h2>OVERALL PROGRESS</h2>
-  </header>
+  <GoalsPanelHeader title="OVERALL PROGRESS" />
   
   <div class="panel-body">
+    <div class="milestone-count">{completed} / {total} milestones</div>
     <ProgressBar percentage="{percentage}%" label="{percentage}%" />
-    <div class="milestone-count">
-      <span>{completed} of {total} milestones completed</span>
-    </div>
   </div>
 </section>
 
 <style>
   .panel {
+    height: 134px;
+    flex: 0 0 134px;
     background: #fffdf8;
-    border: 1px solid #d4cdbd;
+    border: 1px solid #24788c;
     border-radius: 6px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
-  .plain-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 14px 0;
-  }
-  .header-icon {
-    width: 16px;
-    height: 16px;
-    object-fit: contain;
-    image-rendering: pixelated;
-  }
-  .plain-header h2 {
-    margin: 0;
-    color: #064b91;
-    font-family: var(--bloom-body-font);
-    font-size: 15px;
-    font-weight: 700;
-  }
   .panel-body {
-    padding: 14px;
+    padding: 8px 16px 14px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 5px;
   }
   .milestone-count {
     color: #0a65a2;
     font-family: var(--bloom-body-font);
-    font-size: 14px;
-    text-align: right;
+    font-size: 18px;
+    text-align: left;
   }
 </style>

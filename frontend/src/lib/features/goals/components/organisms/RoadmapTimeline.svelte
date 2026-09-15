@@ -31,23 +31,39 @@
   .roadmap-timeline {
     display: flex;
     flex-direction: column;
-    padding-top: 12px;
+    gap: 21px;
   }
   .timeline-row {
     display: flex;
-    gap: 16px;
+    min-height: 142px;
+    gap: 14px;
     /* Ensure the row stretches so the connector can reach the next row */
     align-items: stretch;
+  }
+  .timeline-row:first-child {
+    margin-bottom: 7px;
+  }
+  .timeline-row:nth-child(3) {
+    transform: translateY(-2px);
+  }
+  .timeline-row:nth-child(4) {
+    transform: translateY(-1px);
   }
   .node-col {
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 55px;
+    flex: 0 0 55px;
+    transform: translateY(3px);
   }
   .card-col {
     flex: 1;
     display: flex;
     flex-direction: column;
+  }
+  .timeline-row:first-child .card-col {
+    transform: translateY(-2px);
   }
   .empty-state {
     color: #1479ab;

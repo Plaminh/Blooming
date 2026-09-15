@@ -1,14 +1,13 @@
 <script lang="ts">
   import type { Goal } from '../../models';
   import GoalListItem from '../molecules/GoalListItem.svelte';
+  import GoalsPanelHeader from '../atoms/GoalsPanelHeader.svelte';
 
   let { goals, selectedGoalId, onSelect, onCreateGoal }: { goals: Goal[]; selectedGoalId: string; onSelect: (id: string) => void; onCreateGoal: () => void; } = $props();
 </script>
 
 <section class="panel my-goals">
-  <header class="panel-header">
-    <h2 id="my-goals-heading">MY GOALS</h2>
-  </header>
+  <GoalsPanelHeader title="MY GOALS" id="my-goals-heading" />
   
   <div class="panel-body">
     <button class="btn-create" onclick={onCreateGoal}>
@@ -30,29 +29,21 @@
 
 <style>
   .panel {
-    background: #e6f6f3;
-    border: 1px solid #cfcebe;
+    background: rgba(255, 253, 247, 0.78);
+    border: 1px solid #aab6aa;
     border-radius: 6px;
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
   }
-  .panel-header {
-    background: linear-gradient(#3998ad, #24859f);
-    padding: 10px 14px;
-  }
-  .panel-header h2 {
-    margin: 0;
-    color: white;
-    font-family: var(--bloom-body-font);
-    font-size: 17px;
-    font-weight: 700;
-  }
   .panel-body {
-    padding: 14px;
+    padding: 12px 13px;
     flex: 1;
     overflow-y: auto;
+  }
+  .my-goals :global(.goals-panel-header) {
+    padding-left: 21px;
   }
   .btn-create {
     width: 100%;
@@ -60,19 +51,23 @@
     border: 1px solid #1a7847;
     border-radius: 5px;
     color: white;
-    font-family: var(--bloom-body-font);
-    font-size: 15px;
-    font-weight: 700;
-    padding: 12px;
+    height: 55px;
+    font-family: var(--bloom-display-font);
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    padding: 0 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 11px;
     cursor: pointer;
-    margin-bottom: 16px;
+    margin-bottom: 13px;
   }
   .icon-plus {
-    font-size: 20px;
+    font-family: var(--bloom-body-font);
+    font-size: 34px;
+    font-weight: 300;
     line-height: 1;
   }
   .goals-list {

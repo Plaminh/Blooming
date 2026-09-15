@@ -5,14 +5,16 @@
 
   let {
     activeRoute,
+    compact = false,
     children
   }: {
     activeRoute: 'TODAY' | 'GOALS' | 'MR. BLOOM' | 'SETTINGS';
+    compact?: boolean;
     children: Snippet;
   } = $props();
 </script>
 
-<div class="desktop-shell">
+<div class="desktop-shell" class:compact>
   <DesktopTitleBar />
   <div class="desktop-shell__body">
     <AppSidebar {activeRoute} />
@@ -65,5 +67,69 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .desktop-shell.compact :global(.desktop-titlebar) {
+    height: 44px;
+    flex-basis: 44px;
+  }
+
+  .desktop-shell.compact :global(.desktop-titlebar__logo) {
+    width: 40px;
+    height: 40px;
+  }
+
+  .desktop-shell.compact :global(.desktop-titlebar__title) {
+    font-size: 21px;
+  }
+
+  .desktop-shell.compact :global(.desktop-window-control) {
+    width: 29px;
+    height: 28px;
+  }
+
+  .desktop-shell.compact :global(.desktop-titlebar__controls) {
+    gap: 7px;
+    padding-right: 9px;
+  }
+
+  .desktop-shell.compact .desktop-shell__body {
+    grid-template-columns: 166px minmax(0, 1fr);
+  }
+
+  .desktop-shell.compact :global(.sidebar) {
+    padding-top: 45px;
+    background: #f4faf6;
+  }
+
+  .desktop-shell.compact :global(.sidebar-nav) {
+    gap: 8px;
+  }
+
+  .desktop-shell.compact :global(.nav-item) {
+    gap: 15px;
+    font-size: 18px;
+    min-height: 56px;
+  }
+
+  .desktop-shell.compact :global(.nav-item .app-icon) {
+    width: 35px !important;
+    height: 35px !important;
+  }
+
+  .desktop-shell.compact :global(.nav-item img.app-icon) {
+    transform: scale(1.5);
+  }
+
+  .desktop-shell.compact :global(.plant-container .plant) {
+    transform: translateY(8px) scale(1.67);
+  }
+
+  .desktop-shell.compact :global(.plant-container) {
+    transform: translateX(1px);
+  }
+
+  .desktop-shell.compact :global(.counters) {
+    transform: translateX(-5px);
   }
 </style>

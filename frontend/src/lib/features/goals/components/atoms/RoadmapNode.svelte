@@ -10,7 +10,7 @@
   });
 </script>
 
-<div class="roadmap-node-container">
+<div class="roadmap-node-container" class:last={isLast}>
   <div class="node {nodeClass}">
     {number}
   </div>
@@ -24,19 +24,22 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 30px;
-    height: 100%;
+    width: 55px;
+    height: calc(100% + 21px);
   }
+  .roadmap-node-container.last { height: 100%; }
   .node {
-    width: 28px;
-    height: 28px;
-    border-radius: 14px;
+    width: 55px;
+    height: 55px;
+    flex: 0 0 55px;
+    border: 1px solid #2e7c54;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     font-family: var(--bloom-body-font);
-    font-size: 16px;
+    font-size: 25px;
     font-weight: 700;
     z-index: 2;
   }
@@ -48,9 +51,10 @@
   }
   .node-not-started {
     background: #90a5aa;
+    border-color: #697f86;
   }
   .connector {
-    width: 4px;
+    width: 5px;
     flex: 1;
     min-height: 20px;
   }

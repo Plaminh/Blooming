@@ -4,6 +4,7 @@ export interface Milestone {
   id: string;
   title: string;
   description: string;
+  summary?: string;
   date: string;
   status: MilestoneStatus;
 }
@@ -36,6 +37,7 @@ export const FIXTURE_GOALS: Goal[] = [
         id: 'm2',
         title: 'Build planning core',
         description: 'Build Today, Goals and Settings with local data storage and basic functionality.',
+        summary: 'Build Today, Goals and Settings with local data storage.',
         date: 'May 31, 2024',
         status: 'In progress'
       },

@@ -6,7 +6,7 @@
 
 <div class="target-date">
   {#if showIcon}
-    <AppIcon name="calendar" scale={0.7} />
+    <AppIcon name="calendar" scale={0.92} />
   {/if}
   <span>{date}</span>
 </div>
@@ -18,6 +18,7 @@
     gap: 6px;
     color: #0c61a1;
     font-family: var(--bloom-body-font);
-    font-size: 14px;
+    font-size: 17px;
+    white-space: nowrap;
   }
 </style>
