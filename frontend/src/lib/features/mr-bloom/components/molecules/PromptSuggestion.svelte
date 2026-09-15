@@ -19,19 +19,18 @@
 <button
   class="prompt-suggestion"
   class:selected
-  class:sprout-card={icon === 'sprout'}
   aria-pressed={selected}
   {onclick}
 >
-  <div class="icon-container" class:sprout-icon={icon === 'sprout'}>
-    <AppIcon name={icon} scale={icon === 'sprout' ? 2.8 : 2.35} />
+  <div class="icon-container">
+    <AppIcon name={icon} size="detail" />
   </div>
   <div class="content">
     <div class="title">{title}</div>
     <div class="description">{description}</div>
   </div>
   <div class="arrow">
-    <AppIcon name="chevron-right" />
+    <AppIcon name="chevron-right" size="control" />
   </div>
 </button>
 
@@ -40,11 +39,11 @@
     display: flex;
     align-items: center;
     width: 100%;
-    min-height: 106px;
+    min-height: 88px;
     background: rgba(255, 253, 247, 0.7);
     border: 2px solid #c9c3b5;
     border-radius: 7px;
-    padding: 14px 25px 14px 20px;
+    padding: 10px 18px 10px 14px;
     cursor: pointer;
     text-align: left;
     transition: background-color 0.15s ease;
@@ -60,30 +59,24 @@
   }
   
   .icon-container {
-    width: 124px;
-    display: flex;
-    justify-content: flex-start;
-    padding-left: 17px;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    display: grid;
+    place-items: center;
+    margin-right: 12px;
     color: #0b506e;
     box-sizing: border-box;
   }
 
-  .sprout-icon :global(img) {
-    transform: translate(-7px, -14px) scale(1.8);
-  }
-  
   .content {
     flex: 1;
-    transform: translateY(-3px);
-  }
-
-  .sprout-card .content {
-    transform: translateY(-7px);
+    min-width: 0;
   }
   
   .title {
     font-family: var(--bloom-display-font);
-    font-size: 23px;
+    font-size: 19px;
     font-weight: 800;
     line-height: 1.25;
     letter-spacing: -0.055em;
@@ -94,7 +87,7 @@
   
   .description {
     font-family: var(--bloom-body-font);
-    font-size: 18px;
+    font-size: 15px;
     color: #1a6595;
     line-height: 1.35;
   }

@@ -4,25 +4,31 @@
   import {
     MR_BLOOM_ATLAS,
     MR_BLOOM_FRAME_SEQUENCE,
+    MR_BLOOM_CHAT_ANIMATIONS,
+    type MrBloomChatAnimation,
     atlasCellForKind,
     atlasSheetTransform,
   } from "../../model/atlas";
 
   type Props = {
-    kind: CompanionWidgetKind;
+    kind?: CompanionWidgetKind;
+    animation?: MrBloomChatAnimation;
+    displayHeight?: number;
     class?: string;
   };
 
-  let { kind, class: className = "" }: Props = $props();
+  let { kind = 'reminders', animation, displayHeight = 110, class: className = "" }: Props = $props();
 
-  const displayHeight = 110;
-  const scale = displayHeight / MR_BLOOM_ATLAS.cellHeight;
-  const displayWidth = MR_BLOOM_ATLAS.cellWidth * scale;
+  const scale = $derived(displayHeight / MR_BLOOM_ATLAS.cellHeight);
+  const displayWidth = $derived(MR_BLOOM_ATLAS.cellWidth * scale);
 
   let sequenceIndex = $state(0);
   let reduceMotion = $state(false);
   let frameSequence = $derived(MR_BLOOM_FRAME_SEQUENCE[kind]);
-  let cell = $derived(atlasCellForKind(kind, sequenceIndex));
+  let chatAnimation = $derived(animation ? MR_BLOOM_CHAT_ANIMATIONS[animation] : null);
+  let cell = $derived(chatAnimation
+    ? { row: chatAnimation.row, col: chatAnimation.frames[sequenceIndex % chatAnimation.frames.length].col }
+    : atlasCellForKind(kind, sequenceIndex));
   let sheetTransform = $derived(atlasSheetTransform(cell, scale));
 
   onMount(() => {
@@ -44,7 +50,23 @@
   $effect(() => {
     kind;
     const frozen = reduceMotion;
+    const profile = chatAnimation;
     sequenceIndex = 0;
+
+    if (profile) {
+      if (frozen) return;
+      let frameIndex = 0;
+      let timer: number;
+      const scheduleFrame = () => {
+        timer = window.setTimeout(() => {
+          frameIndex = (frameIndex + 1) % profile.frames.length;
+          sequenceIndex = frameIndex;
+          scheduleFrame();
+        }, profile.frames[frameIndex].durationMs);
+      };
+      scheduleFrame();
+      return () => window.clearTimeout(timer);
+    }
 
     if (frozen || frameSequence.length <= 1) return;
 
@@ -62,6 +84,7 @@
   class="character {className}"
   aria-hidden="true"
   data-kind={kind}
+  data-animation={animation}
   data-frame={cell.col}
   data-sequence-index={sequenceIndex}
   data-row={cell.row}

@@ -9,7 +9,7 @@
   <div class="unlock-cost" aria-label="Unlock cost: {cost} leaves">
     <LockIcon class="lock" />
     <span class="cost">{cost}</span>
-    <AppIcon name="sprout" scale={0.8} />
+    <AppIcon name="sprout" size="garden-cost" />
   </div>
 {:else}
   <div class="unlock-cost unlocked">

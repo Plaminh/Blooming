@@ -21,7 +21,7 @@
 <style>
   .draft-review-header {
     flex: 0 0 auto;
-    padding: 14px 16px 6px;
+    padding: 10px 14px 4px;
   }
 
   .type-label {
@@ -37,7 +37,7 @@
     margin: 3px 0 0;
     color: #146a9b;
     font-family: var(--bloom-body-font);
-    font-size: 19px;
+    font-size: 15px;
     line-height: 1.25;
   }
 </style>

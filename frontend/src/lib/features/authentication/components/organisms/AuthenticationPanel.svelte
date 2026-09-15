@@ -6,7 +6,7 @@
   import RegistrationForm from './RegistrationForm.svelte';
 
   let { 
-    state,
+    state: authState,
     onSubmitLogin,
     onSubmitRegister,
     onModeChange,
@@ -18,8 +18,8 @@
   } = $props();
 
   function switchMode(mode: AuthMode) {
-    if (state.mode === mode) return;
-    state.switchMode(mode);
+    if (authState.mode === mode) return;
+    authState.switchMode(mode);
     onModeChange?.(mode);
   }
 </script>
@@ -27,7 +27,7 @@
 <div class="auth-panel">
   <img
     class="welcome-leaf"
-    src="/assets/widget/icons/leaf-icon.png"
+    src="/assets/icons/leaf-icon.png"
     alt=""
     width="90"
     height="90"
@@ -40,21 +40,25 @@
   <div class="tabs-container" aria-label="Authentication modes">
     <SegmentedTabButton 
       label="LOGIN" 
-      active={state.mode === 'login'} 
+      active={authState.mode === 'login'}
       onClick={() => switchMode('login')}
     />
     <SegmentedTabButton 
       label="REGISTER" 
-      active={state.mode === 'register'} 
+      active={authState.mode === 'register'}
       onClick={() => switchMode('register')}
     />
   </div>
 
   <div class="form-container">
-    {#if state.mode === 'login'}
-      <LoginForm {state} onSubmit={onSubmitLogin} onModeChange={() => switchMode('register')} />
-    {:else}
-      <RegistrationForm {state} onSubmit={onSubmitRegister} onModeChange={() => switchMode('login')} />
-    {/if}
+    {#key authState.mode}
+      <div class="auth-form-transition">
+        {#if authState.mode === 'login'}
+          <LoginForm state={authState} onSubmit={onSubmitLogin} onModeChange={() => switchMode('register')} />
+        {:else}
+          <RegistrationForm state={authState} onSubmit={onSubmitRegister} onModeChange={() => switchMode('login')} />
+        {/if}
+      </div>
+    {/key}
   </div>
 </div>

@@ -15,7 +15,7 @@
 </script>
 
 <article class="draft-task-row">
-  <span class="task-icon"><AppIcon name={task.icon ?? 'document'} scale={1.9} /></span>
+  <span class="task-icon"><AppIcon name={task.icon ?? 'document'} size="task-type" /></span>
   <strong class="task-title">{task.title}</strong>
 
   <div class="duration-editor">
@@ -45,7 +45,7 @@
   </label>
 
   <button class="remove-btn" aria-label="Remove {task.title}" onclick={() => mrBloomStore.removeTask(task.id)}>
-    <AppIcon name="close" scale={1.05} />
+    <AppIcon name="close" size="control" />
   </button>
 </article>
 
@@ -53,10 +53,10 @@
   .draft-task-row {
     display: flex;
     min-width: 0;
-    min-height: 78px;
+    min-height: 62px;
     align-items: center;
-    gap: 12px;
-    padding: 10px 13px;
+    gap: 8px;
+    padding: 7px 9px;
     border: 2px solid #d1cabd;
     border-radius: 5px;
     background: #fffaf0;
@@ -66,14 +66,12 @@
 
   .task-icon {
     display: grid;
-    width: 49px;
-    height: 49px;
-    flex: 0 0 49px;
+    width: var(--bloom-icon-draft-task-slot);
+    height: var(--bloom-icon-draft-task-slot);
+    flex: 0 0 var(--bloom-icon-draft-task-slot);
     place-items: center;
     color: #0b657e;
   }
-
-  .task-icon :global(img.app-icon) { transform: scale(1.45); }
 
   .task-title {
     min-width: 120px;
@@ -81,7 +79,7 @@
     overflow: hidden;
     color: #064b91;
     font-family: var(--bloom-body-font);
-    font-size: 22px;
+    font-size: 17px;
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -91,26 +89,26 @@
     display: flex;
     flex: 0 0 auto;
     align-items: center;
-    gap: 9px;
+    gap: 6px;
   }
 
   .number-field {
     position: relative;
     display: block;
-    width: 91px;
-    height: 48px;
+    width: 72px;
+    height: 38px;
   }
 
   .duration-editor input {
-    width: 91px;
-    height: 48px;
+    width: 72px;
+    height: 38px;
     padding: 4px 8px 4px 11px;
     border: 2px solid #d1cabd;
     border-radius: 5px;
     background: #fffaf0;
     color: #064b91;
     font-family: var(--bloom-body-font);
-    font-size: 20px;
+    font-size: 16px;
     outline: none;
     appearance: textfield;
   }
@@ -154,29 +152,29 @@
   .unit {
     color: #196f9f;
     font-family: var(--bloom-body-font);
-    font-size: 18px;
+    font-size: 14px;
   }
 
-  .priority-editor { flex: 0 0 130px; }
+  .priority-editor { flex: 0 0 104px; }
 
   .priority-editor select {
     width: 100%;
-    height: 48px;
+    height: 38px;
     padding: 0 12px;
     border: 2px solid #d1cabd;
     border-radius: 5px;
     background: #fffaf0;
     color: #064b91;
     font-family: var(--bloom-body-font);
-    font-size: 19px;
+    font-size: 15px;
     cursor: pointer;
   }
 
   .remove-btn {
     display: grid;
-    width: 31px;
-    height: 45px;
-    flex: 0 0 31px;
+    width: 28px;
+    height: 38px;
+    flex: 0 0 28px;
     padding: 0;
     place-items: center;
     border: 0;

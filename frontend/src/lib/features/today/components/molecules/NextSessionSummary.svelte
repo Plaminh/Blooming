@@ -15,11 +15,11 @@
   .next-session-content {
     display: flex;
     align-items: center;
-    gap: 15px;
-    padding: 3px 14px 7px 43px;
+    gap: 12px;
+    padding: 1px 10px 5px 34px;
     color: #0751a1;
     font-family: var(--bloom-body-font);
   }
-  p { margin: 0; font-size: 16px; line-height: 1.3; }
-  span { font-size: 14px; line-height: 1.2; }
+  p { margin: 0; font-size: 14px; line-height: 1.25; }
+  span { font-size: 12px; line-height: 1.15; }
 </style>

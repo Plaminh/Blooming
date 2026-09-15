@@ -114,9 +114,6 @@
     min-height: 0;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid #cbc6b9;
-    border-radius: 5px;
-    background: rgba(255, 253, 247, 0.72);
   }
   .today-rail { min-width: 0; min-height: 0; }
 

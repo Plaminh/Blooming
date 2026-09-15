@@ -2,6 +2,7 @@
   --bloom-canvas: #f0e7d5;
   --bloom-surface-cream: #fcf6e8;
   --bloom-surface-cream-alt: #fbf3e3;
+  --bloom-settings-panel-bg: #ffffff;
   --bloom-surface-dark-cream: #f7eeda;
   --bloom-border-subtle: #cac4b4;
   --bloom-border-dark: #a9a18f;
@@ -12,6 +13,11 @@
   --bloom-primary-green: #66a46e;
   --bloom-primary-green-border: #317053;
   --bloom-primary-green-hover: #589763;
+  --bloom-action-primary-bg: #429f60;
+  --bloom-action-secondary-bg: #fffaf0;
+  --bloom-task-active-bg: #dff4ff;
+  --bloom-task-completed-bg: #eef8e9;
+  --bloom-task-upcoming-bg: #fffaf0;
   --bloom-text-dark-blue: #174b70;
   --bloom-text-control-blue: #214966;
   --bloom-text-muted-blue: #557685;
@@ -30,8 +36,36 @@
   --bloom-titlebar-compact-height: 44px;
   --bloom-sidebar-standard-width: 181px;
   --bloom-sidebar-compact-width: 166px;
+  --bloom-sidebar-plant-scale: 1.5;
+  --bloom-icon-navigation: 18px;
+  --bloom-icon-navigation-frame: 22px;
+  --bloom-icon-navigation-slot: 22px;
+  --bloom-navigation-label-size: 14px;
+  --bloom-navigation-label-line-height: 22px;
+  --bloom-navigation-label-gap: 8px;
+  --bloom-icon-goal-list: 26px;
+  --bloom-icon-goal-detail: 28px;
+  --bloom-icon-task-type: 22px;
+  --bloom-icon-draft-task-slot: 24px;
+  --bloom-icon-control: 18px;
+  --bloom-icon-garden-balance: 44px;
+  --bloom-icon-garden-cost: 28px;
+  --bloom-icon-counter-water: 44px;
+  --bloom-chat-avatar-width: 84px;
+  --bloom-chat-avatar-height: 68px;
+  --bloom-chat-avatar-slot: 92px;
+  --bloom-icon-task-type-slot: 48px;
+  --bloom-icon-detail: 24px;
+  --bloom-icon-detail-slot: 24.48px;
+  --bloom-icon-roadmap-milestone: 22px;
   --bloom-display-font: "Cascadia Mono", "Lucida Console", Consolas, monospace;
   --bloom-body-font: Inter, "Segoe UI", Arial, sans-serif;
+  --bloom-panel-title-size: 18px;
+  --bloom-panel-title-weight: 800;
+  --bloom-panel-title-tracking: -0.045em;
+  --bloom-panel-title-line-height: 1;
+  --bloom-action-weight: 700;
+  --bloom-action-tracking: -0.055em;
 }
 
 .desktop-titlebar {
@@ -65,15 +99,17 @@
 .desktop-titlebar__logo {
   width: 50px;
   height: 50px;
+  padding: 10px;
   object-fit: contain;
   image-rendering: crisp-edges;
   image-rendering: pixelated;
   transform: translateX(-2px);
 }
 
-.desktop-titlebar--compact .desktop-titlebar__logo {
+.desktop-titlebar__logo--compact {
   width: 40px;
   height: 40px;
+  padding: 8px;
 }
 
 .desktop-titlebar__title {

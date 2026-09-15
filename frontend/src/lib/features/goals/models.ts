@@ -24,7 +24,7 @@ export const FIXTURE_GOALS: Goal[] = [
     title: 'Complete Blooming MVP',
     description: 'Build and launch a delightful desktop app.',
     targetDate: 'Jun 30, 2024',
-    iconRef: 'leaf',
+    iconRef: 'goals',
     milestones: [
       {
         id: 'm1',

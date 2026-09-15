@@ -1,19 +1,22 @@
 <script lang="ts">
   import { mrBloomStore } from '../../stores/mrBloomStore';
   import ActionButton from '../atoms/ActionButton.svelte';
+  import type { IconSize } from '$lib/shared/components/atoms/AppIcon.svelte';
 
   let {
     primaryLabel,
     onPrimary,
     secondaryLabel = 'DISCARD',
     onSecondary,
-    balanced = false
+    balanced = false,
+    iconSize
   }: {
     primaryLabel: string;
     onPrimary: () => void;
     secondaryLabel?: string;
     onSecondary?: () => void;
     balanced?: boolean;
+    iconSize?: IconSize;
   } = $props();
 
   const handleSecondary = () => onSecondary ? onSecondary() : mrBloomStore.discardDraft();
@@ -25,26 +28,26 @@
     variant={secondaryLabel === 'DISCARD' ? 'danger' : 'secondary'}
     onclick={handleSecondary}
   />
-  <ActionButton label={primaryLabel} variant="primary" icon="play" onclick={onPrimary} />
+  <ActionButton label={primaryLabel} variant="primary" icon="play" {iconSize} onclick={onPrimary} />
 </footer>
 
 <style>
   .draft-review-action-bar {
     display: grid;
-    min-height: 119px;
-    flex: 0 0 119px;
+    min-height: 88px;
+    flex: 0 0 88px;
     grid-template-columns: 34% minmax(0, 1fr);
     align-items: start;
-    gap: 14px;
-    padding: 16px 14px 33px 16px;
+    gap: 10px;
+    padding: 10px 12px 18px;
   }
 
   .draft-review-action-bar.balanced {
     grid-template-columns: 39% minmax(0, 1fr);
-    min-height: 116px;
-    flex-basis: 116px;
-    padding: 16px 16px 34px;
+    min-height: 88px;
+    flex-basis: 88px;
+    padding: 10px 12px 18px;
   }
 
-  .draft-review-action-bar.balanced :global(.action-button) { height: 66px; }
+  .draft-review-action-bar.balanced :global(.action-button) { height: 54px; }
 </style>

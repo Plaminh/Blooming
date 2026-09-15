@@ -57,9 +57,9 @@
     height: 100%;
     min-width: 0;
     min-height: 0;
-    grid-template-columns: 285px 455px minmax(0, 1fr);
-    gap: 14px;
-    padding: 13px 11px 11px 15px;
+    grid-template-columns: 270px 470px minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 10px 10px 12px;
     overflow: hidden;
     background: var(--bloom-surface-cream);
   }

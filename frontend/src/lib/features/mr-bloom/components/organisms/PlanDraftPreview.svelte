@@ -15,7 +15,6 @@
 
     <div class="content">
       <div class="goal-summary-row">
-        <span class="goal-icon"><img src="/assets/widget/icons/leaf-icon.png" alt="" /></span>
         <div class="goal-copy">
           <strong>{draft.goalTitle}</strong>
           <span>{draft.goalDescription}</span>
@@ -70,33 +69,18 @@
     min-height: 0;
     flex: 1;
     flex-direction: column;
-    gap: 13px;
-    padding: 11px 16px 0;
+    gap: 9px;
+    padding: 8px 12px 0;
     overflow-y: auto;
   }
 
   .goal-summary-row {
     display: flex;
     min-width: 0;
-    height: 80px;
-    flex: 0 0 80px;
+    height: 64px;
+    flex: 0 0 64px;
     align-items: stretch;
     gap: 13px;
-  }
-
-  .goal-icon {
-    display: grid;
-    width: 55px;
-    flex: 0 0 55px;
-    place-items: center;
-  }
-
-  .goal-icon img {
-    width: 55px;
-    height: 55px;
-    object-fit: contain;
-    image-rendering: pixelated;
-    transform: scale(1.48);
   }
 
   .goal-copy {
@@ -117,7 +101,7 @@
   .goal-copy strong {
     overflow: hidden;
     color: #06459a;
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 600;
     line-height: 1.15;
     text-overflow: ellipsis;
@@ -126,7 +110,7 @@
 
   .goal-copy span {
     overflow: hidden;
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -134,8 +118,8 @@
 
   .target-date-box {
     display: flex;
-    width: 181px;
-    flex: 0 0 181px;
+    width: 145px;
+    flex: 0 0 145px;
     flex-direction: column;
     align-items: center;
     justify-content: center;
@@ -145,10 +129,10 @@
     background: #fffaf0;
     color: #075b9d;
     font-family: var(--bloom-body-font);
-    font-size: 17px;
+    font-size: 14px;
   }
 
-  .target-date-box :global(.target-date) { font-size: 18px; }
+  .target-date-box :global(.target-date) { font-size: 14px; }
 
   .milestones-section {
     display: flex;
@@ -163,26 +147,25 @@
   .timeline-row {
     display: flex;
     min-width: 0;
-    height: 94px;
+    height: 70px;
     align-items: flex-start;
     gap: 13px;
   }
 
   .node-column {
     display: flex;
-    width: 55px;
-    height: 94px;
-    flex: 0 0 55px;
-    transform: translateY(5px);
+    width: 48px;
+    height: 70px;
+    flex: 0 0 48px;
   }
 
   .add-milestone-btn {
     display: flex;
-    width: 270px;
-    height: 58px;
-    flex: 0 0 58px;
+    width: 226px;
+    height: 46px;
+    flex: 0 0 46px;
     align-items: center;
-    gap: 18px;
+    gap: 12px;
     margin-top: 1px;
     padding: 0 22px;
     border: 2px solid #9e9a8f;
@@ -190,7 +173,7 @@
     background: #fffaf0;
     color: #064b91;
     font-family: var(--bloom-display-font);
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 800;
     letter-spacing: -0.055em;
     cursor: pointer;
@@ -198,7 +181,7 @@
 
   .add-milestone-btn span {
     font-family: var(--bloom-body-font);
-    font-size: 39px;
+    font-size: 31px;
     font-weight: 300;
   }
 

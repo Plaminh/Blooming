@@ -8,14 +8,14 @@
   .panel-heading {
     color: #071f66;
     font-family: var(--bloom-display-font);
-    font-size: 32px;
+    font-size: 28px;
     font-weight: 800;
     letter-spacing: -0.055em;
     line-height: 1.15;
   }
 
   .panel-heading.draft {
-    font-size: 38px;
+    font-size: 30px;
     line-height: 1;
   }
 </style>

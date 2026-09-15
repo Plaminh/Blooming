@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Task } from '$lib/features/today/types';
+  import { minutesBetween } from '$lib/features/today/timeline';
   import DateNavigation from '../atoms/DateNavigation.svelte';
   import TimelineHourLabel from '../atoms/TimelineHourLabel.svelte';
   import TimelineCard from '../molecules/TimelineCard.svelte';
@@ -16,16 +17,27 @@
     currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
   );
 
-  const markers = [
-    { hour: '09:00', top: 28, kind: 'active' },
-    { hour: '10:00', top: 116, kind: 'completed' },
-    { hour: '11:00', top: 209, kind: 'upcoming' },
-    { hour: '12:00', top: 303, kind: 'upcoming' },
-    { hour: '13:00', top: 400, kind: 'active' },
-    { hour: '14:00', top: 488, kind: 'small' },
-    { hour: '15:00', top: 557, kind: 'small' },
-    { hour: '16:00', top: 609, kind: 'small' }
+  const cardTop = 8;
+  const cardHeight = 66;
+  const timelineStart = '09:00';
+  const hourStep = 70;
+  const markerTopOffset = (cardHeight - 24) / 2;
+  const timeTop = (time: string) => cardTop + minutesBetween(timelineStart, time) * hourStep / 60;
+  const markerDefinitions = [
+    { hour: '09:00', kind: 'active' },
+    { hour: '10:00', kind: 'completed' },
+    { hour: '11:00', kind: 'upcoming' },
+    { hour: '12:00', kind: 'upcoming' },
+    { hour: '13:00', kind: 'active' },
+    { hour: '14:00', kind: 'small' },
+    { hour: '15:00', kind: 'small' },
+    { hour: '16:00', kind: 'small' }
   ] as const;
+  const markers = markerDefinitions.map((marker) => ({
+    ...marker,
+    top: timeTop(marker.hour) + markerTopOffset
+  }));
+  const rulerHeight = markers[markers.length - 1].top + 24 + cardTop;
 </script>
 
 <section class="timeline-container" aria-labelledby="today-heading">
@@ -38,20 +50,22 @@
   </header>
 
   <div class="timeline-view">
-    <span class="axis-line" aria-hidden="true"></span>
-    {#each markers as marker}
-      <div class="marker" style:top={`${marker.top}px`}>
-        <TimelineHourLabel hour={marker.hour} kind={marker.kind} />
-      </div>
-    {/each}
-
-    {#if tasks.length}
-      {#each tasks as task}
-        <TimelineCard {task} selected={selectedTaskId === task.id} {onSelect} />
+    <div class="timeline-canvas" style:min-height={`${rulerHeight}px`}>
+      <span class="axis-line" aria-hidden="true"></span>
+      {#each markers as marker}
+        <div class="marker" style:top={`${marker.top}px`}>
+          <TimelineHourLabel hour={marker.hour} kind={marker.kind} />
+        </div>
       {/each}
-    {:else}
-      <p class="empty-state">No tasks scheduled for this day.</p>
-    {/if}
+
+      {#if tasks.length}
+        {#each tasks as task (task.id)}
+          <TimelineCard {task} top={timeTop(task.startTime)} selected={selectedTaskId === task.id} {onSelect} />
+        {/each}
+      {:else}
+        <p class="empty-state">No tasks scheduled for this day.</p>
+      {/if}
+    </div>
   </div>
 </section>
 
@@ -89,13 +103,17 @@
   }
   .timeline-header :global(.date-navigator) { margin-top: 8px; }
   .timeline-view {
-    position: relative;
     min-height: 0;
     flex: 1;
+    overflow-y: auto;
+  }
+  .timeline-canvas {
+    position: relative;
+    height: 100%;
   }
   .axis-line {
     position: absolute;
-    top: 22px;
+    top: 29px;
     bottom: 14px;
     left: 91px;
     width: 4px;

@@ -36,20 +36,20 @@
   .preset-box {
     display: grid;
     width: 100%;
-    height: 40px;
+    height: 34px;
     place-items: center;
-    margin-bottom: 5px;
+    margin-bottom: 3px;
     border: 1px solid #aaa69d;
     border-radius: 4px;
-    background: linear-gradient(#fffdf7, #f1ebdd);
+    background: var(--bloom-action-secondary-bg);
     box-shadow: inset 0 -1px 0 #d9d1c1;
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 700;
   }
   .selected .preset-box {
     border-color: #177f4b;
-    background: linear-gradient(#4cac6a, #269551);
+    background: var(--bloom-action-primary-bg);
     color: #f0f8ed;
   }
-  .detail { font-size: 13px; line-height: 1.35; white-space: nowrap; }
+  .detail { font-size: 11px; line-height: 1.3; white-space: nowrap; }
 </style>

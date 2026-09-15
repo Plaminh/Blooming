@@ -7,11 +7,14 @@
 <style>
   .section-heading {
     font-family: var(--bloom-display-font);
-    font-size: 40px;
-    font-weight: 700;
+    font-size: 46px;
+    font-weight: 900;
+    letter-spacing: -0.06em;
+    line-height: 1;
+    text-shadow: 1px 0 currentColor;
     color: var(--bloom-text-dark-blue);
     margin: 0;
-    margin-bottom: 10px;
+    margin-bottom: 24px;
     text-transform: uppercase;
   }
 </style>

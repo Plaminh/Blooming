@@ -15,8 +15,10 @@
 </script>
 
 <button class="nav-item" class:active onclick={onClick} aria-current={active ? 'page' : undefined}>
-  <AppIcon name={icon} scale={1.62} />
-  <span>{label}</span>
+  <span class="nav-icon">
+    <span class="nav-icon-frame"><AppIcon name={icon} size="navigation" /></span>
+  </span>
+  <span class="nav-label">{label}</span>
 </button>
 
 <style>
@@ -24,15 +26,16 @@
     display: flex;
     align-items: center;
     width: 100%;
-    min-height: 58px;
-    gap: 15px;
-    padding: 7px 10px;
+    min-height: 56px;
+    gap: var(--bloom-navigation-label-gap);
+    padding: 7px 5px;
     border: 1px solid transparent;
     border-radius: 5px;
     background: transparent;
     color: #064b91;
     font-family: var(--bloom-body-font);
-    font-size: 20px;
+    font-size: var(--bloom-navigation-label-size);
+    line-height: var(--bloom-navigation-label-line-height);
     font-weight: 700;
     text-align: left;
     white-space: nowrap;
@@ -42,6 +45,7 @@
   .nav-item:hover {
     background: rgba(189, 230, 248, 0.45);
   }
+  .nav-label { min-width: 0; }
 
   .nav-item.active {
     border-color: #caebf4;
@@ -54,7 +58,17 @@
     outline-offset: -2px;
   }
 
-  .nav-item :global(img.app-icon) {
-    transform: scale(1.8);
+  .nav-icon {
+    display: grid;
+    width: var(--bloom-icon-navigation-slot);
+    height: var(--bloom-icon-navigation-slot);
+    flex: 0 0 var(--bloom-icon-navigation-slot);
+    place-items: center;
+  }
+  .nav-icon-frame {
+    display: grid;
+    width: var(--bloom-icon-navigation-frame);
+    height: var(--bloom-icon-navigation-frame);
+    place-items: center;
   }
 </style>

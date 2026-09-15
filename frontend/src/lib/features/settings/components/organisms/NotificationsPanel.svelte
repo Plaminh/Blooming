@@ -34,7 +34,7 @@
 
 <style>
   .panel {
-    background: var(--bloom-surface-cream-alt);
+    background: var(--bloom-settings-panel-bg);
     border: 1px solid var(--bloom-border-subtle);
     border-radius: 8px;
     padding: 18px;
@@ -49,7 +49,10 @@
 
   h3 {
     font-family: var(--bloom-display-font);
-    font-size: 18px;
+    font-size: var(--bloom-panel-title-size);
+    font-weight: var(--bloom-panel-title-weight);
+    letter-spacing: var(--bloom-panel-title-tracking);
+    line-height: var(--bloom-panel-title-line-height);
     color: var(--bloom-text-dark-blue);
     margin: 0;
   }

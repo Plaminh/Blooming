@@ -8,12 +8,12 @@
 </script>
 
 <section class="panel next-milestone">
-  <GoalsPanelHeader title="NEXT MILESTONE" icon />
+  <GoalsPanelHeader title="NEXT MILESTONE" />
   
   <div class="panel-body">
     {#if milestone}
       <div class="milestone-main">
-        <div class="document-icon"><AppIcon name="document" scale={1.85} /></div>
+        <div class="document-icon"><AppIcon name="document" size="roadmap-milestone" /></div>
         <div class="milestone-info">
           <h3>{milestone.title}</h3>
           <p>{milestone.summary ?? milestone.description}</p>
@@ -33,8 +33,8 @@
 
 <style>
   .panel {
-    height: 225px;
-    flex: 0 0 225px;
+    height: 184px;
+    flex: 0 0 184px;
     background: #fffdf8;
     border: 1px solid #24788c;
     border-radius: 6px;
@@ -44,7 +44,7 @@
   }
   .panel-body {
     min-height: 0;
-    padding: 20px 16px 18px 28px;
+    padding: 13px 12px 12px 16px;
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -53,13 +53,14 @@
   .milestone-main {
     display: flex;
     align-items: flex-start;
-    gap: 24px;
+    gap: 14px;
   }
   .document-icon {
     display: grid;
-    width: 47px;
-    height: 54px;
-    flex: 0 0 47px;
+    width: var(--bloom-icon-roadmap-milestone);
+    height: var(--bloom-icon-roadmap-milestone);
+    flex: 0 0 var(--bloom-icon-roadmap-milestone);
+    align-self: center;
     place-items: center;
     color: #0b657e;
   }
@@ -72,7 +73,7 @@
     margin: 0;
     color: #064b91;
     font-family: var(--bloom-display-font);
-    font-size: 24px;
+    font-size: 19px;
     font-weight: 800;
     letter-spacing: -0.055em;
   }
@@ -80,8 +81,8 @@
     margin: 0;
     color: #0a65a2;
     font-family: var(--bloom-body-font);
-    font-size: 19px;
-    line-height: 1.35;
+    font-size: 15px;
+    line-height: 1.3;
   }
   .milestone-meta {
     display: flex;
@@ -91,10 +92,10 @@
   .days-left {
     background: #c3e5f5;
     color: #064b91;
-    padding: 7px 13px;
+    padding: 5px 9px;
     border-radius: 4px;
     font-family: var(--bloom-body-font);
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 700;
   }
   .empty-state {

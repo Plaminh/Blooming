@@ -18,8 +18,8 @@
 
 <style>
   .panel {
-    height: 134px;
-    flex: 0 0 134px;
+    height: 110px;
+    flex: 0 0 110px;
     background: #fffdf8;
     border: 1px solid #24788c;
     border-radius: 6px;
@@ -28,7 +28,7 @@
     overflow: hidden;
   }
   .panel-body {
-    padding: 8px 16px 14px;
+    padding: 6px 12px 10px;
     display: flex;
     flex-direction: column;
     gap: 5px;
@@ -36,7 +36,7 @@
   .milestone-count {
     color: #0a65a2;
     font-family: var(--bloom-body-font);
-    font-size: 18px;
+    font-size: 15px;
     text-align: left;
   }
 </style>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import AppIcon, { type IconName } from '$lib/shared/components/atoms/AppIcon.svelte';
+  import AppIcon, { type IconName, type IconSize } from '$lib/shared/components/atoms/AppIcon.svelte';
 
   let { 
     icon, 
@@ -7,6 +7,7 @@
     disabled = false, 
     variant = 'primary', 
     size = 'medium',
+    iconSize,
     onclick
   }: { 
     icon: IconName; 
@@ -14,6 +15,7 @@
     disabled?: boolean; 
     variant?: 'primary' | 'secondary' | 'ghost'; 
     size?: 'small' | 'medium' | 'large';
+    iconSize?: IconSize;
     onclick?: () => void;
   } = $props();
 </script>
@@ -24,7 +26,7 @@
   {disabled}
   {onclick}
 >
-  <AppIcon name={icon} />
+  <AppIcon name={icon} size={iconSize} scale={size === 'large' ? 1.75 : 1} />
 </button>
 
 <style>
@@ -80,8 +82,4 @@
     padding: 15px;
   }
 
-  .large :global(.app-icon) {
-    width: 42px !important;
-    height: 42px !important;
-  }
 </style>

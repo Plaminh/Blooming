@@ -23,13 +23,12 @@
 <div class="right-rail-container">
   <section class="panel task-details" aria-labelledby="task-details-heading">
     <header class="panel-strip">
-      <img src="/assets/widget/icons/leaf-icon.png" alt="" />
       <h2 id="task-details-heading">TASK DETAILS</h2>
     </header>
     <div class="task-body">
       {#if task}
         <div class="task-summary">
-          <AppIcon name={task.iconRef} scale={1.02} />
+          <span class="detail-icon"><AppIcon name={task.iconRef} size="detail" /></span>
           <div>
             <h3>{task.title}</h3>
             <p class="task-time">{task.startTime} – {task.endTime} {task.durationString}</p>
@@ -66,7 +65,6 @@
 
   <section class="panel focus-setup" aria-labelledby="focus-heading">
     <header class="panel-strip">
-      <img src="/assets/widget/icons/leaf-icon.png" alt="" />
       <h2 id="focus-heading">FOCUS SETUP</h2>
       <span class="help" aria-label="Focus setup help">?</span>
     </header>
@@ -98,8 +96,8 @@
   .right-rail-container {
     display: grid;
     height: 100%;
-    grid-template-rows: 240px 94px 220px 1fr;
-    gap: 9px;
+    grid-template-rows: 210px 82px 190px minmax(0, 1fr);
+    gap: 8px;
   }
   .panel {
     min-height: 0;
@@ -109,34 +107,41 @@
     background: #fffbf2;
     color: #064b91;
   }
+  .task-details { display: flex; flex-direction: column; }
   .panel-strip,
   .plain-header {
     display: flex;
-    height: 37px;
+    height: 32px;
     align-items: center;
-    gap: 9px;
-    padding: 0 12px;
+    gap: 7px;
+    padding: 0 10px;
   }
   .panel-strip {
-    background: linear-gradient(#3998ad, #24859f);
+    background: var(--bloom-titlebar-bg);
     color: #f1fbf7;
   }
-  .panel-strip img { width: 26px; height: 27px; object-fit: contain; image-rendering: pixelated; }
   h2 {
     flex: 1;
     margin: 0;
     font-family: var(--bloom-body-font);
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 700;
     line-height: 1;
   }
-  .task-body { padding: 12px 14px 9px; }
-  .task-summary { display: flex; gap: 13px; }
+  .task-body { min-height: 0; flex: 1; padding: 8px 10px 6px; overflow-y: auto; }
+  .task-summary { display: flex; gap: 10px; }
+  .detail-icon {
+    display: grid;
+    width: var(--bloom-icon-detail-slot);
+    height: var(--bloom-icon-detail-slot);
+    flex: 0 0 var(--bloom-icon-detail-slot);
+    place-items: center;
+  }
   .task-summary h3 {
     margin: 0;
     color: #063fa0;
     font-family: var(--bloom-body-font);
-    font-size: 21px;
+    font-size: 18px;
     font-weight: 700;
     line-height: 1.1;
   }
@@ -144,23 +149,23 @@
     margin: 3px 0 0;
     color: #0672b0;
     font-family: var(--bloom-body-font);
-    font-size: 15px;
+    font-size: 13px;
     line-height: 1.25;
   }
-  .description { margin-top: 6px; }
-  .divider { height: 1px; margin: 11px 0 7px; background: #d7d7d1; }
+  .description { margin-top: 4px; }
+  .divider { height: 1px; margin: 7px 0 4px; background: #d7d7d1; }
   .meta-row {
     display: grid;
-    min-height: 38px;
-    grid-template-columns: 34px 90px 1fr;
+    min-height: 31px;
+    grid-template-columns: 28px 74px 1fr;
     align-items: center;
     font-family: var(--bloom-body-font);
-    font-size: 14px;
+    font-size: 12px;
   }
   .meta-label { color: #0873b1; }
   .category-badge {
     justify-self: start;
-    padding: 4px 17px;
+    padding: 3px 12px;
     border-radius: 5px;
     background: #cceafe;
     color: #0750a8;
@@ -168,7 +173,7 @@
   .notes-row { align-items: start; padding-top: 2px; }
   .notes-row .meta-label { padding-top: 4px; }
   .note-copy { padding-top: 3px; color: #074da0; line-height: 1.3; }
-  .plain-header { height: 38px; padding-top: 2px; }
+  .plain-header { height: 32px; padding-top: 1px; }
   .plain-header h2 { color: #06447f; }
   .help {
     display: grid;
@@ -181,28 +186,28 @@
     font-weight: 800;
     line-height: 1;
   }
-  .focus-body { padding: 4px 12px 9px; }
-  .focus-body > p { margin: 0 0 8px; font-family: var(--bloom-body-font); font-size: 15px; }
-  .presets { display: flex; gap: 10px; }
+  .focus-body { padding: 3px 10px 7px; }
+  .focus-body > p { margin: 0 0 5px; font-family: var(--bloom-body-font); font-size: 13px; }
+  .presets { display: flex; gap: 8px; }
   .start-focus {
     display: flex;
     width: 100%;
-    height: 50px;
+    height: 42px;
     align-items: center;
     justify-content: center;
-    gap: 18px;
-    margin-top: 10px;
+    gap: 12px;
+    margin-top: 7px;
     border: 1px solid #177d4d;
     border-radius: 4px;
-    background: linear-gradient(#4cad6b, #299655);
+    background: var(--bloom-action-primary-bg);
     color: white;
     font-family: var(--bloom-body-font);
-    font-size: 19px;
+    font-size: 16px;
     cursor: pointer;
   }
   .start-focus:disabled { opacity: 0.55; cursor: not-allowed; }
   .start-focus:focus-visible { outline: 2px solid #00aeea; outline-offset: 2px; }
-  .play { width: 0; height: 0; border-top: 11px solid transparent; border-bottom: 11px solid transparent; border-left: 17px solid white; }
+  .play { width: 0; height: 0; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 13px solid white; }
 
   .empty-state { padding: 20px; font-family: var(--bloom-body-font); }
 </style>

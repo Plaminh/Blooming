@@ -20,7 +20,7 @@
     {#if entry.type === 'buffer'}
       <span class="buffer-icon" aria-hidden="true"></span>
     {:else}
-      <AppIcon name={icon} scale={2.05} />
+      <AppIcon name={icon} size="task-type" />
     {/if}
   </span>
   <span class="entry-copy">
@@ -29,7 +29,7 @@
   </span>
   {#if entry.type !== 'buffer'}
     <button class="edit-button" aria-label="Edit {entry.title}">
-      <AppIcon name="pencil" scale={1.15} />
+      <AppIcon name="pencil" size="control" />
     </button>
   {/if}
 </article>
@@ -38,10 +38,10 @@
   .timeline-task-summary {
     display: flex;
     width: 100%;
-    height: 75px;
+    height: 61px;
     align-items: center;
-    gap: 14px;
-    padding: 8px 10px 8px 14px;
+    gap: 9px;
+    padding: 6px 8px;
     border: 2px solid #d1cabd;
     border-radius: 5px;
     background: #fffaf0;
@@ -51,7 +51,7 @@
   .timeline-task-summary.selected,
   .timeline-task-summary.lunch {
     border-color: #65c4eb;
-    background: linear-gradient(90deg, #e4f7ff, #dbf2fc);
+    background: var(--bloom-task-active-bg);
   }
 
   .timeline-task-summary.break:not(.lunch) {
@@ -67,14 +67,13 @@
 
   .entry-icon {
     display: grid;
-    width: 63px;
-    height: 55px;
-    flex: 0 0 63px;
+    width: var(--bloom-icon-draft-task-slot);
+    height: var(--bloom-icon-draft-task-slot);
+    flex: 0 0 var(--bloom-icon-draft-task-slot);
     place-items: center;
     color: #0b5d7b;
   }
 
-  .entry-icon :global(img.app-icon) { transform: scale(1.4); }
   .break:not(.lunch) .entry-icon { color: #3b9655; }
 
   .entry-copy {
@@ -90,22 +89,22 @@
   .entry-copy strong {
     overflow: hidden;
     color: #06459a;
-    font-size: 23px;
+    font-size: 18px;
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .entry-copy > span { font-size: 17px; }
+  .entry-copy > span { font-size: 14px; }
 
   .buffer .entry-copy strong { color: #315e83; }
   .buffer .entry-copy > span { color: #547c99; }
 
   .edit-button {
     display: grid;
-    width: 54px;
-    height: 54px;
-    flex: 0 0 54px;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
     padding: 0;
     place-items: center;
     border: 2px solid #c4c2b8;
@@ -119,9 +118,9 @@
   .edit-button:focus-visible { outline: 2px solid #00aeea; outline-offset: 2px; }
 
   .buffer-icon {
-    width: 44px;
-    height: 44px;
-    border: 4px dashed #718d9b;
+    width: var(--bloom-icon-task-type);
+    height: var(--bloom-icon-task-type);
+    border: 2px dashed #718d9b;
     border-radius: 50%;
   }
 </style>
