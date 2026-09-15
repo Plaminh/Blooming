@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeading from '$lib/shared/components/atoms/PageHeading.svelte';
   import type { Task } from '$lib/features/today/types';
   import { minutesBetween } from '$lib/features/today/timeline';
   import DateNavigation from '../atoms/DateNavigation.svelte';
@@ -43,7 +44,7 @@
 <section class="timeline-container" aria-labelledby="today-heading">
   <header class="timeline-header">
     <div>
-      <h1 id="today-heading">TODAY</h1>
+      <PageHeading id="today-heading" title="TODAY" />
       <p>{formattedDate}</p>
     </div>
     <DateNavigation {onDateChange} />
@@ -83,16 +84,6 @@
     flex: 0 0 82px;
     align-items: flex-start;
     justify-content: space-between;
-  }
-  h1 {
-    margin: 0;
-    color: #063d68;
-    font-family: var(--bloom-display-font);
-    font-size: 46px;
-    font-weight: 900;
-    letter-spacing: -0.06em;
-    line-height: 1;
-    text-shadow: 1px 0 currentColor;
   }
   .timeline-header p {
     margin-top: 1px;

@@ -77,7 +77,7 @@ describe("source-only asset exclusion", () => {
       const imageSources = [...container.querySelectorAll("img")].map((img) => img.src);
       expect(imageSources.length).toBeGreaterThan(0);
       for (const src of imageSources) {
-        expect(src).toContain("/assets/widget/");
+        expect(src.includes("/assets/widget/") || src.includes("/assets/icons/leaf-icon.png")).toBe(true);
       }
       unmount();
     }

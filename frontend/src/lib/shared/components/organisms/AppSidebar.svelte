@@ -12,6 +12,7 @@
     <SidebarNavigationItem label="TODAY" icon="today" active={activeRoute === 'TODAY'} onClick={() => goto('/today')} />
     <SidebarNavigationItem label="GOALS" icon="goals" active={activeRoute === 'GOALS'} onClick={() => goto('/goals')} />
     <SidebarNavigationItem label="MR. BLOOM" icon="chat" active={activeRoute === 'MR. BLOOM'} onClick={() => goto('/mr-bloom')} />
+    <SidebarNavigationItem label="STATISTICS" icon="statistics" active={activeRoute === 'STATISTICS'} onClick={() => goto('/statistics')} />
     <SidebarNavigationItem label="SETTINGS" icon="settings" active={activeRoute === 'SETTINGS'} onClick={() => goto('/settings')} />
   </nav>
 

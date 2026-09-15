@@ -32,7 +32,8 @@
     | 'directions_walk'
     | 'check_circle'
     | 'check'
-    | 'bug';
+    | 'bug'
+    | 'statistics';
 </script>
 
 <script lang="ts">
@@ -142,6 +143,8 @@
       <path d="M5 5 19 19M19 5 5 19" stroke-width="2.4"></path>
     {:else if name === 'play'}
       <path d="m7 4 12 8-12 8V4Z" fill="currentColor" stroke="none"></path>
+    {:else if name === 'statistics'}
+      <path d="M4 20v-6h4v6H4zm6 0v-10h4v10h-4zm6 0V6h4v14h-4z" fill="currentColor" stroke="none"></path>
     {:else}
       <rect x="2" y="2" width="20" height="20" rx="4" />
     {/if}

@@ -8,7 +8,7 @@
     onClick
   }: {
     label: string;
-    icon: 'today' | 'goals' | 'chat' | 'settings';
+    icon: 'today' | 'goals' | 'chat' | 'settings' | 'statistics';
     active?: boolean;
     onClick?: () => void;
   } = $props();

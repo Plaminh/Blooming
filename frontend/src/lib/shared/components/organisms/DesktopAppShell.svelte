@@ -18,7 +18,7 @@
     overlay,
     children
   }: {
-    activeRoute?: 'TODAY' | 'GOALS' | 'MR. BLOOM' | 'SETTINGS';
+    activeRoute?: 'TODAY' | 'GOALS' | 'MR. BLOOM' | 'SETTINGS' | 'STATISTICS';
     variant?: 'standard' | 'compact';
     artworkVariant?: 'standard' | 'compact';
     showSidebar?: boolean;
