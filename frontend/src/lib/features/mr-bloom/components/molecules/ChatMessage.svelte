@@ -28,7 +28,6 @@
   .chat-message {
     display: flex;
     gap: 12px;
-    margin-bottom: 8px;
     width: 100%;
   }
   
@@ -66,16 +65,20 @@
   }
   
   .bubble {
-    background: #f1f9ff;
-    border: 2px solid #91c9ee;
+    background: var(--bloom-chat-msg-bg);
+    border: 2px solid var(--bloom-chat-msg-border);
     padding: 14px 16px;
     border-radius: 7px;
     font-family: var(--bloom-body-font);
     font-size: 18px;
-    color: #071f66;
+    color: var(--bloom-text-dark-blue);
     line-height: 1.4;
     position: relative;
     max-width: 80%;
+    display: flex;
+    flex-direction: column;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
   
   .assistant .bubble {
@@ -89,7 +92,7 @@
     left: -19px;
     width: 0;
     height: 0;
-    border-top: 12px solid #91c9ee;
+    border-top: 12px solid var(--bloom-chat-msg-border);
     border-left: 18px solid transparent;
   }
   
@@ -100,27 +103,20 @@
     left: -14px;
     width: 0;
     height: 0;
-    border-top: 9px solid #f1f9ff;
+    border-top: 9px solid var(--bloom-chat-msg-bg);
     border-left: 14px solid transparent;
   }
 
   .assistant.initial .bubble {
     width: 360px;
-    height: 72px;
-    min-height: 72px;
     margin-top: 8px;
-    padding-block: 0;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
   }
   
   .user .bubble {
-    background: #e1f5ff;
-    border-color: #a9e0f5;
+    background: var(--bloom-chat-msg-user-bg);
+    border-color: var(--bloom-chat-msg-user-border);
     border-bottom-right-radius: 0;
     position: relative;
-    padding-bottom: 20px; /* Space for time */
   }
   
   .user .bubble::before {
@@ -130,7 +126,7 @@
     right: -8px;
     width: 0;
     height: 0;
-    border-bottom: 8px solid #a9e0f5;
+    border-bottom: 8px solid var(--bloom-chat-msg-user-border);
     border-right: 8px solid transparent;
   }
   
@@ -141,13 +137,12 @@
     right: -6px;
     width: 0;
     height: 0;
-    border-bottom: 6px solid #e1f5ff;
+    border-bottom: 6px solid var(--bloom-chat-msg-user-bg);
     border-right: 6px solid transparent;
   }
   
   .user-time {
-    position: absolute;
-    bottom: 8px;
-    right: 12px;
+    align-self: flex-end;
+    margin-top: 4px;
   }
 </style>

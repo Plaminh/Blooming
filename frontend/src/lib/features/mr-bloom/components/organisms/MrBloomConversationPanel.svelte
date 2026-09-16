@@ -80,6 +80,7 @@
     padding: 8px 14px 12px;
     display: flex;
     flex-direction: column;
+    gap: 16px;
   }
   
   .suggestions {
@@ -96,7 +97,6 @@
   .loading-container {
     display: flex;
     gap: 12px;
-    margin-bottom: 16px;
     width: 100%;
   }
   
@@ -110,8 +110,8 @@
   }
   
   .bubble {
-    background: #ffffff;
-    border: 1px solid #cfc9b9;
+    background: var(--bloom-settings-panel-bg);
+    border: 1px solid var(--bloom-border-light);
     padding: 12px 16px;
     border-radius: 8px;
     border-top-left-radius: 0;
@@ -128,7 +128,7 @@
     left: -8px;
     width: 0;
     height: 0;
-    border-top: 8px solid #cfc9b9;
+    border-top: 8px solid var(--bloom-border-light);
     border-left: 8px solid transparent;
   }
   
@@ -139,7 +139,7 @@
     left: -6px;
     width: 0;
     height: 0;
-    border-top: 6px solid #ffffff;
+    border-top: 6px solid var(--bloom-settings-panel-bg);
     border-left: 6px solid transparent;
   }
 </style>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
-  import TextInput from '../atoms/TextInput.svelte';
+  import TextInput from '$lib/shared/components/atoms/TextInput.svelte';
   import ToggleSwitch from '../atoms/ToggleSwitch.svelte';
   import { getSettingsState } from '../../model/SettingsState.svelte';
 

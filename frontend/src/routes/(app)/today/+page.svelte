@@ -1,5 +1,4 @@
 <script lang="ts">
-  import DesktopAppShell from '$lib/shared/components/organisms/DesktopAppShell.svelte';
   import BottomActions from '$lib/features/today/components/organisms/BottomActions.svelte';
   import RightRail from '$lib/features/today/components/organisms/RightRail.svelte';
   import TodayTimeline from '$lib/features/today/components/organisms/TodayTimeline.svelte';
@@ -71,32 +70,30 @@
   }
 </script>
 
-<DesktopAppShell activeRoute="TODAY" variant="compact">
-  <div class="today-content">
-    <main class="today-main">
-      <TodayTimeline
-        {tasks}
-        {currentDate}
-        {selectedTaskId}
-        onSelect={(id) => (selectedTaskId = id)}
-        onDateChange={handleDateChange}
-      />
-      <BottomActions
-        onEdit={() => dispatchAction('edit-schedule')}
-        onReplan={() => dispatchAction('replan-schedule')}
-      />
-    </main>
-    <aside class="today-rail">
-      <RightRail
-        task={selectedTask}
-        {nextTask}
-        {selectedFocusPreset}
-        onPresetSelect={(preset) => (selectedFocusPreset = preset)}
-        onStartFocus={handleStartFocus}
-      />
-    </aside>
-  </div>
-</DesktopAppShell>
+<div class="today-content">
+  <main class="today-main">
+    <TodayTimeline
+      {tasks}
+      {currentDate}
+      {selectedTaskId}
+      onSelect={(id) => (selectedTaskId = id)}
+      onDateChange={handleDateChange}
+    />
+    <BottomActions
+      onEdit={() => dispatchAction('edit-schedule')}
+      onReplan={() => dispatchAction('replan-schedule')}
+    />
+  </main>
+  <aside class="today-rail">
+    <RightRail
+      task={selectedTask}
+      {nextTask}
+      {selectedFocusPreset}
+      onPresetSelect={(preset) => (selectedFocusPreset = preset)}
+      onStartFocus={handleStartFocus}
+    />
+  </aside>
+</div>
 
 <style>
   .today-content {

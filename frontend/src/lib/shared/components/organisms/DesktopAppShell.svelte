@@ -70,10 +70,13 @@
   }
 
   .desktop-shell__main {
+    position: relative;
     height: 100%;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+    display: grid;
+    grid-template-areas: "layer";
   }
 
   .desktop-shell--compact .desktop-shell__body {

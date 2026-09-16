@@ -3,7 +3,7 @@
   import NextMilestonePanel from './NextMilestonePanel.svelte';
   import OverallProgressPanel from './OverallProgressPanel.svelte';
   import GoalsActionGroup from '../molecules/GoalsActionGroup.svelte';
-  import GardenPanel from '$lib/shared/components/organisms/GardenPanel.svelte';
+
 
   let { goal, onEdit, onRefine }: { goal: Goal | null; onEdit: () => void; onRefine: () => void; } = $props();
 
@@ -28,10 +28,6 @@
       <GoalsActionGroup {onEdit} {onRefine} />
     {/if}
   </div>
-
-  <div class="bottom-section">
-    <GardenPanel />
-  </div>
 </div>
 
 <style>
@@ -39,7 +35,6 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    justify-content: space-between;
   }
   .top-section {
     display: flex;
@@ -51,52 +46,5 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-  }
-  .bottom-section {
-    margin-top: auto;
-    height: 270px;
-    margin-bottom: 8px;
-  }
-
-  .bottom-section :global(.garden) {
-    height: 100%;
-    grid-template-rows: 39px 1fr 58px;
-  }
-
-  .bottom-section :global(.garden .panel-strip) {
-    height: 39px;
-  }
-
-  .bottom-section :global(.garden .garden-footer) {
-    font-size: 16px;
-  }
-
-  .bottom-section :global(.garden .garden-scene) {
-    --garden-bush-scale: 3;
-  }
-
-  .bottom-section :global(.garden .flower) {
-    bottom: 24px;
-    height: 45px;
-  }
-
-  .bottom-section :global(.garden .flower::before) {
-    width: 20px;
-    height: 8px;
-    top: 1px;
-  }
-
-  .bottom-section :global(.garden .flower::after) {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: -6px;
-    width: 7px;
-    height: 20px;
-    background: inherit;
-  }
-
-  .bottom-section :global(.garden .garden-footer span:last-child) {
-    font-size: 18px;
   }
 </style>

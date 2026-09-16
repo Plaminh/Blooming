@@ -3,6 +3,7 @@
   import DraftMilestoneSummary from '../molecules/DraftMilestoneSummary.svelte';
   import DraftReviewActionBar from './DraftReviewActionBar.svelte';
   import DraftReviewHeader from './DraftReviewHeader.svelte';
+  import DraftAddButton from '../molecules/DraftAddButton.svelte';
   import RoadmapNode from '$lib/features/goals/components/atoms/RoadmapNode.svelte';
   import TargetDateLabel from '$lib/features/goals/components/atoms/TargetDateLabel.svelte';
 
@@ -42,7 +43,7 @@
           {/each}
         </div>
 
-        <button class="add-milestone-btn"><span aria-hidden="true">+</span> ADD MILESTONE</button>
+        <DraftAddButton label="ADD MILESTONE" variant="milestone" />
       </div>
     </div>
 
@@ -158,33 +159,4 @@
     height: 70px;
     flex: 0 0 48px;
   }
-
-  .add-milestone-btn {
-    display: flex;
-    width: 226px;
-    height: 46px;
-    flex: 0 0 46px;
-    align-items: center;
-    gap: 12px;
-    margin-top: 1px;
-    padding: 0 22px;
-    border: 2px solid #9e9a8f;
-    border-radius: 5px;
-    background: #fffaf0;
-    color: #064b91;
-    font-family: var(--bloom-display-font);
-    font-size: 18px;
-    font-weight: 800;
-    letter-spacing: -0.055em;
-    cursor: pointer;
-  }
-
-  .add-milestone-btn span {
-    font-family: var(--bloom-body-font);
-    font-size: 31px;
-    font-weight: 300;
-  }
-
-  .add-milestone-btn:hover { background: #eef8f6; }
-  .add-milestone-btn:focus-visible { outline: 2px solid #00aeea; outline-offset: 2px; }
 </style>

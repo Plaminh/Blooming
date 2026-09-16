@@ -1,6 +1,6 @@
 <script lang="ts">
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
-  import StatusBadge from '../atoms/StatusBadge.svelte';
+  import StatusBadge from '$lib/shared/components/atoms/StatusBadge.svelte';
   import type { PlanHistoryEntry } from '../../types';
 
   let { entry, onNavigate }: {
@@ -14,7 +14,7 @@
   <td class="name-cell">{entry.planName}</td>
   <td class="tasks-cell">{entry.completedTasks} / {entry.totalTasks}</td>
   <td class="status-cell">
-    <StatusBadge status={entry.status} />
+    <StatusBadge status={entry.status} variant="pill" />
   </td>
   <td class="action-cell">
     <button class="navigate-btn" aria-label="View plan details" onclick={() => onNavigate(entry.id)}>

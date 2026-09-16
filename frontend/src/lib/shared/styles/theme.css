@@ -26,6 +26,46 @@
   --bloom-error: #a32929;
   --bloom-disabled: #9ba4a5;
   --bloom-focus: #2d7c59;
+  --bloom-chat-border: #c9c3b5;
+  --bloom-chat-border-focus: #73c2e8;
+  --bloom-chat-surface: rgba(255, 255, 255, 0.7);
+  --bloom-chat-surface-disabled: #fdfaf3;
+  --bloom-chat-msg-bg: #f1f9ff;
+  --bloom-chat-msg-border: #91c9ee;
+  --bloom-chat-msg-user-bg: #e1f5ff;
+  --bloom-chat-msg-user-border: #a9e0f5;
+  --bloom-garden-border: #20a3be;
+  --bloom-garden-sky: #6fcdf5;
+  --bloom-garden-surface: #fffbf2;
+  --bloom-tag-core-bg: #e1f5ff;
+  --bloom-tag-core-text: #064798;
+  --bloom-tag-core-border: #a9e0f5;
+  --bloom-tag-optional-bg: #fdfaf3;
+  --bloom-tag-optional-text: #92b9d4;
+
+  --bloom-border-draft: #9e9a8f;
+  --bloom-text-draft: #064b91;
+  --bloom-action-draft-hover: #eef8f6;
+  --bloom-action-draft-focus: #00aeea;
+  --bloom-border-light: #cfc9b9;
+
+  --bloom-goal-status-completed-bg: #4e9d67;
+  --bloom-goal-status-completed-text: #ffffff;
+  --bloom-goal-status-in-progress-bg: #e4f4ed;
+  --bloom-goal-status-in-progress-text: #438f61;
+  --bloom-goal-status-not-started-bg: #e5edf5;
+  --bloom-goal-status-not-started-text: #557fa6;
+  --bloom-task-status-in-progress-bg: #c8ead8;
+  --bloom-task-status-in-progress-text: #087846;
+  --bloom-task-status-completed-bg: #d9eed8;
+  --bloom-task-status-completed-text: #167d4a;
+  --bloom-task-status-upcoming-bg: #ece9e2;
+  --bloom-task-status-upcoming-text: #0750ad;
+
+  /* Note: --bloom-widget-border and --bloom-widget-bg are consumed by the companion widget feature (routes/widget, companion-widget components). */
+  --bloom-widget-border: #526f81;
+  --bloom-widget-bg: #f9f9f8;
+
   --bloom-radius: 4px;
   --bloom-frame-width: 2px;
   --bloom-app-canvas-width: 1280px;

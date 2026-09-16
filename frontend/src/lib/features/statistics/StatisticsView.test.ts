@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
-import StatisticsPage from '../../../routes/statistics/+page.svelte';
+import StatisticsPage from '../../../routes/(app)/statistics/+page.svelte';
 
 // Mock desktopWindowService for tests
 vi.mock('$lib/platform/desktopWindow', () => ({

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import DesktopAppShell from '$lib/shared/components/organisms/DesktopAppShell.svelte';
   import GardenSelectionContent from '$lib/features/garden-selection/components/organisms/GardenSelectionContent.svelte';
 </script>
 
@@ -7,16 +6,9 @@
   <title>Blooming - Choose Your Plant</title>
 </svelte:head>
 
-<DesktopAppShell
-  variant="compact"
-  showSidebar={false}
-  canvasWidth="var(--bloom-garden-canvas-width)"
-  canvasHeight="var(--bloom-garden-canvas-height)"
->
-  <main class="page-content">
-    <GardenSelectionContent />
-  </main>
-</DesktopAppShell>
+<main class="page-content">
+  <GardenSelectionContent />
+</main>
 
 <style>
   .page-content {

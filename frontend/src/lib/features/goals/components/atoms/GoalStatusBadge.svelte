@@ -1,24 +1,14 @@
 <script lang="ts">
   import type { MilestoneStatus } from '../../models';
-
   let { status }: { status: MilestoneStatus } = $props();
-
-  let badgeClass = $derived.by(() => {
-    switch (status) {
-      case 'Completed': return 'status-completed';
-      case 'In progress': return 'status-in-progress';
-      case 'Not started': return 'status-not-started';
-      default: return '';
-    }
-  });
 </script>
 
-<span class="badge {badgeClass}">
+<span class="goal-status-badge status-{status.toLowerCase().replace(/ /g, '-')}">
   {status}
 </span>
 
 <style>
-  .badge {
+  .goal-status-badge {
     display: inline-flex;
     align-items: center;
     min-height: 30px;
@@ -29,15 +19,15 @@
     font-weight: 500;
   }
   .status-completed {
-    background: #4e9d67;
-    color: white;
+    background: var(--bloom-goal-status-completed-bg);
+    color: var(--bloom-goal-status-completed-text);
   }
   .status-in-progress {
-    background: #e4f4ed;
-    color: #438f61;
+    background: var(--bloom-goal-status-in-progress-bg);
+    color: var(--bloom-goal-status-in-progress-text);
   }
   .status-not-started {
-    background: #e5edf5;
-    color: #557fa6;
+    background: var(--bloom-goal-status-not-started-bg);
+    color: var(--bloom-goal-status-not-started-text);
   }
 </style>

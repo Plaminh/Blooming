@@ -1,5 +1,4 @@
 <script lang="ts">
-  import DesktopAppShell from '$lib/shared/components/organisms/DesktopAppShell.svelte';
   import SectionHeading from '$lib/features/settings/components/atoms/SectionHeading.svelte';
   import AccountPanel from '$lib/features/settings/components/organisms/AccountPanel.svelte';
   import GeneralPanel from '$lib/features/settings/components/organisms/GeneralPanel.svelte';
@@ -16,30 +15,28 @@
   <title>Settings - Blooming</title>
 </svelte:head>
 
-<DesktopAppShell activeRoute="SETTINGS" variant="compact">
-  <main class="settings-main" aria-label="Settings content">
-    <div class="settings-scroll-container">
-      <div class="settings-inner">
-        <SectionHeading title="SETTINGS" />
+<main class="settings-main" aria-label="Settings content">
+  <div class="settings-scroll-container">
+    <div class="settings-inner">
+      <SectionHeading title="SETTINGS" />
 
-        <AccountPanel />
+      <AccountPanel />
 
-        <div class="settings-grid">
-          <div class="grid-column">
-            <GeneralPanel />
-          </div>
-
-          <div class="grid-column">
-            <FocusTimerPanel />
-            <NotificationsPanel />
-          </div>
+      <div class="settings-grid">
+        <div class="grid-column">
+          <GeneralPanel />
         </div>
 
-        <SettingsActionGroup />
+        <div class="grid-column">
+          <FocusTimerPanel />
+          <NotificationsPanel />
+        </div>
       </div>
+
+      <SettingsActionGroup />
     </div>
-  </main>
-</DesktopAppShell>
+  </div>
+</main>
 
 <style>
   .settings-main {

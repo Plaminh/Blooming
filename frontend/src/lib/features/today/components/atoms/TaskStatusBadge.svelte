@@ -1,13 +1,20 @@
 <script lang="ts">
-  import type { TaskStatus } from '$lib/features/today/types';
+  import type { TaskStatus } from '../../types';
   let { status }: { status: TaskStatus } = $props();
-  const text = { 'in-progress': 'In progress', completed: 'Completed', upcoming: 'Upcoming' };
+
+  const text: Record<TaskStatus, string> = {
+    'in-progress': 'In progress',
+    completed: 'Completed',
+    upcoming: 'Upcoming'
+  };
 </script>
 
-<span class="badge {status}">{text[status]}</span>
+<span class="task-status-badge status-{status}">
+  {text[status]}
+</span>
 
 <style>
-  .badge {
+  .task-status-badge {
     display: grid;
     min-width: 112px;
     height: 34px;
@@ -18,7 +25,16 @@
     font-weight: 500;
     white-space: nowrap;
   }
-  .in-progress { background: #c8ead8; color: #087846; }
-  .completed { background: #d9eed8; color: #167d4a; }
-  .upcoming { background: #ece9e2; color: #0750ad; }
+  .status-completed {
+    background: var(--bloom-task-status-completed-bg);
+    color: var(--bloom-task-status-completed-text);
+  }
+  .status-in-progress {
+    background: var(--bloom-task-status-in-progress-bg);
+    color: var(--bloom-task-status-in-progress-text);
+  }
+  .status-upcoming {
+    background: var(--bloom-task-status-upcoming-bg);
+    color: var(--bloom-task-status-upcoming-text);
+  }
 </style>

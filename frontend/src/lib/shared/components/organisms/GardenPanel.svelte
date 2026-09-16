@@ -30,10 +30,10 @@
   .panel {
     min-height: 0;
     overflow: hidden;
-    border: 1px solid #20a3be;
+    border: 1px solid var(--bloom-garden-border);
     border-radius: 5px;
-    background: #fffbf2;
-    color: #064b91;
+    background: var(--bloom-garden-surface);
+    color: var(--bloom-text-dark-blue);
     text-decoration: none;
     cursor: pointer;
     display: grid;
@@ -61,14 +61,13 @@
     line-height: 1;
   }
   .garden-scene {
-    --garden-bush-scale: 2;
     position: relative;
     container-type: inline-size;
     min-height: 0;
     overflow: hidden;
-    background: #6fcdf5;
+    background: var(--bloom-garden-sky);
   }
-  .garden-scene img { position: absolute; max-width: none; height: auto; image-rendering: pixelated; }
+  .garden-scene img { position: absolute; image-rendering: pixelated; }
   .garden-scene .sky {
     inset: 0;
     width: 100%;
@@ -78,11 +77,14 @@
     object-position: center bottom;
   }
   .bushes {
-    left: calc((1 - var(--garden-bush-scale)) * 50%);
-    width: calc(var(--garden-bush-scale) * 100%);
-    /* Crop the asset's transparent bottom padding without stretching its artwork. */
-    bottom: calc(var(--garden-bush-scale) * -8.2cqw);
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center bottom;
   }
+  /* Flower pixel-art colors: intentionally hardcoded — these are exact design values for the decorative garden animation and cannot be semantically tokenized without changing the visual output. */
   .flower { position: absolute; bottom: 12px; width: 6px; height: 22px; background: #2a9561; }
   .flower::before { content: ''; position: absolute; top: 0; left: -5px; width: 16px; height: 9px; background: #ff77a8; box-shadow: inset 5px 0 #ffd9a2, inset -5px 0 #ff8db8; }
   .f1 { left: 16%; }.f2 { left: 31%; }.f3 { left: 47%; }.f4 { left: 62%; }.f5 { left: 78%; }.f6 { left: 91%; }

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import DesktopAppShell from '$lib/shared/components/organisms/DesktopAppShell.svelte';
   import StatisticsHeader from '$lib/features/statistics/components/organisms/StatisticsHeader.svelte';
   import SummaryCardRow from '$lib/features/statistics/components/organisms/SummaryCardRow.svelte';
   import StudyCalendarPanel from '$lib/features/statistics/components/organisms/StudyCalendarPanel.svelte';
@@ -16,30 +15,28 @@
   <title>Statistics - Blooming</title>
 </svelte:head>
 
-<DesktopAppShell activeRoute="STATISTICS" variant="compact">
-  <main class="statistics-page" aria-label="Statistics content">
-    <StatisticsHeader 
-      ranges={dateRanges} 
-      {selectedRange} 
-      onRangeChange={(range) => selectedRange = range} 
-    />
-    <SummaryCardRow metrics={statsData.metrics} />
+<main class="statistics-page" aria-label="Statistics content">
+  <StatisticsHeader 
+    ranges={dateRanges} 
+    {selectedRange} 
+    onRangeChange={(range) => selectedRange = range} 
+  />
+  <SummaryCardRow metrics={statsData.metrics} />
 
-    <div class="two-column-layout">
-      <div class="left-column">
-        <StudyCalendarPanel studiedDays={statsData.calendarDays} />
-      </div>
-      <div class="right-column">
-        <DailyStudyTimeChart 
-          entries={statsData.dailyEntries} 
-          subtitle={selectedRange.displayLabel} 
-        />
-      </div>
+  <div class="two-column-layout">
+    <div class="left-column">
+      <StudyCalendarPanel studiedDays={statsData.calendarDays} />
     </div>
+    <div class="right-column">
+      <DailyStudyTimeChart 
+        entries={statsData.dailyEntries} 
+        subtitle={selectedRange.displayLabel} 
+      />
+    </div>
+  </div>
 
-    <PlanHistoryPanel entries={statsData.planEntries} itemsPerPage={4} />
-  </main>
-</DesktopAppShell>
+  <PlanHistoryPanel entries={statsData.planEntries} itemsPerPage={4} />
+</main>
 
 <style>
   .statistics-page {

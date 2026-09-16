@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent, screen } from '@testing-library/svelte';
-import TodayPage from '../../../routes/today/+page.svelte';
+import TodayPage from "../../../routes/(app)/today/+page.svelte";
 
 describe('Today Screen Feature', () => {
   it('renders the initial formatted displayed date correctly', () => {

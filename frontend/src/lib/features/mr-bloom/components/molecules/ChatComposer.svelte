@@ -1,5 +1,5 @@
 <script lang="ts">
-  import TextInput from '../atoms/TextInput.svelte';
+  import TextInput from '$lib/shared/components/atoms/TextInput.svelte';
   import IconButton from '../atoms/IconButton.svelte';
   
   let { 
@@ -35,6 +35,7 @@
     {placeholder} 
     {disabled} 
     onkeydown={handleKeyDown} 
+    variant="composer"
   />
   <IconButton 
     icon="send" 

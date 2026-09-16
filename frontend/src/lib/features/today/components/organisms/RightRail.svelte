@@ -3,8 +3,6 @@
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
   import FocusPresetOption from '../atoms/FocusPresetOption.svelte';
   import NextSessionSummary from '../molecules/NextSessionSummary.svelte';
-  import GardenPanel from '$lib/shared/components/organisms/GardenPanel.svelte';
-
   let { task, nextTask, selectedFocusPreset, onPresetSelect, onStartFocus }: {
     task: Task | undefined;
     nextTask: Task | undefined;
@@ -88,15 +86,13 @@
       </button>
     </div>
   </section>
-
-  <GardenPanel />
 </div>
 
 <style>
   .right-rail-container {
     display: grid;
     height: 100%;
-    grid-template-rows: 210px 82px 190px minmax(0, 1fr);
+    grid-template-rows: 210px 82px 190px;
     gap: 8px;
   }
   .panel {
