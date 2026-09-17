@@ -3,8 +3,11 @@
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
   import SidebarNavigationItem from '../molecules/SidebarNavigationItem.svelte';
   import { goto } from '$app/navigation';
+  import { GardenSelectionViewModel } from '$lib/features/garden-selection/model/state.svelte';
 
   let { activeRoute = 'TODAY' }: { activeRoute?: string } = $props();
+  
+  let vm = new GardenSelectionViewModel();
 </script>
 
 <div class="sidebar">
@@ -18,16 +21,18 @@
 
   <div class="sidebar-bottom">
     <div class="plant-container">
-      <PlantSprite plant={{ species: 'monstera', frameIndex: 5 }} />
+      {#if vm.selectedPlant}
+        <PlantSprite plant={{ species: vm.selectedPlant.species, frameIndex: 5 }} />
+      {/if}
     </div>
     <div class="counters" aria-label="Garden currency">
       <div class="counter">
         <img class="leaf-counter" src="/assets/icons/leaf-icon.png" alt="Leaves" />
-        <span>24</span>
+        <span>{vm.leavesBalance}</span>
       </div>
       <div class="counter">
         <span class="water-counter"><AppIcon name="water" size="counter-water" label="Water" /></span>
-        <span>3</span>
+        <span>{vm.waterBalance}</span>
       </div>
     </div>
   </div>

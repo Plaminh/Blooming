@@ -11,6 +11,7 @@ from app.db.models.users import User
 from app.db.models.tasks import Task
 from app.db.models.daily_plans import PlanBlock
 from app.core.scheduler import DeterministicScheduler, ScheduleTask, ScheduleWindow
+from sqlalchemy import select
 import zoneinfo
 
 class TodayService:
@@ -68,6 +69,29 @@ class TodayService:
         task_db.status = obj_in.status
         if obj_in.status == "COMPLETED":
             task_db.completed_at = datetime.now(timezone.utc)
+            
+            from app.db.models.garden import GardenState, RewardEvent
+            from app.core.economy import LEAVES_PER_TASK
+            
+            garden = await db.scalar(select(GardenState).where(GardenState.user_id == user_id))
+            if not garden:
+                garden = GardenState(user_id=user_id, water_balance=0, leaves_balance=0)
+                db.add(garden)
+                
+            idempotency_key = f"task_completed_{task_id}"
+            existing = await db.scalar(select(RewardEvent).where(RewardEvent.idempotency_key == idempotency_key))
+            
+            if not existing:
+                garden.leaves_balance += LEAVES_PER_TASK
+                event = RewardEvent(
+                    user_id=user_id,
+                    event_type="TASK_COMPLETED",
+                    resource_type="LEAVES",
+                    amount=LEAVES_PER_TASK,
+                    idempotency_key=idempotency_key,
+                    source_task_id=task_id
+                )
+                db.add(event)
         else:
             task_db.completed_at = None
 

@@ -9,6 +9,54 @@ from app.db.models.reminders import Reminder, ReminderAction
 from app.schemas.reminders import ReminderActionRequest
 
 class RemindersService:
+    async def sync_milestone_reminder(
+        self,
+        db: AsyncSession,
+        user_id: UUID,
+        milestone_id: UUID,
+        milestone_title: str,
+        new_due_at: datetime | None,
+        milestone_status: str
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        result = await db.execute(
+            select(Reminder)
+            .where(Reminder.milestone_id == milestone_id, Reminder.reminder_type == "MILESTONE_DUE")
+            .where(Reminder.status.in_(("SCHEDULED", "DUE")))
+        )
+        reminders = result.scalars().all()
+        
+        if milestone_status == "COMPLETED":
+            for r in reminders:
+                r.status = "COMPLETED"
+                r.completed_at = now
+                db.add(r)
+            return
+
+        if new_due_at is None:
+            for r in reminders:
+                r.status = "CANCELLED"
+                db.add(r)
+            return
+
+        if reminders:
+            for r in reminders:
+                r.due_at = new_due_at
+                r.original_due_at = new_due_at
+                r.status = "SCHEDULED" if new_due_at > now else "DUE"
+                db.add(r)
+        else:
+            reminder = Reminder(
+                user_id=user_id,
+                milestone_id=milestone_id,
+                reminder_type="MILESTONE_DUE",
+                message=f"Milestone Due: {milestone_title}",
+                due_at=new_due_at,
+                original_due_at=new_due_at,
+                status="SCHEDULED" if new_due_at > now else "DUE"
+            )
+            db.add(reminder)
+
     async def get_due_reminders(self, db: AsyncSession, user_id: UUID) -> list[Reminder]:
         now = datetime.now(timezone.utc)
         result = await db.execute(

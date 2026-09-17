@@ -28,7 +28,7 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.db.models.daily_plans import DailyPlan
     from app.db.models.focus import FocusRun
-    from app.db.models.garden import GardenState, HeartEvent
+    from app.db.models.garden import GardenState, RewardEvent
     from app.db.models.goals import Goal
     from app.db.models.planning import PlanningSession
     from app.db.models.reminders import Reminder
@@ -93,7 +93,7 @@ class User(Base):
     reminders: Mapped[list[Reminder]] = relationship(
         back_populates="user", passive_deletes=True
     )
-    heart_events: Mapped[list[HeartEvent]] = relationship(
+    reward_events: Mapped[list[RewardEvent]] = relationship(
         back_populates="user", passive_deletes=True
     )
     garden_state: Mapped[GardenState | None] = relationship(

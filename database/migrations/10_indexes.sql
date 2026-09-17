@@ -80,22 +80,22 @@ CREATE INDEX IF NOT EXISTS reminders_plan_block_idx
 CREATE INDEX IF NOT EXISTS reminder_actions_reminder_recent_idx
     ON reminder_actions (reminder_id, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS heart_events_user_chronological_idx
-    ON heart_events (user_id, created_at, id);
+CREATE INDEX IF NOT EXISTS reward_events_user_chronological_idx
+    ON reward_events (user_id, created_at, id);
 
-CREATE INDEX IF NOT EXISTS heart_events_focus_run_idx
-    ON heart_events (source_focus_run_id)
+CREATE INDEX IF NOT EXISTS reward_events_focus_run_idx
+    ON reward_events (source_focus_run_id)
     WHERE source_focus_run_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS heart_events_task_idx
-    ON heart_events (source_task_id)
+CREATE INDEX IF NOT EXISTS reward_events_task_idx
+    ON reward_events (source_task_id)
     WHERE source_task_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS heart_events_milestone_idx
-    ON heart_events (source_milestone_id)
+CREATE INDEX IF NOT EXISTS reward_events_milestone_idx
+    ON reward_events (source_milestone_id)
     WHERE source_milestone_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS heart_events_plan_revision_idx
-    ON heart_events (source_plan_revision_id)
+CREATE INDEX IF NOT EXISTS reward_events_plan_revision_idx
+    ON reward_events (source_plan_revision_id)
     WHERE source_plan_revision_id IS NOT NULL;
 
