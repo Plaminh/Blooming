@@ -1,14 +1,13 @@
 from pathlib import Path
-
-from pydantic import SecretStr
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
+import warnings
 
 # Resolve .env locations from this file so settings load identically no matter
 # which working directory uvicorn, alembic, or pytest is started from.
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 _REPO_ROOT = _BACKEND_DIR.parent
-
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -20,6 +19,10 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Blooming API"
     API_V1_PREFIX: str = "/api/v1"
     ENVIRONMENT: str = "development"
+
+    SECRET_KEY: SecretStr
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    FRONTEND_URLS: list[str] = ["http://localhost:1420", "http://127.0.0.1:1420"]
 
     # Credentials come from the repository .env shared with docker-compose.
     POSTGRES_DB: str
@@ -34,6 +37,13 @@ class Settings(BaseSettings):
     # Bounded so an unreachable database fails fast instead of hanging a request.
     DB_CONNECT_TIMEOUT: int = 5
 
+    BREVO_API_KEY: SecretStr | None = None
+    BREVO_SENDER_EMAIL: str | None = None
+    BREVO_SENDER_NAME: str | None = None
+    EMAIL_VERIFICATION_FRONTEND_URL: str = "http://localhost:1420/verify-email"
+    EMAIL_VERIFICATION_EXPIRE_MINUTES: int = 30
+    EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: int = 60
+
     @property
     def database_url(self) -> URL:
         """Async SQLAlchemy URL. ``str()`` on it masks the password."""
@@ -46,5 +56,19 @@ class Settings(BaseSettings):
             database=self.POSTGRES_DB,
         )
 
+    @model_validator(mode="after")
+    def validate_environment_and_secrets(self) -> "Settings":
+        secret_val = self.SECRET_KEY.get_secret_value()
+        if len(secret_val) < 32 or secret_val == "your-super-secret-key-that-is-at-least-32-bytes-long":
+            raise ValueError("SECRET_KEY must be at least 32 characters long and not a weak default")
+        
+        if self.ENVIRONMENT in ("production", "staging"):
+            if not self.BREVO_API_KEY or not self.BREVO_SENDER_EMAIL:
+                raise ValueError("BREVO_API_KEY and BREVO_SENDER_EMAIL are required in production/staging")
+        else:
+            if not self.BREVO_API_KEY or not self.BREVO_SENDER_EMAIL:
+                warnings.warn("Starting in development without BREVO_API_KEY or BREVO_SENDER_EMAIL. Email features will return safe errors.")
+
+        return self
 
 settings = Settings()

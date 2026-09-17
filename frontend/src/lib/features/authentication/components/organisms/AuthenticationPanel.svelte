@@ -10,11 +10,13 @@
     onSubmitLogin,
     onSubmitRegister,
     onModeChange,
+    onResendVerification,
   }: { 
     state: AuthState;
     onSubmitLogin?: (data: LoginSubmitData) => void;
     onSubmitRegister?: (data: RegisterSubmitData) => void;
     onModeChange?: (mode: AuthMode) => void;
+    onResendVerification?: (email: string) => void;
   } = $props();
 
   function switchMode(mode: AuthMode) {
@@ -51,14 +53,39 @@
   </div>
 
   <div class="form-container">
-    {#key authState.mode}
-      <div class="auth-form-transition">
-        {#if authState.mode === 'login'}
-          <LoginForm state={authState} onSubmit={onSubmitLogin} onModeChange={() => switchMode('register')} />
-        {:else}
-          <RegistrationForm state={authState} onSubmit={onSubmitRegister} onModeChange={() => switchMode('login')} />
-        {/if}
+    {#if authState.errors.general}
+      <div class="general-error" style="color: var(--bloom-color-alert); text-align: center; margin-bottom: 1rem; font-size: 14px;">
+        {authState.errors.general}
       </div>
-    {/key}
+    {/if}
+    {#if authState.isAwaitingVerification}
+      <div class="verification-container" style="text-align: center; padding: 2rem 0;">
+        <h2 style="font-size: 18px; color: var(--bloom-color-ink); margin-bottom: 1rem;">Check your email</h2>
+        <p style="font-size: 14px; color: var(--bloom-color-ink-light); margin-bottom: 1.5rem;">
+          We've sent a verification link to <strong>{authState.email}</strong>.
+        </p>
+        <button 
+          class="submit-button"
+          disabled={authState.isLoading}
+          onclick={() => {
+            if (onResendVerification) {
+               onResendVerification(authState.email);
+            }
+          }}
+        >
+          {authState.isLoading ? 'SENDING...' : 'RESEND VERIFICATION'}
+        </button>
+      </div>
+    {:else}
+      {#key authState.mode}
+        <div class="auth-form-transition">
+          {#if authState.mode === 'login'}
+            <LoginForm state={authState} onSubmit={onSubmitLogin} onModeChange={() => switchMode('register')} />
+          {:else}
+            <RegistrationForm state={authState} onSubmit={onSubmitRegister} onModeChange={() => switchMode('login')} />
+          {/if}
+        </div>
+      {/key}
+    {/if}
   </div>
 </div>

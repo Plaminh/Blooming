@@ -26,20 +26,31 @@ export class SettingsState {
   isDirty = $derived(JSON.stringify(this.savedSettings) !== JSON.stringify(this.draftSettings));
 
   constructor() {
-    this.loadFromStorage();
+    this.loadFromAPI();
   }
 
-  loadFromStorage() {
-    if (typeof localStorage !== 'undefined') {
-      const stored = localStorage.getItem(SETTINGS_KEY);
+  async loadFromAPI() {
+    try {
+      const { api } = await import('$lib/api');
+      const stored = await api.get('/api/v1/me/settings');
       if (stored) {
-        try {
-          this.savedSettings = { ...this.savedSettings, ...JSON.parse(stored) };
-          this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
-        } catch (e) {
-          console.error('Failed to parse settings from local storage', e);
-        }
+        // Map backend schema to frontend schema if needed
+        const mappedSettings = {
+          email: 'you@example.com', // get from user info?
+          mrBloomName: stored.mr_bloom_name || 'Mr. Bloom',
+          timezone: stored.timezone || 'Asia/Ho_Chi_Minh',
+          focusDurationMinutes: stored.focus_duration_minutes || 25,
+          breakDurationMinutes: stored.break_duration_minutes || 5,
+          startAtLogin: stored.start_at_login ?? true,
+          keepWidgetOnTop: stored.keep_widget_on_top ?? true,
+          milestoneReminderTime: stored.milestone_reminder_time || '20:00',
+          emailReminders: stored.email_reminders ?? true
+        };
+        this.savedSettings = { ...this.savedSettings, ...mappedSettings };
+        this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
       }
+    } catch (e) {
+      console.error('Failed to load settings from API', e);
     }
   }
 
@@ -90,13 +101,22 @@ export class SettingsState {
     this.saveSuccessMessage = null;
 
     try {
-      // Trim name before saving
       this.draftSettings.mrBloomName = this.draftSettings.mrBloomName.trim();
 
-      // Mock Local Persistence
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.draftSettings));
-      }
+      const { api } = await import('$lib/api');
+      
+      const payload = {
+        mr_bloom_name: this.draftSettings.mrBloomName,
+        timezone: this.draftSettings.timezone,
+        focus_duration_minutes: this.draftSettings.focusDurationMinutes,
+        break_duration_minutes: this.draftSettings.breakDurationMinutes,
+        start_at_login: this.draftSettings.startAtLogin,
+        keep_widget_on_top: this.draftSettings.keepWidgetOnTop,
+        milestone_reminder_time: this.draftSettings.milestoneReminderTime,
+        email_reminders: this.draftSettings.emailReminders
+      };
+      
+      await api.put('/api/v1/me/settings', payload);
 
       this.savedSettings = JSON.parse(JSON.stringify(this.draftSettings));
 
@@ -112,6 +132,9 @@ export class SettingsState {
 
       this.saveSuccessMessage = "Settings saved successfully.";
       return true;
+    } catch (e) {
+      console.error('Failed to save settings via API', e);
+      return false;
     } finally {
       this.isSaving = false;
       setTimeout(() => {
@@ -121,8 +144,9 @@ export class SettingsState {
   }
 
   logout() {
-    // Local mock logout handler
-    void goto('/auth');
+    import('$lib/shared/stores/authStore').then(({ authStore }) => {
+      authStore.clearAuth();
+    });
   }
 }
 

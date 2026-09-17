@@ -1,6 +1,12 @@
 <script lang="ts">
   import { createAuthState } from './model/AuthState.svelte';
   import type { LoginSubmitData, RegisterSubmitData, AuthCallbacks } from './types';
+  
+  // Extend AuthCallbacks here or in types.ts
+  interface ExtendedAuthCallbacks extends AuthCallbacks {
+    onResendVerification?: (email: string) => void;
+    state?: any;
+  }
   import {
     desktopWindowService,
     type DesktopWindowService,
@@ -13,11 +19,11 @@
     callbacks = {},
     windowService = desktopWindowService,
   }: { 
-    callbacks?: AuthCallbacks;
+    callbacks?: ExtendedAuthCallbacks;
     windowService?: DesktopWindowService;
   } = $props();
 
-  const state = createAuthState();
+  const state = callbacks.state || createAuthState();
 
   function handleLogin(data: LoginSubmitData) {
     if (callbacks.onSubmitLogin) {
@@ -61,6 +67,7 @@
           onSubmitLogin={handleLogin}
           onSubmitRegister={handleRegister}
           onModeChange={callbacks.onModeChange}
+          onResendVerification={callbacks.onResendVerification}
         />
       </div>
     </main>

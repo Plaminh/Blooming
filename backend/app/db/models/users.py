@@ -57,6 +57,7 @@ class User(Base):
     account_status: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default=text("'ACTIVE'")
     )
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -69,6 +70,9 @@ class User(Base):
         back_populates="user", passive_deletes=True
     )
     auth_sessions: Mapped[list[AuthSession]] = relationship(
+        back_populates="user", passive_deletes=True
+    )
+    email_verification_tokens: Mapped[list[EmailVerificationToken]] = relationship(
         back_populates="user", passive_deletes=True
     )
     goals: Mapped[list[Goal]] = relationship(
@@ -144,6 +148,19 @@ class UserSettings(Base):
     mr_bloom_display_name: Mapped[str] = mapped_column(
         String(60), nullable=False, server_default=text("'Mr. Bloom'")
     )
+    widget_visibility: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("TRUE")
+    )
+    widget_always_on_top: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
+    launch_on_startup: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
+    weather_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
+    weather_location: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -203,3 +220,39 @@ class AuthSession(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="auth_sessions")
+
+class EmailVerificationToken(Base):
+    __tablename__ = "email_verification_tokens"
+    __table_args__ = (
+        UniqueConstraint(
+            "token_hash", name="email_verification_tokens_token_hash_key"
+        ),
+        CheckConstraint("expires_at > created_at", name="email_verification_tokens_expiry_valid"),
+        Index(
+            "email_verification_tokens_user_active_idx",
+            "user_id",
+            "expires_at",
+            postgresql_where=text("used_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    user: Mapped[User] = relationship(back_populates="email_verification_tokens")

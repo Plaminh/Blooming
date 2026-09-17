@@ -16,12 +16,13 @@ from app.db.models.goals import Goal, Milestone
 from app.db.models.planning import PlanningMessage, PlanningSession
 from app.db.models.reminders import Reminder, ReminderAction
 from app.db.models.tasks import Task, TaskDependency
-from app.db.models.users import AuthSession, User, UserSettings
+from app.db.models.users import AuthSession, EmailVerificationToken, User, UserSettings
 
 __all__ = [
     "AuthSession",
     "AvailabilityWindow",
     "DailyPlan",
+    "EmailVerificationToken",
     "FocusRun",
     "FocusRunEvent",
     "GardenState",

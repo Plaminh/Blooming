@@ -1,7 +1,7 @@
 import type { AuthMode } from '../types';
 import { validateEmail, validatePassword, validateConfirmPassword } from './validationHelpers';
 
-export type AuthField = 'email' | 'password' | 'confirmPassword';
+export type AuthField = 'email' | 'password' | 'confirmPassword' | 'general';
 export type AuthErrors = Partial<Record<AuthField, string>>;
 
 export class AuthState {
@@ -16,6 +16,8 @@ export class AuthState {
 
     errors = $state<AuthErrors>({});
     hasAttemptedSubmit = $state(false);
+    isLoading = $state(false);
+    isAwaitingVerification = $state(false);
 
     switchMode(newMode: AuthMode) {
         this.mode = newMode;
@@ -33,7 +35,7 @@ export class AuthState {
         this.confirmPasswordVisible = !this.confirmPasswordVisible;
     }
 
-    private setFieldError(field: AuthField, error: string | null) {
+    setFieldError(field: AuthField, error: string | null) {
         const nextErrors = { ...this.errors };
         if (error) nextErrors[field] = error;
         else delete nextErrors[field];

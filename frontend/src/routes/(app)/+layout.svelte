@@ -3,6 +3,16 @@
   import DesktopAppShell from '$lib/shared/components/organisms/DesktopAppShell.svelte';
   import GardenPanel from '$lib/shared/components/organisms/GardenPanel.svelte';
   import { overlayStore } from '$lib/shared/stores/overlayStore';
+  import { authStore } from '$lib/shared/stores/authStore';
+  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  
+  onMount(async () => {
+    await authStore.initialize();
+    if (!$authStore.isAuthenticated) {
+      goto('/auth');
+    }
+  });
   
   let { children } = $props();
 
@@ -27,17 +37,23 @@
   let canvasHeight = $derived($page.url.pathname.startsWith('/garden-selection') ? 'var(--bloom-garden-canvas-height)' : 'var(--bloom-app-canvas-height)');
 </script>
 
-<DesktopAppShell {activeRoute} {variant} {showSidebar} {canvasWidth} {canvasHeight} overlay={$overlayStore}>
-  <div class="page-layer" style="grid-area: layer;">
-    {@render children()}
-  </div>
-  
-  {#if showGarden}
-    <div class="garden-layer" class:is-goals={activeRoute === 'GOALS'} style="grid-area: layer;">
-      <GardenPanel />
+{#if $authStore.isInitialized && $authStore.isAuthenticated}
+  <DesktopAppShell {activeRoute} {variant} {showSidebar} {canvasWidth} {canvasHeight} overlay={$overlayStore}>
+    <div class="page-layer" style="grid-area: layer;">
+      {@render children()}
     </div>
-  {/if}
-</DesktopAppShell>
+    
+    {#if showGarden}
+      <div class="garden-layer" class:is-goals={activeRoute === 'GOALS'} style="grid-area: layer;">
+        <GardenPanel />
+      </div>
+    {/if}
+  </DesktopAppShell>
+{:else}
+  <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: var(--bloom-surface-cream);">
+    <p>Loading...</p>
+  </div>
+{/if}
 
 <style>
   .page-layer {

@@ -37,6 +37,10 @@ postgres-data/
 
 # Logs
 *.log
+logfile
+
+# Passwords/Secrets
+pw.txt
 
 # IDE
 .idea/
