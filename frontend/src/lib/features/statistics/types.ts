@@ -29,6 +29,7 @@ export interface CalendarMonth {
 export interface DailyStudyEntry {
   dayLabel: string;
   hours: number;
+  date: string;
 }
 
 export type PlanStatus = 'Completed' | 'Unfinished';

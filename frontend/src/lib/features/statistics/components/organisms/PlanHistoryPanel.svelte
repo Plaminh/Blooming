@@ -3,39 +3,81 @@
   import PlanHistoryRow from '../molecules/PlanHistoryRow.svelte';
   import PaginationControls from '../molecules/PaginationControls.svelte';
   import type { PlanHistoryEntry, HistoryFilter } from '../../types';
+  import { statisticsApi } from '../../api/statistics.api';
 
-  let { entries = [], itemsPerPage = 4 }: {
-    entries: PlanHistoryEntry[];
+  let { startDate, endDate, itemsPerPage = 4 }: {
+    startDate: Date;
+    endDate: Date;
     itemsPerPage?: number;
   } = $props();
 
   let activeFilter = $state<HistoryFilter>('All');
   let currentPage = $state(1);
 
-  // When entries change (e.g. from date range change), reset filter and page
+  let entries = $state<PlanHistoryEntry[]>([]);
+  let totalItems = $state(0);
+  let totalPages = $state(0);
+  let loading = $state(false);
+  let error = $state<string | null>(null);
+
+  let currentFetchId = 0;
+  let lastRangeKey = '';
+
   $effect(() => {
-    if (entries) {
+    if (!startDate || !endDate) return;
+    const currentRangeKey = `${startDate.getTime()}-${endDate.getTime()}`;
+    
+    if (lastRangeKey !== '' && lastRangeKey !== currentRangeKey) {
       activeFilter = 'All';
       currentPage = 1;
     }
+    lastRangeKey = currentRangeKey;
+
+    fetchHistory(startDate, endDate, activeFilter, currentPage);
   });
 
-  let filteredEntries = $derived(
-    activeFilter === 'All' 
-      ? entries 
-      : entries.filter(e => e.status === activeFilter)
-  );
+  async function fetchHistory(sd: Date, ed: Date, filter: HistoryFilter, page: number) {
+    if (!sd || !ed) return;
+    const fetchId = ++currentFetchId;
+    loading = true;
+    error = null;
+    try {
+      const response = await statisticsApi.getPlanHistory(
+        sd,
+        ed,
+        filter,
+        page,
+        itemsPerPage
+      );
+      if (fetchId !== currentFetchId) return;
+      
+      entries = response.items;
+      totalItems = response.totalItems;
+      totalPages = response.totalPages;
+      
+      if (page > totalPages && totalPages > 0) {
+        currentPage = totalPages;
+      }
+    } catch (e: unknown) {
+      if (fetchId !== currentFetchId) return;
+      error = e instanceof Error ? e.message : 'Failed to load plan history';
+      entries = [];
+      totalItems = 0;
+      totalPages = 0;
+    } finally {
+      if (fetchId === currentFetchId) {
+        loading = false;
+      }
+    }
+  }
 
-  let totalItems = $derived(filteredEntries.length);
-  let totalPages = $derived(Math.ceil(totalItems / itemsPerPage));
-  let visibleEntries = $derived(
-    filteredEntries.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-  );
-  let showingCount = $derived(visibleEntries.length);
+  let showingCount = $derived(entries.length);
 
   function handleFilterChange(filter: HistoryFilter) {
-    activeFilter = filter;
-    currentPage = 1; // Reset to first page when filtering
+    if (activeFilter !== filter) {
+      activeFilter = filter;
+      currentPage = 1;
+    }
   }
 
   function handleNavigate(id: string) {
@@ -65,8 +107,20 @@
         </tr>
       </thead>
       <tbody>
-        {#if visibleEntries.length > 0}
-          {#each visibleEntries as entry (entry.id)}
+        {#if loading}
+          <tr>
+            <td colspan="5" class="empty-state">Loading history...</td>
+          </tr>
+        {:else if error}
+          <tr>
+            <td colspan="5" class="empty-state error-text">
+              {error}
+              <br/>
+              <button class="retry-btn" onclick={() => fetchHistory(startDate, endDate, activeFilter, currentPage)}>Retry</button>
+            </td>
+          </tr>
+        {:else if entries.length > 0}
+          {#each entries as entry (entry.id)}
             <PlanHistoryRow {entry} onNavigate={handleNavigate} />
           {/each}
         {:else}
@@ -80,7 +134,11 @@
 
   <div class="panel-footer">
     <span class="showing-text">Showing {showingCount} of {totalItems} plans</span>
-    <PaginationControls {currentPage} {totalPages} onPageChange={(page) => currentPage = page} />
+    <PaginationControls 
+      {currentPage} 
+      totalPages={Math.max(1, totalPages)} 
+      onPageChange={(page) => currentPage = page} 
+    />
   </div>
 </div>
 
@@ -146,6 +204,24 @@
     padding: 32px;
     color: var(--bloom-text-muted-blue);
     font-style: italic;
+  }
+
+  .error-text {
+    color: var(--bloom-text-red, #e74c3c);
+  }
+
+  .retry-btn {
+    margin-top: 8px;
+    padding: 4px 12px;
+    border: 1px solid currentColor;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--bloom-body-font);
+  }
+
+  .retry-btn:hover {
+    background: rgba(231, 76, 60, 0.1);
   }
 
   .panel-footer {
