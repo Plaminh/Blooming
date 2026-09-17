@@ -1,8 +1,9 @@
 # Blooming API
 
 FastAPI/Python backend for Blooming. PostgreSQL is connected through async
-SQLAlchemy 2.x with Psycopg 3, and Alembic owns schema migrations from the
-existing `database/install.sql` baseline forward.
+SQLAlchemy 2.x with Psycopg 3. `database/install.sql` is the authoritative fresh
+installer. Feature 019 uses direct additive SQL changes without a new Alembic revision;
+see the [existing-database update instructions](../specs/019-cleanup-integration/quickstart.md#existing-local-databases).
 
 ## Run locally
 
@@ -30,9 +31,9 @@ E:\Blooming\.venv\Scripts\python.exe -m uvicorn app.main:app --loop app.core.run
 aggregate router. Route modules live in `app/api/routes/`; configuration and
 security live in `app/core/`. `app/api/deps.py` holds shared dependencies.
 
-Only health is implemented. Auth, users, assistant, planning, focus, goals,
-and garden declare empty routers. Authentication, AI, scheduling, and other
-business features remain future work.
+Health, auth, users/settings, assistant, planning, focus, goals, garden,
+reminders, Today and statistics routes are registered. Goals and Reminders use
+the shared SessionDep/CurrentUser dependencies, including request rollback.
 
 ## Database
 
@@ -40,7 +41,7 @@ business features remain future work.
 | --- | --- |
 | `app/db/base.py` | Declarative `Base` |
 | `app/db/session.py` | Async engine and `AsyncSessionLocal` factory |
-| `app/db/models/` | The 19 mapped tables, split by baseline scope |
+| `app/db/models/` | The 22 mapped tables, split by baseline scope |
 | `app/api/deps.py` | `SessionDep` request-scoped session dependency |
 | `app/core/runtime.py` | Selector event loop helpers for psycopg |
 | `alembic/` | Migration environment and versions |
@@ -52,7 +53,7 @@ own the schema.
 
 Model files mirror the `database/migrations/` scopes: `users`, `goals`,
 `planning`, `tasks`, `daily_plans`, `focus`, `reminders`, and `garden`.
-`heart_events.metadata` is mapped as the `event_metadata` attribute because
+`reward_events.metadata` is mapped as the `event_metadata` attribute because
 `metadata` is reserved on the declarative base.
 
 ### Configuration

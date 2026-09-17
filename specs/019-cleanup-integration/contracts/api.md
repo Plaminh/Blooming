@@ -22,6 +22,8 @@ Creation, deadline/title/status edits, MOVE_MILESTONE actions and lead-time sett
 
 ## Desktop
 
-One typed wrapper in `frontend/src/lib/platform/desktopWindow.ts`. `blooming:schedule-updated` carries null and refreshes widget/session/garden data following successful operations. No browser CustomEvent transport. Native settings read actual autostart/always-on-top state, apply saved state and verify it. Native failures stay visible and prevent save success.
+One typed wrapper in `frontend/src/lib/platform/desktopWindow.ts`. `blooming:schedule-updated` carries null and targets the other window, refreshing widget/session/garden data once following successful operations. The sender updates its local state directly. No browser CustomEvent transport. API mutation success remains success if native synchronization fails; a separate accessible warning reports that failure. Task editors close after successful API saves and focus remains started if widget display fails.
 
-Rust command `set_tray_icon(alert: bool)` returns Result<(), String>. Exactly one tray uses bundled normal/red-dot assets. Left click shows, unminimizes and focuses main. Application-root polling belongs to the companion window, including while hidden. No native popup or Rust scheduler.
+Settings read and snapshot actual autostart/always-on-top state before applying requested values. A failed native apply or API save restores both previous native values and reports failure; restoration failures receive a separate warning. After API success, local preference storage failures are warnings only.
+
+Rust command `set_tray_icon(alert: bool)` returns Result<(), String>. Rust setup owns exactly one tray with bundled normal/red-dot assets. Left click opens main; menu actions open main, show companion or Quit via app.exit(0). Missing main returns an error. Only main and companion-widget hide on close; auxiliary windows close normally. Application-root reminder polling starts only in the companion window, including while hidden. Root native errors are logged without adding widget layout content. No native popup or Rust scheduler.

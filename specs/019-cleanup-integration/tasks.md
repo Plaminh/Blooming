@@ -17,8 +17,8 @@
 - [x] T003 [P] Search for hard-coded task categories and obsolete `blooming:*` events in `frontend/src/`.
 - [x] T004 [P] Search for milestone-reminder localStorage keys in `frontend/src/`.
 - [x] T005 [P] Audit `backend/tests/`: no historical backend tests remain after removing feature-only files; do not claim pytest passed.
-- [x] T006 [P] Run and record existing frontend checks/build/tests in `frontend/`; report the unchanged TodayView expectation failure in quickstart.md.
-- [x] T007 [P] Run and record Rust formatting, strict Clippy and safe build in `frontend/src-tauri/`; no historical Rust tests found.
+- [x] T006 [P] Run and record frontend checks/build and the complete unfiltered test suite in `frontend/`; correct the obsolete TodayView category expectation.
+- [x] T007 [P] Run and record Rust formatting, strict Clippy, build and cargo test in `frontend/src-tauri/`; cargo test passes with zero tests.
 
 ---
 
@@ -136,4 +136,15 @@ The current validation evidence and outstanding checks are recorded in quickstar
 
 All 50 original boxes were reopened during the audit. T008-T011 and T032 were removed because the user prohibits new feature tests. Production/static/direct-database/browser evidence completes the checked tasks above; detailed results are in quickstart.md.
 
-Still open: T025-T026 (real cross-window events), T040-T043 (native settings, tray and background polling), T044 (real focus-start failure flow), and T049 (full verification, including native runtime and historical check failures). Implementations exist, but their required end-to-end evidence is incomplete. Do not mark them complete based only on compilation.
+Still open: T025-T026 (real cross-window events), T040-T043 (native settings, tray and background polling), T044 (real focus-start failure flow), and T049 (full verification including native runtime). Implementations exist and browser failure injection passes, but their native end-to-end evidence is incomplete. Do not mark them complete based only on compilation.
+
+## Final corrective pass
+
+- [x] T051 Persist initial GardenState on reads; retain conflict-safe creation, caller-owned mutation commits, reward rollback and concurrent idempotency. Verified against disposable PostgreSQL.
+- [x] T052 Keep Today save/Replan/Focus and Garden unlock/select/water successful after API success when native synchronization fails. Verified through Chromium failure injection; no new test files.
+- [x] T053 Snapshot native settings and compensate for failed API saves; report post-save local failures separately. Verified through Chromium failure injection.
+- [x] T054 Correct the existing SQL smoke test for reward_events and resource balances; install every authoritative SQL source and validate schema objects in disposable PostgreSQL.
+- [x] T055 Verify no complete_milestone callers remain; repair Goals/Reminders session dependencies and verify application import, route registration, lifespan and database health.
+- [x] T056 Add tray Quit and restrict hide-on-close to main/companion; remove root error content and main-window reminder polling. Source/build verification complete; native behavior remains under T040-T043/T049.
+- [x] T057 Remove obsolete feature-test bytecode and formatting-only changes from AST-identical backend definitions. Preserve useful historical tests and all functional changes.
+- [x] T058 Document non-destructive existing-database updates, actual validation results and exact remaining native checks in quickstart.md.

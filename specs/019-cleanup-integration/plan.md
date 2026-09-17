@@ -19,6 +19,6 @@ The user's corrective decision overrides the constitution's new-test requirement
 
 ## Validation
 
-Use Python compile, optional Ruff lint/format on changed production files, SQLAlchemy metadata inspection, disposable PostgreSQL initialization and direct service exercises. No backend test files remain; no Python type checker is configured. Frontend: `npm run check`, existing tests, production build; no repository formatter/linter script is configured. Rust: `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, safe compile/build; run cargo tests only if historical Rust tests exist.
+Use Python compile, Ruff lint on changed production files and format checks on substantially edited files, FastAPI import/lifespan/route checks, SQLAlchemy metadata inspection, disposable PostgreSQL initialization and direct service exercises. Preserve baseline formatting in unchanged backend definitions. No backend test files remain; no Python type checker is configured. Frontend: `npm run check`, the complete unfiltered `npm run test`, production build; no repository formatter/linter script is configured. Rust: `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo build`, and `cargo test` (zero tests is not native runtime evidence).
 
 Record actual results and manual runtime gaps in quickstart.md. Native runtime tasks stay open until exercised. Existing local databases must be manually updated or recreated for direct SQL-file changes to take effect; CREATE TABLE IF NOT EXISTS does not alter existing tables.

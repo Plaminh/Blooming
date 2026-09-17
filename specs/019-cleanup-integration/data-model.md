@@ -14,6 +14,6 @@ SQLAlchemy and Pydantic mirror these contracts. Historical/unspecified category 
 
 Milestone reminders retain the actual deadline in `original_due_at`. Delivery `due_at` equals deadline minus the configured lead time, including zero. Existing reminder rows are synchronized without creating duplicate active reminders. Quiet-hours suppression does not alter status. Existing acknowledged reminders remain acknowledged.
 
-No heart, reward, plant, ownership or unrelated garden tables/columns are dropped or recreated. The SQL tree already uses reward_events and balances; the older Alembic baseline and historical SQL smoke test still reference heart_events. That pre-existing mismatch is outside this additive correction.
+No heart, reward, plant, ownership or unrelated garden tables/columns are dropped or recreated. The SQL tree uses reward_events and balances. The historical SQL smoke test now checks that authoritative schema instead of removed heart_events/total_heart structures. The older Alembic baseline remains untouched.
 
-Existing local databases require a manual schema update or recreation. No automatic volume deletion is performed.
+Existing local databases require a manual schema update. The non-destructive statements in quickstart.md add only the three columns and checks. CREATE TABLE IF NOT EXISTS does not modify existing tables. No automatic volume deletion is performed.

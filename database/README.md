@@ -17,13 +17,16 @@ files in numeric order, or run `install.sql` with `psql`.
 | `05_daily_planning.sql` | Daily plans, availability, scheduled blocks, and revisions |
 | `06_focus.sql` | Pomodoro/focus runs and their state-transition history |
 | `07_reminders.sql` | Reminder definitions, unread state, and user actions |
-| `08_heart_and_garden.sql` | Auditable Heart Progress and the current garden state |
+| `08_heart_and_garden.sql` | Water/Leaves reward ledger, plant catalog/ownership and garden state |
 | `09_updated_at_triggers.sql` | Automatic maintenance of mutable `updated_at` columns |
 | `10_indexes.sql` | Uniqueness and query-performance indexes |
 
-The baseline creates 19 tables. Future feature work should change the schema
-through versioned Alembic migrations instead of editing a database that has
-already been deployed.
+The installer creates 22 tables. Feature 019 directly updates the authoritative
+CREATE TABLE files for task category, garden growth points and reminder lead
+minutes; it adds no Alembic revision. Existing databases are not altered by
+editing these files or rerunning CREATE TABLE IF NOT EXISTS. Apply the
+[additive update statements](../specs/019-cleanup-integration/quickstart.md#existing-local-databases)
+manually to an existing database. Do not reset the developer database or volume.
 
 ## Install
 
@@ -72,11 +75,11 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/tests/00_schema_smoke_test.s
   `focus_runs` store actual execution.
 - AI payloads and plan snapshots may use `JSONB`; query-critical state remains
   in typed columns.
-- Device-only preferences such as widget position, window visibility, and
-  always-on-top belong in Tauri's local store, not these account tables.
+- Widget position and window visibility are device-only. Autostart and
+  always-on-top preferences are saved in user_settings and applied natively.
 - Completed history is immutable at the application layer. Re-planning updates
   future blocks and appends a `plan_revisions` record.
 - Tasks, plans, focus runs, and goals use lifecycle statuses instead of physical
   deletion. Hard deletion is reserved for full account teardown and test data.
-- Every Heart reward has a unique `idempotency_key`, preventing duplicate
+- Every resource reward has a unique `idempotency_key`, preventing duplicate
   progress even when a completion request is retried.
