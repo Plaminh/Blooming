@@ -3,17 +3,32 @@
     id,
     value = $bindable(),
     options = [],
+    required = false,
+    disabled = false,
     ariaDescribedby,
   }: {
     id: string;
     value: string;
-    options: { value: string; label: string }[];
+    options: Array<{ value: string; label: string }>;
+    required?: boolean;
+    disabled?: boolean;
     ariaDescribedby?: string;
   } = $props();
+
+  function onChange(e: Event) {
+    const target = e.target as HTMLSelectElement;
+    value = target.value;
+  }
 </script>
 
 <div class="select-wrapper">
-  <select {id} bind:value aria-describedby={ariaDescribedby} class="setup-select">
+  <select
+    {id}
+    {value}
+    {required}
+    {disabled}
+    onchange={onChange}
+    aria-describedby={ariaDescribedby} class="setup-select">
     {#each options as option}
       <option value={option.value}>{option.label}</option>
     {/each}

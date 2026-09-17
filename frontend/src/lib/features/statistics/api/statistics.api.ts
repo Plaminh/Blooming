@@ -60,13 +60,13 @@ export const statisticsApi = {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
     });
     
-    const response = (await api.get(`/v1/statistics/summary?${params.toString()}`)) as RawSummaryMetrics;
+    const response = (await api.get(`/statistics/summary?${params.toString()}`)) as RawSummaryMetrics;
     return {
-      studyTimeHours: response.study_time_hours,
-      studyTimeMinutes: response.study_time_minutes,
-      studyDayCount: response.study_day_count,
-      completedPlanCount: response.completed_plan_count,
-      unfinishedPlanCount: response.unfinished_plan_count
+      studyTimeHours: response?.study_time_hours ?? 0,
+      studyTimeMinutes: response?.study_time_minutes ?? 0,
+      studyDayCount: response?.study_day_count ?? 0,
+      completedPlanCount: response?.completed_plan_count ?? 0,
+      unfinishedPlanCount: response?.unfinished_plan_count ?? 0
     };
   },
 
@@ -77,11 +77,13 @@ export const statisticsApi = {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
     });
     
-    const response = (await api.get(`/v1/statistics/daily?${params.toString()}`)) as RawDailyStudyEntry[];
+    const response = (await api.get(`/statistics/daily?${params.toString()}`)) as RawDailyStudyEntry[];
+    if (!Array.isArray(response)) return [];
+    
     return response.map((item: RawDailyStudyEntry) => ({
-      dayLabel: item.day_label,
-      hours: item.hours,
-      date: item.date
+      dayLabel: item.day_label ?? '',
+      hours: item.hours ?? 0,
+      date: item.date ?? ''
     }));
   },
 
@@ -100,20 +102,22 @@ export const statisticsApi = {
       page_size: pageSize.toString()
     });
     
-    const response = (await api.get(`/v1/statistics/plan-history?${params.toString()}`)) as RawPlanHistoryResponse;
+    const response = (await api.get(`/statistics/plan-history?${params.toString()}`)) as RawPlanHistoryResponse;
+    const items = Array.isArray(response?.items) ? response.items : [];
+    
     return {
-      items: response.items.map((item: RawPlanHistoryItem) => ({
-        id: item.id,
-        dateLabel: item.date_label,
-        planName: item.plan_name,
-        completedTasks: item.completed_tasks,
-        totalTasks: item.total_tasks,
-        status: item.status as 'Completed' | 'Unfinished'
+      items: items.map((item: RawPlanHistoryItem) => ({
+        id: item.id ?? '',
+        dateLabel: item.date_label ?? '',
+        planName: item.plan_name ?? '',
+        completedTasks: item.completed_tasks ?? 0,
+        totalTasks: item.total_tasks ?? 0,
+        status: (item.status as 'Completed' | 'Unfinished') ?? 'Unfinished'
       })),
-      totalItems: response.total_items,
-      totalPages: response.total_pages,
-      currentPage: response.current_page,
-      itemsPerPage: response.items_per_page
+      totalItems: response?.total_items ?? 0,
+      totalPages: response?.total_pages ?? 0,
+      currentPage: response?.current_page ?? 0,
+      itemsPerPage: response?.items_per_page ?? pageSize
     };
   }
 };

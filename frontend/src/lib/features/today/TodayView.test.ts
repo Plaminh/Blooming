@@ -1,11 +1,58 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, fireEvent, screen } from '@testing-library/svelte';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, fireEvent, screen, waitFor } from '@testing-library/svelte';
 import TodayPage from "../../../routes/(app)/today/+page.svelte";
+import { api } from '$lib/api';
+
+vi.mock('$lib/api', () => ({
+  api: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn()
+  }
+}));
+
+const mockBlocks = [
+  {
+    id: '1',
+    task_id: '1',
+    title: 'Study databases',
+    planned_start_at: '2024-04-23T09:00:00Z',
+    planned_end_at: '2024-04-23T10:00:00Z',
+    status: 'ACTIVE',
+    block_type: 'WORK'
+  },
+  {
+    id: '3',
+    task_id: '3',
+    title: 'Finish proposal',
+    planned_start_at: '2024-04-23T11:00:00Z',
+    planned_end_at: '2024-04-23T12:00:00Z',
+    status: 'PLANNED',
+    block_type: 'WORK'
+  }
+];
 
 describe('Today Screen Feature', () => {
-  it('renders the initial formatted displayed date correctly', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2024-04-23T09:00:00Z'));
+
+    (api.get as any).mockImplementation(async (url: string) => {
+      console.log('MOCK CALLED WITH URL:', url);
+      if (url.includes('2024-04-23')) {
+        return { blocks: mockBlocks };
+      }
+      return { blocks: [] };
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('renders the initial formatted displayed date correctly', async () => {
     render(TodayPage);
-    // Apr 23, 2024 is the initial state
     expect(screen.getByText('Tue, Apr 23, 2024')).toBeInTheDocument();
   });
 
@@ -15,28 +62,39 @@ describe('Today Screen Feature', () => {
     const nextBtn = screen.getByLabelText('Next day');
     const todayBtn = screen.getByText('Today');
 
+    // Wait for initial load
+    await waitFor(() => {
+      expect(screen.getAllByText('Study databases').length).toBeGreaterThan(0);
+    });
+
     // Move to next day (Apr 24)
     await fireEvent.click(nextBtn);
     expect(screen.getByText('Wed, Apr 24, 2024')).toBeInTheDocument();
     
     // Day without mock tasks shows empty state
-    expect(screen.getByText('No tasks scheduled for this day.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getAllByText('No tasks scheduled for this day.').length).toBeGreaterThan(0);
+    });
 
     // Move to previous day (Apr 23)
     await fireEvent.click(prevBtn);
     expect(screen.getByText('Tue, Apr 23, 2024')).toBeInTheDocument();
     
-    // Jump to Today (current system date)
+    // Jump to Today (current system date, mocked to Apr 23)
     await fireEvent.click(todayBtn);
-    // Should show empty state since it's not the demo day
-    expect(screen.getByText('No tasks scheduled for this day.')).toBeInTheDocument();
+    // Should show tasks because it's the demo day
+    await waitFor(() => {
+      expect(screen.getAllByText('Study databases').length).toBeGreaterThan(0);
+    });
   });
 
   it('supports task selection and Task Details derivation', async () => {
     render(TodayPage);
-    // Go to demo date implicitly by reloading
-    // Or just check since first render is the demo date
     
+    await waitFor(() => {
+      expect(screen.getByText('Finish proposal')).toBeInTheDocument();
+    });
+
     const taskButton = screen.getByText('Finish proposal');
     await fireEvent.click(taskButton);
     
@@ -47,6 +105,10 @@ describe('Today Screen Feature', () => {
   it('supports single focus-preset selection and Start Focus local action', async () => {
     render(TodayPage);
     
+    await waitFor(() => {
+      expect(screen.getAllByText('Study databases').length).toBeGreaterThan(0);
+    });
+    
     // 25/5 is selected by default
     const preset50 = screen.getByText('50/10');
     await fireEvent.click(preset50);
@@ -56,6 +118,6 @@ describe('Today Screen Feature', () => {
     expect(startFocusBtn).not.toBeDisabled();
     
     await fireEvent.click(startFocusBtn);
-    // Start focus changes a local state variable, we can't easily assert it unless it shows in UI, but we can verify it doesn't crash
+    expect(api.post).toHaveBeenCalledWith('/focus/start', expect.any(Object));
   });
 });

@@ -10,10 +10,12 @@
 
   let {
     state,
+    pending = false,
     onFinish,
     onBack,
   }: {
     state: OnboardingSetupState;
+    pending?: boolean;
     onFinish: () => void;
     onBack: () => void;
   } = $props();
@@ -61,6 +63,7 @@
           id="name-input"
           bind:value={state.name}
           ariaDescribedby="name-description"
+          disabled={pending}
         />
       </FormField>
     </div>
@@ -77,6 +80,7 @@
           bind:value={state.timezone}
           options={timezoneOptions}
           ariaDescribedby="timezone-description"
+          disabled={pending}
         />
       </FormField>
     </div>
@@ -92,6 +96,7 @@
           bind:selected={state.focusPreset}
           labelledby="preset-label"
           describedby="preset-description"
+          disabled={pending}
         />
       </FormField>
     </div>
@@ -104,12 +109,14 @@
             bind:checked={state.startAtLogin}
             label="Start Blooming at login"
             description="Let Blooming greet you when you start your computer."
+            disabled={pending}
           />
           <Checkbox
             id="keep-widget-on-top"
             bind:checked={state.keepWidgetOnTop}
             label="Keep widget on top"
             description="Keep the Blooming widget above other windows."
+            disabled={pending}
           />
         </div>
       </FormField>
@@ -119,8 +126,8 @@
   <footer class="form-footer">
     <div class="footer-divider"></div>
     <div class="footer-actions">
-      <Button type="button" variant="secondary" onclick={onBack}>BACK</Button>
-      <Button type="submit" variant="primary">FINISH</Button>
+      <Button type="button" variant="secondary" onclick={onBack} disabled={pending}>BACK</Button>
+      <Button type="submit" variant="primary" disabled={pending}>FINISH</Button>
     </div>
   </footer>
 </form>

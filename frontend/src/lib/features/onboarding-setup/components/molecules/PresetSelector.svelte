@@ -5,6 +5,7 @@
     selected = $bindable(),
     labelledby,
     describedby,
+    disabled = false,
     options = [
       { value: '25 / 5', label: '25 / 5' },
       { value: '50 / 10', label: '50 / 10' },
@@ -14,6 +15,7 @@
     selected: FocusPreset;
     labelledby?: string;
     describedby?: string;
+    disabled?: boolean;
     options?: { value: FocusPreset; label: string }[];
   } = $props();
 </script>
@@ -30,6 +32,7 @@
       class="preset-button"
       class:active={selected === option.value}
       aria-pressed={selected === option.value}
+      {disabled}
       onclick={() => (selected = option.value)}
     >
       {option.label}

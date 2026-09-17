@@ -17,24 +17,13 @@
   });
 
   async function handleLogin(data: any) {
+    if (state.isLoading) return;
     state.isLoading = true;
     state.setFieldError('general', null);
 
     try {
-      const response = await api.post('/api/v1/auth/login', {
-        username: data.email,
-        password: data.password
-      }, { formUrlEncoded: true });
-
-      // Save JWT
-      authStore.setToken(response.access_token);
-      
-      // Fetch user data
-      await authStore.initialize();
-      
-      // Navigate to app. Let's see what the onboarding route is, or default to '/today'
+      await authStore.login(data.email, data.password);
       goto('/today');
-      
     } catch (error) {
       if (error instanceof APIError) {
         if (error.status === 401) {
@@ -53,19 +42,14 @@
   }
 
   async function handleRegister(data: any) {
+    if (state.isLoading) return;
     state.isLoading = true;
     state.setFieldError('general', null);
 
     try {
-      await api.post('/api/v1/auth/register', {
-        email: data.email,
-        password: data.password,
-        display_name: data.email.split('@')[0] // Basic display name
-      });
-      
-      // 201: show check your email
-      state.isAwaitingVerification = true;
-
+      // Backend does not accept display_name in /register, it's set via settings
+      await authStore.register(data.email, data.password);
+      goto('/onboarding-preview'); // or just /today if onboarding isn't working yet
     } catch (error) {
       if (error instanceof APIError) {
         if (error.status === 409) {

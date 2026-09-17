@@ -3,12 +3,14 @@
     id,
     checked = $bindable(),
     label,
-    description
+    description,
+    disabled = false
   }: {
     id: string;
     checked: boolean;
     label: string;
     description?: string;
+    disabled?: boolean;
   } = $props();
 </script>
 
@@ -19,6 +21,7 @@
         type="checkbox"
         {id}
         bind:checked
+        {disabled}
         aria-describedby={description ? `${id}-description` : undefined}
         class="sr-only"
       />

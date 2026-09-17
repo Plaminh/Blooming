@@ -1,6 +1,6 @@
 import { SvelteSet } from 'svelte/reactivity';
 import type { PlantId, PlantPresentation } from '../types';
-import { api } from '$lib/api';
+import { api, APIError } from '$lib/api';
 
 export class GardenSelectionViewModel {
   plants: PlantPresentation[] = $state([]);
@@ -25,10 +25,14 @@ export class GardenSelectionViewModel {
     this.loading = true;
     this.error = null;
     try {
-      const data = await api.get('/api/garden');
+      const data = await api.get('/garden');
       this.updateFromData(data);
-    } catch (e: any) {
-      this.error = e.message || 'Failed to load garden state';
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        this.error = e.message || 'Failed to load garden state';
+      } else {
+        this.error = 'Failed to load garden state';
+      }
     } finally {
       this.loading = false;
     }
@@ -44,25 +48,27 @@ export class GardenSelectionViewModel {
     let activeIdx = 0;
     this.unlockedPlants.clear();
     
-    for (let i = 0; i < data.catalog.length; i++) {
-      const p = data.catalog[i];
-      if (p.is_unlocked) {
-        this.unlockedPlants.add(p.id);
+    if (Array.isArray(data.catalog)) {
+      for (let i = 0; i < data.catalog.length; i++) {
+        const p = data.catalog[i];
+        if (p.is_unlocked) {
+          this.unlockedPlants.add(p.id);
+        }
+        if (p.is_selected) {
+          activeIdx = i;
+        }
+        newPlants.push({
+          id: p.id as PlantId,
+          name: p.name,
+          description: [p.description],
+          species: p.species as any,
+          unlockCost: p.unlock_cost
+        });
       }
-      if (p.is_selected) {
-        activeIdx = i;
-      }
-      newPlants.push({
-        id: p.id as PlantId,
-        name: p.name,
-        description: [p.description],
-        species: p.species as any,
-        unlockCost: p.unlock_cost
-      });
     }
     
     this.plants = newPlants;
-    if (this.activePlantId) {
+    if (this.activePlantId && newPlants.length > 0) {
        this.currentIndex = activeIdx;
     }
   }
@@ -105,10 +111,17 @@ export class GardenSelectionViewModel {
   async unlockSelectedPlant() {
     if (this.canUnlockSelectedPlant && this.selectedPlant) {
       try {
-        const data = await api.post(`/api/garden/plants/${this.selectedPlant.id}/unlock`);
+        const data = await api.post(`/garden/plants/${this.selectedPlant.id}/unlock`);
         this.updateFromData(data);
-      } catch (e: any) {
-        this.error = e.message || 'Failed to unlock plant';
+        this.error = null;
+      } catch (e: unknown) {
+        if (e instanceof APIError && (e.status === 409 || e.status === 400)) {
+          this.error = e.message || 'Insufficient currency or conflict';
+        } else if (e instanceof Error) {
+          this.error = e.message || 'Failed to unlock plant';
+        } else {
+          this.error = 'Failed to unlock plant';
+        }
       }
     }
   }
@@ -116,10 +129,15 @@ export class GardenSelectionViewModel {
   async selectCurrentPlant() {
     if (this.isSelectedPlantUnlocked && this.selectedPlant) {
       try {
-        const data = await api.post(`/api/garden/plants/${this.selectedPlant.id}/select`);
+        const data = await api.post(`/garden/plants/${this.selectedPlant.id}/select`);
         this.updateFromData(data);
-      } catch (e: any) {
-        this.error = e.message || 'Failed to select plant';
+        this.error = null;
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+          this.error = e.message || 'Failed to select plant';
+        } else {
+          this.error = 'Failed to select plant';
+        }
       }
     }
   }
@@ -127,12 +145,19 @@ export class GardenSelectionViewModel {
   async waterSelectedPlant() {
     if (this.waterBalance >= 1) {
       try {
-        const data = await api.post(`/api/garden/water`);
+        const data = await api.post(`/garden/water`);
         this.waterBalance = data.water_balance;
         this.vitality = data.vitality;
         this.lastWateredAt = data.last_watered_at;
-      } catch (e: any) {
-        this.error = e.message || 'Failed to water plant';
+        this.error = null;
+      } catch (e: unknown) {
+        if (e instanceof APIError && (e.status === 409 || e.status === 400)) {
+          this.error = e.message || 'Not enough water or conflict';
+        } else if (e instanceof Error) {
+          this.error = e.message || 'Failed to water plant';
+        } else {
+          this.error = 'Failed to water plant';
+        }
       }
     }
   }

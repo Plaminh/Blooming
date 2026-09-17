@@ -1,18 +1,41 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SettingsState } from './SettingsState.svelte';
+import { api } from '$lib/api';
+
+vi.mock('$lib/api', () => ({
+  api: {
+    get: vi.fn().mockResolvedValue(null),
+    put: vi.fn().mockResolvedValue({})
+  },
+  setAuthErrorHandler: vi.fn()
+}));
+
+vi.mock('@tauri-apps/api/window', () => ({
+  Window: {
+    getByLabel: vi.fn().mockResolvedValue(null)
+  }
+}));
+
+vi.mock('$lib/shared/stores/authStore', () => ({
+  authStore: {
+    subscribe: (cb: any) => { cb({ user: { email: 'you@example.com' } }); return () => {}; },
+    clearAuth: vi.fn()
+  }
+}));
+
 
 describe('SettingsState', () => {
   let state: SettingsState;
 
   beforeEach(() => {
-    localStorage.clear();
+    vi.clearAllMocks();
     state = new SettingsState();
   });
 
   it('initializes with default fixture values', () => {
     expect(state.savedSettings.email).toBe('you@example.com');
     expect(state.savedSettings.mrBloomName).toBe('Mr. Bloom');
-    expect(state.savedSettings.timezone).toBe('Asia/Ho_Chi_Minh');
+    expect(state.savedSettings.timezone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
     expect(state.savedSettings.focusDurationMinutes).toBe(25);
     expect(state.savedSettings.breakDurationMinutes).toBe(5);
     expect(state.savedSettings.startAtLogin).toBe(true);
@@ -43,7 +66,7 @@ describe('SettingsState', () => {
     expect(state.validate()).toBe(false);
     expect(state.validationErrors.mrBloomName).toBeDefined();
 
-    state.draftSettings.mrBloomName = 'A'.repeat(51);
+    state.draftSettings.mrBloomName = 'A'.repeat(61);
     expect(state.validate()).toBe(false);
     expect(state.validationErrors.mrBloomName).toBeDefined();
 
@@ -82,6 +105,6 @@ describe('SettingsState', () => {
     expect(success).toBe(true);
     expect(state.savedSettings.mrBloomName).toBe('Saved Name');
     expect(state.isDirty).toBe(false);
-    expect(localStorage.getItem('bloom_settings')).toContain('Saved Name');
+    expect(api.put).toHaveBeenCalledWith('/me/settings', expect.any(Object));
   });
 });

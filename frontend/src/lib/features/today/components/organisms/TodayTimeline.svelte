@@ -6,10 +6,12 @@
   import TimelineHourLabel from '../atoms/TimelineHourLabel.svelte';
   import TimelineCard from '../molecules/TimelineCard.svelte';
 
-  let { tasks, currentDate, selectedTaskId, onSelect, onDateChange }: {
+  let { tasks, currentDate, selectedTaskId, isLoading = false, loadError = null, onSelect, onDateChange }: {
     tasks: Task[];
     currentDate: Date;
     selectedTaskId: string;
+    isLoading?: boolean;
+    loadError?: string | null;
     onSelect: (id: string) => void;
     onDateChange: (offset: number) => void;
   } = $props();
@@ -59,7 +61,11 @@
         </div>
       {/each}
 
-      {#if tasks.length}
+      {#if isLoading}
+        <p class="empty-state">Loading schedule...</p>
+      {:else if loadError}
+        <p class="empty-state" style="color: var(--bloom-error)">{loadError}</p>
+      {:else if tasks.length}
         {#each tasks as task (task.id)}
           <TimelineCard {task} top={timeTop(task.startTime)} selected={selectedTaskId === task.id} {onSelect} />
         {/each}

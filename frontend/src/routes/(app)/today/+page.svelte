@@ -15,69 +15,82 @@
     block_type: string;
   }
 
-  const referenceTasks: Task[] = [
-    {
-      id: '1',
-      title: 'Study databases',
-      startTime: '09:00',
-      endTime: '10:00',
-      durationString: '(1 hour)',
-      status: 'in-progress',
-      category: 'Learning',
-      description: 'Read chapters 3–4 and take notes.',
-      notes: 'Focus on query design and indexing.',
-      iconRef: 'book'
-    },
-    {
-      id: '2', title: 'Break', startTime: '10:00', endTime: '10:30', durationString: '(30 min)',
-      status: 'completed', category: 'Personal', description: 'Take a short break.', iconRef: 'break'
-    },
-    {
-      id: '3', title: 'Finish proposal', startTime: '11:00', endTime: '12:00', durationString: '(1 hour)',
-      status: 'upcoming', category: 'Work', description: 'Complete the proposal draft.', iconRef: 'document'
-    },
-    {
-      id: '4', title: 'Go for a walk', startTime: '13:00', endTime: '14:00', durationString: '(1 hour)',
-      status: 'upcoming', category: 'Personal', description: 'Get outside for some fresh air.', iconRef: 'shoe'
-    }
-  ];
-
-  let currentDate = $state(new Date(2024, 3, 23));
-  let tasks = $state<Task[]>([...referenceTasks]);
-  let selectedTaskId = $state('1');
+  let currentDate = $state(new Date());
+  let tasks = $state<Task[]>([]);
+  let selectedTaskId = $state('');
   let selectedFocusPreset = $state<FocusPreset>('25/5');
   let isPending = $state(false);
+  let isLoading = $state(false);
+  let loadError = $state<string | null>(null);
 
   const selectedTask = $derived(tasks.find((task) => task.id === selectedTaskId));
   const nextTask = $derived(tasks.find((task) => task.status === 'upcoming'));
 
+  let currentRequestId = 0;
+
   async function updateSchedule() {
+    const reqId = ++currentRequestId;
+    isLoading = true;
+    loadError = null;
+
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const isoDate = currentDate.toISOString().split('T')[0];
-      const data = (await api.get(`/today?date=${isoDate}&tz=${tz}`)) as { blocks: PlanBlock[] };
+      const isoDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+      
+      const params = new URLSearchParams({
+        date: isoDate,
+        tz: tz
+      });
+      
+      const data = (await api.get(`/today?${params.toString()}`)) as { blocks: PlanBlock[] };
+      
+      if (reqId !== currentRequestId) return;
+
       if (data && data.blocks) {
-         tasks = data.blocks.map((b: PlanBlock) => ({
-            id: b.task_id || b.id,
-            title: b.title || 'Unknown',
-            startTime: new Date(b.planned_start_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-            endTime: new Date(b.planned_end_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-            durationString: `(${Math.round((new Date(b.planned_end_at).getTime() - new Date(b.planned_start_at).getTime()) / 60000)} min)`,
-            status: b.status === 'COMPLETED' ? 'completed' : b.status === 'ACTIVE' ? 'in-progress' : 'upcoming',
-            category: 'Work',
-            iconRef: b.block_type === 'BREAK' ? 'break' : 'document',
-            description: '',
-            notes: ''
-         }));
+         tasks = data.blocks.map((b: PlanBlock) => {
+            let start = new Date();
+            let end = new Date();
+            try {
+              if (b.planned_start_at) start = new Date(b.planned_start_at);
+              if (b.planned_end_at) end = new Date(b.planned_end_at);
+            } catch (e) {
+              // ignore invalid dates, use current time
+            }
+            
+            const durationMins = Math.round((end.getTime() - start.getTime()) / 60000) || 0;
+
+            return {
+              id: b.id, // block ID
+              task_id: b.task_id || null, // actual task ID or null for break
+              title: b.title || (b.block_type === 'BREAK' ? 'Break' : 'Unknown'),
+              startTime: start.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit', hour12: false}),
+              endTime: end.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit', hour12: false}),
+              durationString: `(${Math.max(0, durationMins)} min)`,
+              status: b.status === 'COMPLETED' ? 'completed' : b.status === 'ACTIVE' ? 'in-progress' : 'upcoming',
+              category: 'Work',
+              iconRef: b.block_type === 'BREAK' ? 'break' : 'document',
+              description: '',
+              notes: ''
+            };
+         });
       } else {
          tasks = [];
       }
-      if (!tasks.find((t) => t.id === selectedTaskId)) {
+      
+      if (tasks.length === 0) {
+         selectedTaskId = '';
+      } else if (!tasks.find((t) => t.id === selectedTaskId)) {
          selectedTaskId = tasks[0]?.id ?? '';
       }
     } catch (err) {
-      console.error("Failed to load today plan", err);
+      if (reqId !== currentRequestId) return;
+      loadError = 'Failed to load today plan.';
       tasks = [];
+      selectedTaskId = '';
+    } finally {
+      if (reqId === currentRequestId) {
+        isLoading = false;
+      }
     }
   }
 
@@ -97,7 +110,7 @@
   });
 
   async function handleStartFocus() {
-    if (!selectedTask || isPending) return;
+    if (!selectedTask || isPending || !selectedTask.task_id) return;
     isPending = true;
     
     let focusMinutes = 25;
@@ -106,7 +119,7 @@
 
     try {
       await api.post('/focus/start', {
-        task_id: selectedTask.id,
+        task_id: selectedTask.task_id, // Send task_id, not block id
         planned_focus_seconds: focusMinutes * 60,
         planned_break_seconds: breakMinutes * 60
       });
@@ -121,7 +134,7 @@
       }
       await updateSchedule();
     } catch (err) {
-      console.error("Failed to start focus session", err);
+      // surface to UI?
     } finally {
       isPending = false;
     }
@@ -138,6 +151,8 @@
       {tasks}
       {currentDate}
       {selectedTaskId}
+      {isLoading}
+      {loadError}
       onSelect={(id) => (selectedTaskId = id)}
       onDateChange={handleDateChange}
     />

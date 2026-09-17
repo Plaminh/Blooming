@@ -30,8 +30,8 @@ describe('GoalsRightRail', () => {
     expect(getByRole('heading', { name: 'NEXT MILESTONE' })).toBeInTheDocument();
     expect(getByRole('heading', { name: 'Build planning core' })).toBeInTheDocument();
     expect(getByRole('heading', { name: 'OVERALL PROGRESS' })).toBeInTheDocument();
-    expect(getByText('2 / 4 milestones')).toBeInTheDocument();
-    expect(getByText('50%')).toBeInTheDocument();
+    expect(getByText('1 / 4 milestones')).toBeInTheDocument();
+    expect(getByText('25%')).toBeInTheDocument();
   });
 
   it('wires the edit and refine controls to their respective callbacks', async () => {

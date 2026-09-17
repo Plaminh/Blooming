@@ -65,6 +65,38 @@ describe('OnboardingSetupView', () => {
     });
   });
 
+  it('disables form controls while submission is pending', async () => {
+    const user = userEvent.setup();
+    let resolveFinish: () => void;
+    const finishPromise = new Promise<void>((resolve) => {
+      resolveFinish = resolve;
+    });
+    const onFinish = vi.fn().mockReturnValue(finishPromise);
+    render(OnboardingSetupView, {
+      props: { onFinish, windowService: mockWindowService() },
+    });
+
+    const name = screen.getByRole('textbox', { name: 'Mr. Bloom’s name' });
+    const finishButton = screen.getByRole('button', { name: 'FINISH' });
+
+    await user.click(finishButton);
+    expect(onFinish).toHaveBeenCalledTimes(1);
+
+    expect(name).toBeDisabled();
+    expect(finishButton).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'BACK' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Your timezone' })).toBeDisabled();
+
+    // Resolve the promise
+    resolveFinish!();
+    
+    // We need to wait for the next tick for the UI to update
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(name).not.toBeDisabled();
+    expect(finishButton).not.toBeDisabled();
+  });
+
   it('exposes the active step and preserves keyboard-operable controls', async () => {
     const user = userEvent.setup();
     render(OnboardingSetupView, { props: { windowService: mockWindowService() } });

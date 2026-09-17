@@ -13,19 +13,15 @@ import {
 } from "./model/atlas";
 
 function mockReducedMotion(reduce: boolean) {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    configurable: true,
-    value: (query: string) => ({
-      matches: reduce && query.includes("prefers-reduced-motion"),
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }),
-  });
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: reduce && query.includes("prefers-reduced-motion"),
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
 }
 
 describe("Mr. Bloom normalized atlas", () => {
@@ -36,12 +32,16 @@ describe("Mr. Bloom normalized atlas", () => {
 
   it("maps every state to its inspected row and permitted frame sequence", () => {
     expect(MR_BLOOM_ROWS).toEqual({
+      focusing: 3,
+      ending: 4,
       paused: 7,
       behindSchedule: 6,
       offline: 3,
       reminders: 4,
     });
     expect(MR_BLOOM_FRAME_SEQUENCE).toEqual({
+      focusing: [0, 1, 2, 3],
+      ending: [0, 1],
       paused: [0, 1, 2, 3],
       behindSchedule: [0, 2],
       offline: [0, 1, 2, 3],

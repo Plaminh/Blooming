@@ -1,69 +1,143 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { GardenSelectionViewModel } from './state.svelte';
-import { INITIAL_GARDEN_STATE, MONSTERA } from './fixtures';
+import type { PlantId, PlantPresentation, UserSessionState, GardenSelectionState } from '../types';
+
+const MONSTERA: PlantPresentation = {
+  id: 'monstera',
+  name: 'Monstera',
+  description: [
+    'A bold and beautiful plant with iconic leaves.',
+    'Brings a sense of calm and adventure to your space.'
+  ],
+  species: 'monstera',
+  unlockCost: 120
+};
+import { api } from '$lib/api';
+
+vi.mock('$lib/api', () => ({
+  api: {
+    get: vi.fn(),
+    post: vi.fn()
+  },
+  APIError: class extends Error {
+    status: number;
+    constructor(status: number, message: string) {
+      super(message);
+      this.status = status;
+      this.name = 'APIError';
+    }
+  }
+}));
 
 describe('GardenSelectionViewModel', () => {
   let vm: GardenSelectionViewModel;
+  
+  const mockGardenData = {
+    water_balance: 0,
+    leaves_balance: 124,
+    vitality: 100,
+    selected_plant_id: 'monstera',
+    catalog: [
+      {
+        id: 'monstera',
+        name: 'Monstera',
+        description: 'A bold and beautiful plant with iconic leaves.',
+        species: 'monstera',
+        unlock_cost: 120,
+        is_unlocked: false,
+        is_selected: true
+      }
+    ]
+  };
 
   beforeEach(() => {
-    vm = new GardenSelectionViewModel(INITIAL_GARDEN_STATE.plants, INITIAL_GARDEN_STATE.session);
+    vi.clearAllMocks();
+    (api.get as any).mockResolvedValue(mockGardenData);
+    vm = new GardenSelectionViewModel();
   });
 
-  it('should initialize with correct initial state', () => {
-    expect(vm.selectedPlant).toEqual(MONSTERA);
-    expect(vm.currencyBalance).toBe(124);
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should initialize with correct initial state via API', async () => {
+    // wait for loadState to complete
+    await vi.waitFor(() => { expect(vm.loading).toBe(false); });
+
+    expect(api.get).toHaveBeenCalledWith('/garden');
+    expect(vm.selectedPlant?.id).toBe('monstera');
+    expect(vm.leavesBalance).toBe(124);
     expect(vm.selectedPlant?.unlockCost).toBe(120);
     expect(vm.isSelectedPlantUnlocked).toBe(false);
   });
 
-  it('should allow unlocking when balance is sufficient', () => {
+  it('should allow unlocking when balance is sufficient', async () => {
+    await vi.waitFor(() => { expect(vm.loading).toBe(false); });
+
     expect(vm.canUnlockSelectedPlant).toBe(true);
-    vm.unlockSelectedPlant();
-    expect(vm.currencyBalance).toBe(4);
+
+    const unlockedData = JSON.parse(JSON.stringify(mockGardenData));
+    unlockedData.leaves_balance = 4;
+    unlockedData.catalog[0].is_unlocked = true;
+    (api.post as any).mockResolvedValue(unlockedData);
+
+    await vm.unlockSelectedPlant();
+
+    expect(api.post).toHaveBeenCalledWith('/garden/plants/monstera/unlock');
+    expect(vm.leavesBalance).toBe(4);
     expect(vm.isSelectedPlantUnlocked).toBe(true);
   });
 
-  it('should prevent unlocking when already unlocked', () => {
-    vm.unlockSelectedPlant();
-    expect(vm.currencyBalance).toBe(4);
+  it('should prevent unlocking when already unlocked', async () => {
+    const unlockedData = JSON.parse(JSON.stringify(mockGardenData));
+    unlockedData.leaves_balance = 4;
+    unlockedData.catalog[0].is_unlocked = true;
+    (api.get as any).mockResolvedValue(unlockedData);
+    
+    vm = new GardenSelectionViewModel();
+    await vi.waitFor(() => { expect(vm.loading).toBe(false); });
+
     expect(vm.isSelectedPlantUnlocked).toBe(true);
     expect(vm.canUnlockSelectedPlant).toBe(false);
 
-    // Try to unlock again
-    vm.unlockSelectedPlant();
-    expect(vm.currencyBalance).toBe(4); // Balance should not decrease
+    await vm.unlockSelectedPlant();
+    // Post should not be called
+    expect(api.post).not.toHaveBeenCalled();
   });
 
-  it('should prevent unlocking when balance is insufficient', () => {
-    // Manually set balance too low
-    vm.currencyBalance = 100;
-    expect(vm.canUnlockSelectedPlant).toBe(false);
+  it('should support exact-cost balance', async () => {
+    const exactBalanceData = JSON.parse(JSON.stringify(mockGardenData));
+    exactBalanceData.leaves_balance = 120;
+    (api.get as any).mockResolvedValue(exactBalanceData);
+    
+    vm = new GardenSelectionViewModel();
+    await vi.waitFor(() => { expect(vm.loading).toBe(false); });
 
-    vm.unlockSelectedPlant();
-    expect(vm.currencyBalance).toBe(100);
-    expect(vm.isSelectedPlantUnlocked).toBe(false);
-  });
 
-  it('should support exact-cost balance', () => {
-    vm.currencyBalance = 120;
     expect(vm.canUnlockSelectedPlant).toBe(true);
     
-    vm.unlockSelectedPlant();
-    expect(vm.currencyBalance).toBe(0);
+    const unlockedData = JSON.parse(JSON.stringify(exactBalanceData));
+    unlockedData.leaves_balance = 0;
+    unlockedData.catalog[0].is_unlocked = true;
+    (api.post as any).mockResolvedValue(unlockedData);
+    await vm.unlockSelectedPlant();
+    expect(vm.leavesBalance).toBe(0);
     expect(vm.isSelectedPlantUnlocked).toBe(true);
   });
 
   describe('Carousel Navigation', () => {
-    beforeEach(() => {
-      // Setup a multi-plant mock
-      vm = new GardenSelectionViewModel(
-        [
-          MONSTERA,
-          { ...MONSTERA, id: 'sunflower', name: 'Sunflower' },
-          { ...MONSTERA, id: 'bonsai', name: 'Bonsai' }
-        ],
-        INITIAL_GARDEN_STATE.session
-      );
+    beforeEach(async () => {
+      const multiData = {
+        ...mockGardenData,
+        catalog: [
+          mockGardenData.catalog[0],
+          { ...mockGardenData.catalog[0], id: 'sunflower', name: 'Sunflower', is_selected: false },
+          { ...mockGardenData.catalog[0], id: 'bonsai', name: 'Bonsai', is_selected: false }
+        ]
+      };
+      (api.get as any).mockResolvedValue(multiData);
+      vm = new GardenSelectionViewModel();
+      await vi.waitFor(() => { expect(vm.loading).toBe(false); });
     });
 
     it('should navigate through plants', () => {
@@ -91,16 +165,19 @@ describe('GardenSelectionViewModel', () => {
       vm.previous();
       expect(vm.currentIndex).toBe(1);
     });
+  });
 
-    it('should preserve unlock state during navigation', () => {
-      vm.unlockSelectedPlant();
-      expect(vm.isSelectedPlantUnlocked).toBe(true);
+  it('should prevent unlocking when balance is insufficient', async () => {
+    const insufficientData = JSON.parse(JSON.stringify(mockGardenData));
+    insufficientData.leaves_balance = 50; // Cost is 120
+    (api.get as any).mockResolvedValue(insufficientData);
+    
+    vm = new GardenSelectionViewModel();
+    await vi.waitFor(() => { expect(vm.loading).toBe(false); });
 
-      vm.next();
-      expect(vm.isSelectedPlantUnlocked).toBe(false);
+    expect(vm.canUnlockSelectedPlant).toBe(false);
 
-      vm.previous();
-      expect(vm.isSelectedPlantUnlocked).toBe(true);
-    });
+    await vm.unlockSelectedPlant();
+    expect(api.post).not.toHaveBeenCalled();
   });
 });

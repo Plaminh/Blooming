@@ -81,7 +81,7 @@
   }
 
   function handleNavigate(id: string) {
-    console.log('Navigate to plan details', id);
+    // Navigate to plan details
   }
 </script>
 

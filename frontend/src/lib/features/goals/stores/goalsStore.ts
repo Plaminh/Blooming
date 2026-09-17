@@ -1,64 +1,93 @@
 import { writable } from 'svelte/store';
 import { api } from '$lib/api';
-import type { Goal, Milestone } from '../models'; // We need to check these types
+import type { Goal, Milestone } from '../models';
 
-interface RemindersResponse {
-    // Will define soon
+interface GoalsState {
+    goals: Goal[];
+    dueReminders: any[];
+    loading: boolean;
+    error: string | null;
 }
 
 function createGoalsStore() {
-    const { subscribe, set, update } = writable<{
-        goals: Goal[],
-        dueReminders: any[],
-        loading: boolean,
-        error: string | null
-    }>({
+    const { subscribe, set, update } = writable<GoalsState>({
         goals: [],
         dueReminders: [],
         loading: false,
         error: null
     });
 
-    return {
-        subscribe,
-        set,
-        update,
-        async loadGoals() {
-            update(s => ({ ...s, loading: true, error: null }));
-            try {
-                const goals = await api.get('/goals/');
-                update(s => ({ ...s, goals, loading: false }));
-            } catch (err: any) {
-                update(s => ({ ...s, error: err.message || 'Failed to load goals', loading: false }));
-            }
-        },
-        async createGoal(goal: any) {
-            const newGoal = await api.post('/goals/', goal);
+    async function loadGoals() {
+        update(s => ({ ...s, loading: true, error: null }));
+        try {
+            const goals = await api.get('/goals');
+            update(s => ({ ...s, goals: Array.isArray(goals) ? goals : [], loading: false }));
+        } catch (err: unknown) {
+            update(s => ({ 
+                ...s, 
+                error: err instanceof Error ? err.message : 'Failed to load goals', 
+                loading: false 
+            }));
+        }
+    }
+
+    async function createGoal(goal: any) {
+        update(s => ({ ...s, error: null }));
+        try {
+            const newGoal = await api.post('/goals', goal);
             update(s => ({ ...s, goals: [...s.goals, newGoal] }));
             return newGoal;
-        },
-        async updateGoal(id: string, goalUpdate: any) {
+        } catch (err: unknown) {
+            update(s => ({ ...s, error: err instanceof Error ? err.message : 'Failed to create goal' }));
+            throw err;
+        }
+    }
+
+    async function updateGoal(id: string, goalUpdate: any) {
+        update(s => ({ ...s, error: null }));
+        try {
             const updated = await api.put(`/goals/${id}`, goalUpdate);
             update(s => ({
                 ...s,
                 goals: s.goals.map(g => g.id === id ? updated : g)
             }));
-        },
-        async deleteGoal(id: string) {
+        } catch (err: unknown) {
+            update(s => ({ ...s, error: err instanceof Error ? err.message : 'Failed to update goal' }));
+            throw err;
+        }
+    }
+
+    async function deleteGoal(id: string) {
+        update(s => ({ ...s, error: null }));
+        try {
             await api.delete(`/goals/${id}`);
             update(s => ({
                 ...s,
                 goals: s.goals.filter(g => g.id !== id)
             }));
-        },
-        async addMilestone(goalId: string, milestone: any) {
-            const newMilestone = await api.post(`/goals/${goalId}/milestones/`, milestone);
+        } catch (err: unknown) {
+            update(s => ({ ...s, error: err instanceof Error ? err.message : 'Failed to delete goal' }));
+            throw err;
+        }
+    }
+
+    async function addMilestone(goalId: string, milestone: any) {
+        update(s => ({ ...s, error: null }));
+        try {
+            const newMilestone = await api.post(`/goals/${goalId}/milestones`, milestone);
             update(s => ({
                 ...s,
                 goals: s.goals.map(g => g.id === goalId ? { ...g, milestones: [...g.milestones, newMilestone] } : g)
             }));
-        },
-        async updateMilestone(goalId: string, milestoneId: string, milestoneUpdate: any) {
+        } catch (err: unknown) {
+            update(s => ({ ...s, error: err instanceof Error ? err.message : 'Failed to add milestone' }));
+            throw err;
+        }
+    }
+
+    async function updateMilestone(goalId: string, milestoneId: string, milestoneUpdate: any) {
+        update(s => ({ ...s, error: null }));
+        try {
             const updated = await api.put(`/goals/${goalId}/milestones/${milestoneId}`, milestoneUpdate);
             update(s => ({
                 ...s,
@@ -67,8 +96,15 @@ function createGoalsStore() {
                     milestones: g.milestones.map(m => m.id === milestoneId ? updated : m)
                 } : g)
             }));
-        },
-        async deleteMilestone(goalId: string, milestoneId: string) {
+        } catch (err: unknown) {
+            update(s => ({ ...s, error: err instanceof Error ? err.message : 'Failed to update milestone' }));
+            throw err;
+        }
+    }
+
+    async function deleteMilestone(goalId: string, milestoneId: string) {
+        update(s => ({ ...s, error: null }));
+        try {
             await api.delete(`/goals/${goalId}/milestones/${milestoneId}`);
             update(s => ({
                 ...s,
@@ -77,25 +113,61 @@ function createGoalsStore() {
                     milestones: g.milestones.filter(m => m.id !== milestoneId)
                 } : g)
             }));
-        },
-        async loadDueReminders() {
-            try {
-                const dueReminders = await api.get('/reminders/due');
-                update(s => ({ ...s, dueReminders }));
-            } catch (err: any) {
-                console.error("Failed to load due reminders", err);
-            }
-        },
-        async executeReminderAction(reminderId: string, actionType: string, newDueAt?: string) {
-            const payload: any = { action_type: actionType };
-            if (newDueAt) payload.new_due_at = newDueAt;
-            
-            await api.post(`/reminders/${reminderId}/actions`, payload);
-            
-            // After successful action, reload reminders and goals (in case milestone status changed)
-            this.loadDueReminders();
-            this.loadGoals();
+        } catch (err: unknown) {
+            update(s => ({ ...s, error: err instanceof Error ? err.message : 'Failed to delete milestone' }));
+            throw err;
         }
+    }
+
+    async function loadDueReminders() {
+        try {
+            const dueReminders = await api.get('/reminders/due');
+            update(s => ({ ...s, dueReminders: Array.isArray(dueReminders) ? dueReminders : [] }));
+        } catch (err: unknown) {
+            update(s => ({ 
+                ...s, 
+                error: err instanceof Error ? err.message : 'Failed to load due reminders',
+                dueReminders: [] 
+            }));
+        }
+    }
+
+    async function executeReminderAction(reminderId: string, actionType: string, newDueAt?: string) {
+        update(s => ({ ...s, error: null }));
+        const payload: any = { action_type: actionType };
+        if (newDueAt) payload.new_due_at = newDueAt;
+        
+        try {
+            await api.post(`/reminders/${reminderId}/actions`, payload);
+        } catch (err: unknown) {
+            update(s => ({ ...s, error: err instanceof Error ? err.message : 'Failed to execute reminder action' }));
+            throw err;
+        }
+        
+        // Refresh state after successful action
+        try {
+            await Promise.all([loadDueReminders(), loadGoals()]);
+        } catch (refreshErr: unknown) {
+            update(s => ({ 
+                ...s, 
+                error: 'Action succeeded but failed to refresh data. Please reload.'
+            }));
+        }
+    }
+
+    return {
+        subscribe,
+        set,
+        update,
+        loadGoals,
+        createGoal,
+        updateGoal,
+        deleteGoal,
+        addMilestone,
+        updateMilestone,
+        deleteMilestone,
+        loadDueReminders,
+        executeReminderAction
     };
 }
 

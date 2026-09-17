@@ -16,6 +16,9 @@
   {#if settingsState.saveSuccessMessage}
     <div class="success-message" aria-live="polite">{settingsState.saveSuccessMessage}</div>
   {/if}
+  {#if settingsState.saveErrorMessage}
+    <div class="error-message" aria-live="assertive">{settingsState.saveErrorMessage}</div>
+  {/if}
   
   <button 
     class="btn-cancel" 
@@ -47,6 +50,13 @@
 
   .success-message {
     color: var(--bloom-primary-green);
+    font-family: var(--bloom-body-font);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .error-message {
+    color: var(--bloom-error);
     font-family: var(--bloom-body-font);
     font-size: 14px;
     font-weight: 600;

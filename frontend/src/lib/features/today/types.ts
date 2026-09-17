@@ -2,7 +2,8 @@ export type TaskStatus = "in-progress" | "completed" | "upcoming";
 export type TaskCategory = "Learning" | "Work" | "Personal";
 
 export interface Task {
-  id: string;
+  id: string; // the block id
+  task_id?: string | null;
   title: string;
   startTime: string;
   endTime: string;

@@ -6,6 +6,7 @@
 
   interface FocusSession {
     id: string;
+    task_id?: string;
     status: string;
     started_at: string;
     paused_at?: string;
@@ -78,13 +79,28 @@
     isEndingLocal = true;
   }
 
+  let finishError = $state<string | null>(null);
+
   async function handleFinish(outcome: string) {
     if (isPending) return;
     isPending = true;
+    finishError = null;
+    const previousEndingLocal = isEndingLocal;
     try {
+      const startedAt = new Date(activeSession!.started_at);
+      let elapsedSeconds = 0;
+      
+      if (activeSession!.status === "PAUSED" && activeSession!.paused_at) {
+         const pausedAt = new Date(activeSession!.paused_at);
+         elapsedSeconds = Math.floor((pausedAt.getTime() - startedAt.getTime()) / 1000) - activeSession!.total_paused_seconds;
+      } else {
+         elapsedSeconds = Math.floor((now.getTime() - startedAt.getTime()) / 1000) - activeSession!.total_paused_seconds;
+      }
+      const actualDurationSeconds = Math.max(0, elapsedSeconds);
+
       await api.post('/focus/finish', {
         outcome,
-        actual_duration_seconds: 0, // Server will compute actual duration
+        actual_duration_seconds: actualDurationSeconds,
         should_replan: true
       });
       isEndingLocal = false;
@@ -94,6 +110,10 @@
         });
       }
       await fetchSession();
+    } catch (err: any) {
+      isEndingLocal = previousEndingLocal;
+      finishError = err.message || 'Failed to complete session.';
+      console.error("Failed to finish focus session", err);
     } finally {
       isPending = false;
     }
@@ -112,7 +132,7 @@
       return {
         kind: "ending",
         activePlant,
-        speechText: "Session ended. What was the outcome?",
+        speechText: finishError ? `Error: ${finishError} Try again.` : "Session ended. What was the outcome?",
         onDone: () => handleFinish('DONE'),
         onFinishedEarly: () => handleFinish('FINISHED_EARLY'),
         onNeedMoreTime: () => handleFinish('NEED_MORE_TIME'),

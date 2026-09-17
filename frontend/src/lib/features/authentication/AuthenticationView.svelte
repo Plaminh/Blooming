@@ -23,7 +23,8 @@
     windowService?: DesktopWindowService;
   } = $props();
 
-  const state = callbacks.state || createAuthState();
+  const defaultState = createAuthState();
+  let state = $derived(callbacks.state || defaultState);
 
   function handleLogin(data: LoginSubmitData) {
     if (callbacks.onSubmitLogin) {

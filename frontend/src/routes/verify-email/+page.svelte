@@ -27,7 +27,7 @@
       
       status = 'success';
       setTimeout(() => {
-        goto('/garden-selection');
+        goto('/onboarding');
       }, 2000);
       
     } catch (e) {

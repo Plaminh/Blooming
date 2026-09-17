@@ -4,6 +4,19 @@ import axe from 'axe-core';
 import { describe, expect, it, vi } from 'vitest';
 import type { DesktopWindowService } from '$lib/platform/desktopWindow';
 import AuthenticationView from './AuthenticationView.svelte';
+import { authStore } from '$lib/shared/stores/authStore';
+
+vi.mock('$lib/shared/stores/authStore', () => ({
+  authStore: {
+    login: vi.fn().mockResolvedValue(undefined),
+    register: vi.fn().mockResolvedValue(undefined),
+    isAuthenticated: false,
+    subscribe: vi.fn((cb) => {
+      cb({ isAuthenticated: false, user: null });
+      return () => {};
+    }),
+  }
+}));
 
 function mockWindowService(): DesktopWindowService {
   return {
