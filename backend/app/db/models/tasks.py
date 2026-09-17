@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -70,6 +71,18 @@ class Task(Base):
             " OR (status <> 'COMPLETED')",
             name="tasks_completion_valid",
         ),
+        CheckConstraint(
+            "min_split_duration_minutes IS NULL OR min_split_duration_minutes > 0",
+            name="tasks_min_split_duration_valid",
+        ),
+        CheckConstraint(
+            "preferred_break_duration_minutes IS NULL OR preferred_break_duration_minutes > 0",
+            name="tasks_preferred_break_duration_valid",
+        ),
+        CheckConstraint(
+            "min_split_duration_minutes IS NULL OR min_split_duration_minutes <= estimated_duration_minutes",
+            name="tasks_min_split_duration_limit",
+        ),
         Index("tasks_user_status_deadline_idx", "user_id", "status", "deadline_at"),
         Index(
             "tasks_milestone_idx",
@@ -111,6 +124,11 @@ class Task(Base):
         String(20), nullable=False, server_default=text("'DRAFT'")
     )
     deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    is_splittable: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
+    min_split_duration_minutes: Mapped[int | None] = mapped_column(Integer)
+    preferred_break_duration_minutes: Mapped[int | None] = mapped_column(Integer)
     fixed_start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     fixed_end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

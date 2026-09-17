@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS tasks (
     source                      VARCHAR(20) NOT NULL DEFAULT 'MANUAL',
     status                      VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     deadline_at                 TIMESTAMPTZ,
+    is_splittable               BOOLEAN NOT NULL DEFAULT FALSE,
+    min_split_duration_minutes  INTEGER NULL,
+    preferred_break_duration_minutes INTEGER NULL,
     fixed_start_at              TIMESTAMPTZ,
     fixed_end_at                TIMESTAMPTZ,
     completed_at                TIMESTAMPTZ,
@@ -53,7 +56,13 @@ CREATE TABLE IF NOT EXISTS tasks (
             (status = 'COMPLETED' AND completed_at IS NOT NULL)
             OR
             (status <> 'COMPLETED')
-        )
+        ),
+    CONSTRAINT tasks_min_split_duration_valid
+        CHECK (min_split_duration_minutes IS NULL OR min_split_duration_minutes > 0),
+    CONSTRAINT tasks_preferred_break_duration_valid
+        CHECK (preferred_break_duration_minutes IS NULL OR preferred_break_duration_minutes > 0),
+    CONSTRAINT tasks_min_split_duration_limit
+        CHECK (min_split_duration_minutes IS NULL OR min_split_duration_minutes <= estimated_duration_minutes)
 );
 
 CREATE TABLE IF NOT EXISTS task_dependencies (
