@@ -3,7 +3,10 @@
   import RoadmapNode from '../atoms/RoadmapNode.svelte';
   import RoadmapMilestoneCard from './RoadmapMilestoneCard.svelte';
 
-  let { milestones }: { milestones: Milestone[] } = $props();
+  let { milestones, onUpdateMilestone }: { 
+    milestones: Milestone[], 
+    onUpdateMilestone?: (id: string, updates: any) => void 
+  } = $props();
 </script>
 
 <div class="roadmap-timeline">
@@ -18,7 +21,7 @@
           />
         </div>
         <div class="card-col">
-          <RoadmapMilestoneCard {milestone} />
+          <RoadmapMilestoneCard {milestone} {onUpdateMilestone} />
         </div>
       </div>
     {/each}

@@ -3,7 +3,7 @@
   import GoalListItem from '../molecules/GoalListItem.svelte';
   import GoalsPanelHeader from '../atoms/GoalsPanelHeader.svelte';
 
-  let { goals, selectedGoalId, onSelect, onCreateGoal }: { goals: Goal[]; selectedGoalId: string; onSelect: (id: string) => void; onCreateGoal: () => void; } = $props();
+  let { goals, selectedGoalId, onSelect, onCreateGoal }: { goals: Goal[]; selectedGoalId: string | null; onSelect: (id: string) => void; onCreateGoal: () => void; } = $props();
 </script>
 
 <section class="panel my-goals">

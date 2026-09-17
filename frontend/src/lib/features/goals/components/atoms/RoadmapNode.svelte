@@ -14,8 +14,8 @@
   } = $props();
 
   let nodeClass = $derived.by(() => {
-    if (status === 'Completed') return 'node-completed';
-    if (status === 'In progress') return 'node-in-progress';
+    if (status === 'COMPLETED') return 'node-completed';
+    if (status === 'IN_PROGRESS') return 'node-in-progress';
     return 'node-not-started';
   });
 </script>

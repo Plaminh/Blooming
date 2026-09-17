@@ -5,11 +5,20 @@
   import AppIcon, { type IconName } from '$lib/shared/components/atoms/AppIcon.svelte';
   import GoalsPanelHeader from '../atoms/GoalsPanelHeader.svelte';
 
-  let { goal }: { goal: Goal | null } = $props();
+  let { goal, onAddMilestone, onUpdateMilestone }: { 
+    goal: Goal | null, 
+    onAddMilestone?: () => void,
+    onUpdateMilestone?: (milestoneId: string, updates: any) => void 
+  } = $props();
 </script>
 
 <section class="panel goal-details">
-  <GoalsPanelHeader title="GOAL DETAILS" id="goal-details-heading" />
+  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dcd7ca;">
+    <GoalsPanelHeader title="GOAL DETAILS" id="goal-details-heading" />
+    {#if onAddMilestone}
+      <button style="margin-right: 10px; cursor: pointer;" onclick={onAddMilestone}>+ Milestone</button>
+    {/if}
+  </div>
   
   <div class="panel-body">
     {#if goal}
@@ -25,12 +34,12 @@
         </div>
         <div class="target-date-box">
           <span class="box-label">Target date</span>
-          <TargetDateLabel date={goal.targetDate} />
+          <TargetDateLabel date={goal.target_date} />
         </div>
       </div>
       
       <h3 class="roadmap-heading">ROADMAP</h3>
-      <RoadmapTimeline milestones={goal.milestones} />
+      <RoadmapTimeline milestones={goal.milestones} {onUpdateMilestone} />
     {:else}
       <div class="empty-state">
         <p>No goal selected.</p>

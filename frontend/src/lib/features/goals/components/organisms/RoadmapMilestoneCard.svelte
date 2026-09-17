@@ -3,15 +3,36 @@
   import GoalStatusBadge from '../atoms/GoalStatusBadge.svelte';
   import TargetDateLabel from '../atoms/TargetDateLabel.svelte';
 
-  let { milestone }: { milestone: Milestone } = $props();
+  let { milestone, onUpdateMilestone }: { 
+    milestone: Milestone, 
+    onUpdateMilestone?: (id: string, updates: any) => void 
+  } = $props();
+
+  function handleStatusUpdate() {
+    const newStatus = prompt("New status (PENDING, IN_PROGRESS, COMPLETED, SKIPPED, CANCELLED):", milestone.status);
+    if (newStatus && onUpdateMilestone) {
+        onUpdateMilestone(milestone.id, { status: newStatus });
+    }
+  }
+
+  function handleDateUpdate() {
+    const newDate = prompt("New Target Date (YYYY-MM-DD):", milestone.due_at || '');
+    if (newDate !== null && onUpdateMilestone) {
+        onUpdateMilestone(milestone.id, { due_at: newDate ? new Date(newDate).toISOString() : null });
+    }
+  }
 </script>
 
-<div class="milestone-card" class:completed={milestone.status === 'Completed'}>
+<div class="milestone-card" class:completed={milestone.status === 'COMPLETED'}>
   <h4>{milestone.title}</h4>
   <p>{milestone.description}</p>
   <div class="meta-row">
-    <TargetDateLabel date={milestone.date} />
-    <GoalStatusBadge status={milestone.status} />
+    <button class="invisible-button" onclick={handleDateUpdate}>
+        <TargetDateLabel date={milestone.due_at} />
+    </button>
+    <button class="invisible-button" onclick={handleStatusUpdate}>
+        <GoalStatusBadge status={milestone.status} />
+    </button>
   </div>
 </div>
 
@@ -48,5 +69,11 @@
     justify-content: space-between;
     align-items: center;
     margin-top: auto;
+  }
+  .invisible-button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
   }
 </style>

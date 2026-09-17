@@ -8,6 +8,7 @@ from app.api.routes import (
     goals,
     health,
     planning,
+    reminders,
     today,
     user_settings,
     users,
@@ -23,4 +24,5 @@ api_router.include_router(planning.router)
 api_router.include_router(focus.router)
 api_router.include_router(goals.router)
 api_router.include_router(garden.router)
+api_router.include_router(reminders.router)
 api_router.include_router(today.router)
