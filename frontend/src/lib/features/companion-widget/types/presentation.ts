@@ -1,4 +1,6 @@
 export type CompanionWidgetKind =
+  | "focusing"
+  | "ending"
   | "paused"
   | "behindSchedule"
   | "offline"
@@ -74,7 +76,26 @@ export type RemindersPresentation = WidgetScenePresentation & {
   onDismiss?: () => void;
 };
 
+export type FocusingPresentation = WidgetScenePresentation & {
+  kind: "focusing";
+  timeText: string;
+  onPause?: () => void;
+  onEnd?: () => void;
+};
+
+export type EndingPresentation = WidgetScenePresentation & {
+  kind: "ending";
+  speechText: string;
+  timeText?: string;
+  onDone?: () => void;
+  onFinishedEarly?: () => void;
+  onNeedMoreTime?: () => void;
+  onSkip?: () => void;
+};
+
 export type CompanionWidgetPresentation =
+  | FocusingPresentation
+  | EndingPresentation
   | PausedPresentation
   | BehindSchedulePresentation
   | OfflinePresentation

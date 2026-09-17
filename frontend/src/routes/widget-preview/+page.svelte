@@ -11,6 +11,8 @@
     offlineFixture,
     pausedFixture,
     remindersFixture,
+    focusingFixture,
+    endingFixture
   } from "$lib/features/companion-widget/fixtures";
   import {
     PLANT_SPECIES,
@@ -22,9 +24,13 @@
     behindSchedule: behindScheduleFixture,
     offline: offlineFixture,
     reminders: remindersFixture,
+    focusing: focusingFixture,
+    ending: endingFixture,
   };
 
   const options: { kind: CompanionWidgetKind; label: string }[] = [
+    { kind: "focusing", label: "Focusing" },
+    { kind: "ending", label: "Ending" },
     { kind: "paused", label: "Paused" },
     { kind: "behindSchedule", label: "Behind schedule" },
     { kind: "offline", label: "Offline" },
@@ -33,6 +39,8 @@
 
   function asKind(value: string | null): CompanionWidgetKind {
     if (
+      value === "focusing" ||
+      value === "ending" ||
       value === "paused" ||
       value === "behindSchedule" ||
       value === "offline" ||
@@ -40,7 +48,7 @@
     ) {
       return value;
     }
-    return "reminders";
+    return "focusing";
   }
 
   function asSpecies(value: string | null): PlantSpecies {
