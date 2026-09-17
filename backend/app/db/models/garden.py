@@ -1,4 +1,4 @@
-"""Scope: append-only Heart Progress ledger and current garden projection."""
+"""Scope: append-only Reward Progress ledger, current garden projection, and catalog."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Boolean,
     UniqueConstraint,
     func,
     text,
@@ -31,60 +32,99 @@ if TYPE_CHECKING:
     from app.db.models.users import User
 
 
-class HeartEvent(Base):
-    __tablename__ = "heart_events"
+class Plant(Base):
+    __tablename__ = "plants"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    species: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    unlock_cost: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("TRUE")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class PlantOwnership(Base):
+    __tablename__ = "plant_ownerships"
+    __table_args__ = (
+        UniqueConstraint("user_id", "plant_id", name="plant_ownerships_user_plant_key"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    plant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("plants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    unlocked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class RewardEvent(Base):
+    __tablename__ = "reward_events"
     __table_args__ = (
         UniqueConstraint(
-            "idempotency_key", name="heart_events_idempotency_key_key"
+            "idempotency_key", name="reward_events_idempotency_key_key"
         ),
         CheckConstraint(
             "event_type IN ('FOCUS_COMPLETED', 'TASK_COMPLETED',"
             " 'CORE_OBJECTIVE_COMPLETED', 'MILESTONE_COMPLETED',"
-            " 'RECOVERY_PLAN_COMPLETED')",
-            name="heart_events_type_valid",
+            " 'RECOVERY_PLAN_COMPLETED', 'PLANT_UNLOCK', 'WATER_PLANT')",
+            name="reward_events_type_valid",
         ),
-        CheckConstraint("heart_amount > 0", name="heart_events_amount_valid"),
+        CheckConstraint(
+            "resource_type IN ('WATER', 'LEAVES')",
+            name="reward_events_resource_type_valid"
+        ),
         CheckConstraint(
             "BTRIM(idempotency_key) <> ''",
-            name="heart_events_idempotency_key_not_blank",
+            name="reward_events_idempotency_key_not_blank",
         ),
         CheckConstraint(
             "num_nonnulls(source_focus_run_id, source_task_id, source_milestone_id,"
-            " source_plan_revision_id) = 1",
-            name="heart_events_exactly_one_source",
-        ),
-        CheckConstraint(
-            "(event_type = 'FOCUS_COMPLETED' AND source_focus_run_id IS NOT NULL)"
-            " OR (event_type IN ('TASK_COMPLETED', 'CORE_OBJECTIVE_COMPLETED')"
-            " AND source_task_id IS NOT NULL)"
-            " OR (event_type = 'MILESTONE_COMPLETED'"
-            " AND source_milestone_id IS NOT NULL)"
-            " OR (event_type = 'RECOVERY_PLAN_COMPLETED'"
-            " AND source_plan_revision_id IS NOT NULL)",
-            name="heart_events_source_matches_type",
+            " source_plan_revision_id) <= 1",
+            name="reward_events_max_one_source",
         ),
         CheckConstraint(
             "metadata IS NULL OR jsonb_typeof(metadata) = 'object'",
-            name="heart_events_metadata_object",
+            name="reward_events_metadata_object",
         ),
-        Index("heart_events_user_chronological_idx", "user_id", "created_at", "id"),
+        Index("reward_events_user_chronological_idx", "user_id", "created_at", "id"),
         Index(
-            "heart_events_focus_run_idx",
+            "reward_events_focus_run_idx",
             "source_focus_run_id",
             postgresql_where=text("source_focus_run_id IS NOT NULL"),
         ),
         Index(
-            "heart_events_task_idx",
+            "reward_events_task_idx",
             "source_task_id",
             postgresql_where=text("source_task_id IS NOT NULL"),
         ),
         Index(
-            "heart_events_milestone_idx",
+            "reward_events_milestone_idx",
             "source_milestone_id",
             postgresql_where=text("source_milestone_id IS NOT NULL"),
         ),
         Index(
-            "heart_events_plan_revision_idx",
+            "reward_events_plan_revision_idx",
             "source_plan_revision_id",
             postgresql_where=text("source_plan_revision_id IS NOT NULL"),
         ),
@@ -101,8 +141,10 @@ class HeartEvent(Base):
         nullable=False,
     )
     event_type: Mapped[str] = mapped_column(String(40), nullable=False)
-    heart_amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    resource_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
     idempotency_key: Mapped[str] = mapped_column(Text, nullable=False)
+    
     source_focus_run_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("focus_runs.id", ondelete="CASCADE"),
@@ -119,30 +161,29 @@ class HeartEvent(Base):
         UUID(as_uuid=True),
         ForeignKey("plan_revisions.id", ondelete="CASCADE"),
     )
-    # "metadata" is reserved on the declarative base, so the attribute is renamed
-    # while the mapped column keeps the database name.
     event_metadata: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    user: Mapped[User] = relationship(back_populates="heart_events")
+    user: Mapped[User] = relationship(back_populates="reward_events")
     source_focus_run: Mapped[FocusRun | None] = relationship(
-        back_populates="heart_events"
+        back_populates="reward_events"
     )
-    source_task: Mapped[Task | None] = relationship(back_populates="heart_events")
+    source_task: Mapped[Task | None] = relationship(back_populates="reward_events")
     source_milestone: Mapped[Milestone | None] = relationship(
-        back_populates="heart_events"
+        back_populates="reward_events"
     )
     source_plan_revision: Mapped[PlanRevision | None] = relationship(
-        back_populates="heart_events"
+        back_populates="reward_events"
     )
 
 
 class GardenState(Base):
     __tablename__ = "garden_states"
     __table_args__ = (
-        CheckConstraint("total_heart >= 0", name="garden_states_total_valid"),
+        CheckConstraint("water_balance >= 0", name="garden_states_water_valid"),
+        CheckConstraint("leaves_balance >= 0", name="garden_states_leaves_valid"),
         CheckConstraint(
             "stage IN ('DORMANT', 'SPROUTING', 'GROWING', 'BLOOMING', 'FRUITING')",
             name="garden_states_stage_valid",
@@ -159,9 +200,18 @@ class GardenState(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    total_heart: Mapped[int] = mapped_column(
+    water_balance: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default=text("0")
     )
+    leaves_balance: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    selected_plant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("plants.id", ondelete="SET NULL")
+    )
+    last_watered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    
     stage: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default=text("'DORMANT'")
     )

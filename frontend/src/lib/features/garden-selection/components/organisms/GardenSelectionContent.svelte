@@ -1,20 +1,18 @@
 <script lang="ts">
   import { GardenSelectionViewModel } from '../../model/state.svelte';
-  import { INITIAL_GARDEN_STATE } from '../../model/fixtures';
-  
   import CurrencyBalance from '../molecules/CurrencyBalance.svelte';
   import PixelHeading from '../atoms/PixelHeading.svelte';
   import PlantPreviewArea from './PlantPreviewArea.svelte';
   import PlantIdentity from '../molecules/PlantIdentity.svelte';
   import CarouselControls from '../molecules/CarouselControls.svelte';
-  import UnlockPanel from './UnlockPanel.svelte';
+  import ActionPanel from './ActionPanel.svelte';
 
-  let vm = new GardenSelectionViewModel(INITIAL_GARDEN_STATE.plants, INITIAL_GARDEN_STATE.session);
+  let vm = new GardenSelectionViewModel();
 </script>
 
 <div class="garden-selection-content">
   <div class="top-bar">
-    <CurrencyBalance balance={vm.currencyBalance} />
+    <CurrencyBalance leaves={vm.leavesBalance} water={vm.waterBalance} />
   </div>
 
   <div class="main-content">
@@ -22,8 +20,12 @@
       title="CHOOSE YOUR PLANT" 
       subtitle="Pick a companion to grow with you." 
     />
-
-    {#if vm.selectedPlant}
+    
+    {#if vm.loading}
+      <div class="loading">Loading garden...</div>
+    {:else if vm.error}
+      <div class="error">{vm.error}</div>
+    {:else if vm.selectedPlant}
       <CarouselControls 
         hasPrevious={vm.hasPrevious} 
         hasNext={vm.hasNext} 
@@ -39,11 +41,16 @@
         </div>
       </CarouselControls>
 
-      <UnlockPanel 
+      <ActionPanel 
         cost={vm.selectedPlant.unlockCost}
         isUnlocked={vm.isSelectedPlantUnlocked}
+        isSelected={vm.selectedPlant.id === vm.activePlantId} 
         canUnlock={vm.canUnlockSelectedPlant}
+        canWater={vm.waterBalance >= 1}
+        vitality={vm.vitality}
         onUnlock={() => vm.unlockSelectedPlant()}
+        onSelect={() => vm.selectCurrentPlant()}
+        onWater={() => vm.waterSelectedPlant()}
       />
     {/if}
   </div>
@@ -82,4 +89,11 @@
     align-items: center;
     width: 390px;
   }
+  
+  .loading, .error {
+    margin-top: 50px;
+    font-family: var(--bloom-body-font);
+    font-size: 16px;
+  }
+  .error { color: #d32f2f; }
 </style>

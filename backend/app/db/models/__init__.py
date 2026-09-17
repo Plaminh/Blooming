@@ -11,7 +11,7 @@ from app.db.models.daily_plans import (
     PlanRevision,
 )
 from app.db.models.focus import FocusRun, FocusRunEvent
-from app.db.models.garden import GardenState, HeartEvent
+from app.db.models.garden import GardenState, RewardEvent, Plant, PlantOwnership
 from app.db.models.goals import Goal, Milestone
 from app.db.models.planning import PlanningMessage, PlanningSession
 from app.db.models.reminders import Reminder, ReminderAction
@@ -27,7 +27,9 @@ __all__ = [
     "FocusRunEvent",
     "GardenState",
     "Goal",
-    "HeartEvent",
+    "Plant",
+    "PlantOwnership",
+    "RewardEvent",
     "Milestone",
     "PlanBlock",
     "PlanRevision",

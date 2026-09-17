@@ -26,7 +26,7 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.db.models.daily_plans import PlanBlock
     from app.db.models.focus import FocusRun
-    from app.db.models.garden import HeartEvent
+    from app.db.models.garden import RewardEvent
     from app.db.models.goals import Milestone
     from app.db.models.users import User
 
@@ -157,7 +157,7 @@ class Task(Base):
     focus_runs: Mapped[list[FocusRun]] = relationship(
         back_populates="task", passive_deletes=True
     )
-    heart_events: Mapped[list[HeartEvent]] = relationship(
+    reward_events: Mapped[list[RewardEvent]] = relationship(
         back_populates="source_task", passive_deletes=True
     )
 
