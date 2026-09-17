@@ -33,7 +33,7 @@
               <div class="node-column">
                 <RoadmapNode
                   number={index + 1}
-                  status="Not started"
+                  status="PENDING"
                   isLast={index === draft.milestones.length - 1}
                   variant="draft"
                 />

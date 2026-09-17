@@ -3,17 +3,17 @@
   import NextMilestonePanel from './NextMilestonePanel.svelte';
   import OverallProgressPanel from './OverallProgressPanel.svelte';
   import GoalsActionGroup from '../molecules/GoalsActionGroup.svelte';
-
+  import DueRemindersPanel from './DueRemindersPanel.svelte';
+  import { goalsStore } from '../../stores/goalsStore';
 
   let { goal, onEdit, onRefine }: { goal: Goal | null; onEdit: () => void; onRefine: () => void; } = $props();
 
   let nextMilestone = $derived.by(() => {
     if (!goal || goal.milestones.length === 0) return null;
-    return goal.milestones.find((m) => m.status === 'Not started' || m.status === 'In progress') || null;
+    return goal.milestones.find((m) => m.status === 'PENDING' || m.status === 'IN_PROGRESS') || null;
   });
 
-  // Calculate completed count to include 'In progress' to match the 50% design reference.
-  let completedCount = $derived(goal ? goal.milestones.filter(m => m.status === 'Completed' || m.status === 'In progress').length : 0);
+  let completedCount = $derived(goal ? goal.milestones.filter(m => m.status === 'COMPLETED').length : 0);
   let totalCount = $derived(goal ? goal.milestones.length : 0);
 </script>
 
@@ -21,6 +21,12 @@
   <div class="top-section">
     {#if goal}
       <div class="panels-group">
+        {#if $goalsStore.dueReminders.length > 0}
+            <DueRemindersPanel 
+                reminders={$goalsStore.dueReminders} 
+                onAction={(id, action, date) => goalsStore.executeReminderAction(id, action, date)} 
+            />
+        {/if}
         <NextMilestonePanel milestone={nextMilestone} daysLeft={nextMilestone ? 17 : undefined} />
         <OverallProgressPanel completed={completedCount} total={totalCount} />
       </div>

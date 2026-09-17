@@ -3,13 +3,23 @@
   import GoalDetailsPanel from '$lib/features/goals/components/organisms/GoalDetailsPanel.svelte';
   import GoalsRightRail from '$lib/features/goals/components/organisms/GoalsRightRail.svelte';
   import FallbackDialog from '$lib/shared/components/molecules/FallbackDialog.svelte';
-  import { FIXTURE_GOALS } from '$lib/features/goals/models';
   import { overlayStore } from '$lib/shared/stores/overlayStore';
+  import { goalsStore } from '$lib/features/goals/stores/goalsStore';
+  import { onMount } from 'svelte';
 
-  let selectedGoalId = $state(FIXTURE_GOALS[0].id);
+  let selectedGoalId = $state<string | null>(null);
   let showFallback = $state(false);
 
-  let selectedGoal = $derived(FIXTURE_GOALS.find(g => g.id === selectedGoalId) || null);
+  let selectedGoal = $derived($goalsStore.goals.find(g => g.id === selectedGoalId) || null);
+
+  onMount(() => {
+    goalsStore.loadGoals().then(() => {
+        if ($goalsStore.goals.length > 0 && !selectedGoalId) {
+            selectedGoalId = $goalsStore.goals[0].id;
+        }
+    });
+    goalsStore.loadDueReminders();
+  });
 
   function handleAction() {
     showFallback = true;
@@ -35,19 +45,36 @@
 <div class="goals-content">
   <div class="col-my-goals">
     <MyGoalsPanel
-      goals={FIXTURE_GOALS}
+      goals={$goalsStore.goals}
       {selectedGoalId}
       onSelect={(id) => (selectedGoalId = id)}
-      onCreateGoal={handleAction}
+      onCreateGoal={() => {
+        const title = prompt("Goal Title:");
+        if (title) goalsStore.createGoal({ title });
+      }}
     />
   </div>
   <div class="col-goal-details">
-    <GoalDetailsPanel goal={selectedGoal} />
+    <GoalDetailsPanel 
+      goal={selectedGoal} 
+      onAddMilestone={() => {
+        const title = prompt("Milestone Title:");
+        if (title && selectedGoalId) goalsStore.addMilestone(selectedGoalId, { title });
+      }}
+      onUpdateMilestone={(milestoneId, updates) => {
+        if (selectedGoalId) goalsStore.updateMilestone(selectedGoalId, milestoneId, updates);
+      }}
+    />
   </div>
   <div class="col-right-rail">
     <GoalsRightRail
       goal={selectedGoal}
-      onEdit={handleAction}
+      onEdit={() => {
+        if (selectedGoal) {
+            const title = prompt("New Goal Title:", selectedGoal.title);
+            if (title && selectedGoalId) goalsStore.updateGoal(selectedGoalId, { title });
+        }
+      }}
       onRefine={handleAction}
     />
   </div>
