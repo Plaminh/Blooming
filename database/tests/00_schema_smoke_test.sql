@@ -14,7 +14,7 @@ BEGIN
         'daily_plans', 'availability_windows', 'plan_blocks', 'plan_revisions',
         'focus_runs', 'focus_run_events',
         'reminders', 'reminder_actions',
-        'heart_events', 'garden_states'
+        'reward_events', 'garden_states', 'plants', 'plant_ownerships'
     ]
     LOOP
         IF to_regclass('public.' || required_table) IS NULL THEN
@@ -214,18 +214,19 @@ BEGIN
     INSERT INTO reminder_actions (reminder_id, action_type)
     VALUES (sample_reminder_id, 'COMPLETE');
 
-    INSERT INTO heart_events (
-        user_id, event_type, heart_amount, idempotency_key, source_focus_run_id
+    INSERT INTO reward_events (
+        user_id, event_type, resource_type, amount, idempotency_key, source_focus_run_id
     ) VALUES (
         sample_user_id,
         'FOCUS_COMPLETED',
+        'WATER',
         10,
         'schema-test:focus-completed',
         sample_focus_run_id
     );
 
     INSERT INTO garden_states (
-        user_id, total_heart, stage, leaf_count
+        user_id, water_balance, stage, leaf_count
     ) VALUES (
         sample_user_id, 10, 'SPROUTING', 1
     );
@@ -242,11 +243,11 @@ BEGIN
 
     IF NOT EXISTS (
         SELECT 1
-        FROM heart_events
+        FROM reward_events
         WHERE user_id = sample_user_id
           AND idempotency_key = 'schema-test:focus-completed'
     ) THEN
-        RAISE EXCEPTION 'Heart event smoke assertion failed.';
+        RAISE EXCEPTION 'Reward event smoke assertion failed.';
     END IF;
 
     RAISE NOTICE 'Blooming schema smoke test passed; rolling back sample data.';

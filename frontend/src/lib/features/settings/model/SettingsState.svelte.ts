@@ -1,31 +1,37 @@
-import { getContext, setContext } from 'svelte';
-import type { SettingsProfile } from '../types';
-import { Window } from '@tauri-apps/api/window';
-import { get } from 'svelte/store';
-import { authStore } from '$lib/shared/stores/authStore';
+import { getContext, setContext } from "svelte";
+import type { SettingsProfile } from "../types";
+import { desktop, type NativeSettings } from "$lib/platform/desktopWindow";
+import type { UserSettingsResponse } from "$lib/api/types";
+import { get } from "svelte/store";
+import { authStore } from "$lib/shared/stores/authStore";
 
-const SETTINGS_KEY = 'bloom_settings';
+const SETTINGS_KEY = "bloom_settings";
 
 export class SettingsState {
   savedSettings = $state<SettingsProfile>({
-    email: '',
-    mrBloomName: 'Mr. Bloom',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    email: "",
+    mrBloomName: "Mr. Bloom",
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     focusDurationMinutes: 25,
     breakDurationMinutes: 5,
     startAtLogin: true,
     keepWidgetOnTop: true,
-    milestoneReminderTime: '20:00',
-    emailReminders: true
+    milestoneReminderLeadTimeMinutes: 1440,
+    emailReminders: true,
   });
 
-  draftSettings = $state<SettingsProfile>(JSON.parse(JSON.stringify(this.savedSettings)));
-  validationErrors = $state<Partial<Record<keyof SettingsProfile, string>>>({});
+  draftSettings = $state<SettingsProfile>(
+    JSON.parse(JSON.stringify(this.savedSettings)),
+  );
+  validationErrors = $state<Partial<Record<string, string>>>({});
   isSaving = $state(false);
   saveSuccessMessage = $state<string | null>(null);
   saveErrorMessage = $state<string | null>(null);
+  syncWarning = $state<string | null>(null);
 
-  isDirty = $derived(JSON.stringify(this.savedSettings) !== JSON.stringify(this.draftSettings));
+  isDirty = $derived(
+    JSON.stringify(this.savedSettings) !== JSON.stringify(this.draftSettings),
+  );
 
   constructor() {
     // Set initial email synchronously if available
@@ -34,47 +40,57 @@ export class SettingsState {
       this.savedSettings.email = user.email;
     }
     this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
-    
+
     // Load local desktop-only preferences first
-    if (typeof localStorage !== 'undefined') {
+    if (typeof localStorage !== "undefined") {
       const localPrefsStr = localStorage.getItem(SETTINGS_KEY);
       if (localPrefsStr) {
         try {
           const localPrefs = JSON.parse(localPrefsStr);
-          if (localPrefs.milestoneReminderTime) this.savedSettings.milestoneReminderTime = localPrefs.milestoneReminderTime;
-          if (typeof localPrefs.emailReminders === 'boolean') this.savedSettings.emailReminders = localPrefs.emailReminders;
+          if (typeof localPrefs.emailReminders === "boolean")
+            this.savedSettings.emailReminders = localPrefs.emailReminders;
           this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
         } catch (e) {
           // ignore parsing error
         }
       }
     }
-    
+
     this.loadFromAPI();
   }
 
   async loadFromAPI() {
     try {
-      const { api } = await import('$lib/api');
-      const stored = await api.get('/me/settings');
+      const { api } = await import("$lib/api");
+      const stored: UserSettingsResponse | null = await api.get("/me/settings");
       if (stored) {
         // Map backend schema to frontend schema if needed
         const mappedSettings = {
-          email: get(authStore).user?.email || '',
-          mrBloomName: stored.mr_bloom_display_name || 'Mr. Bloom',
-          timezone: stored.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+          email: get(authStore).user?.email || "",
+          mrBloomName: stored.mr_bloom_display_name || "Mr. Bloom",
+          timezone:
+            stored.timezone ||
+            Intl.DateTimeFormat().resolvedOptions().timeZone ||
+            "UTC",
           focusDurationMinutes: stored.default_focus_minutes || 25,
           breakDurationMinutes: stored.default_break_minutes || 5,
           startAtLogin: stored.launch_on_startup ?? true,
           keepWidgetOnTop: stored.widget_always_on_top ?? true,
-          milestoneReminderTime: this.savedSettings.milestoneReminderTime, // Keep local pref
-          emailReminders: this.savedSettings.emailReminders // Keep local pref
+          milestoneReminderLeadTimeMinutes:
+            stored.milestone_reminder_lead_time_minutes ?? 1440,
+          emailReminders: this.savedSettings.emailReminders, // Keep local pref
         };
         this.savedSettings = { ...this.savedSettings, ...mappedSettings };
         this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
+        try {
+          await desktop.reconcileSettings(stored);
+        } catch {
+          this.syncWarning = "Settings loaded, but desktop sync failed.";
+        }
       }
     } catch (e) {
-      console.error('Failed to load settings from API', e);
+      this.saveErrorMessage =
+        e instanceof Error ? e.message : "Failed to load or apply settings.";
     }
   }
 
@@ -82,9 +98,14 @@ export class SettingsState {
     this.validationErrors = {};
     let isValid = true;
 
-    const { mrBloomName, focusDurationMinutes, breakDurationMinutes, milestoneReminderTime } = this.draftSettings;
+    const {
+      mrBloomName,
+      focusDurationMinutes,
+      breakDurationMinutes,
+      milestoneReminderLeadTimeMinutes,
+    } = this.draftSettings;
 
-    if (!mrBloomName || mrBloomName.trim() === '') {
+    if (!mrBloomName || mrBloomName.trim() === "") {
       this.validationErrors.mrBloomName = "Name cannot be empty.";
       isValid = false;
     } else if (mrBloomName.length > 60) {
@@ -102,9 +123,13 @@ export class SettingsState {
       isValid = false;
     }
 
-    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    if (!timeRegex.test(milestoneReminderTime)) {
-      this.validationErrors.milestoneReminderTime = "Invalid time format.";
+    if (
+      !Number.isInteger(milestoneReminderLeadTimeMinutes) ||
+      milestoneReminderLeadTimeMinutes < 0 ||
+      milestoneReminderLeadTimeMinutes > 43200
+    ) {
+      this.validationErrors.milestoneReminderLeadTimeMinutes =
+        "Must be a whole number between 0 and 43200.";
       isValid = false;
     }
 
@@ -116,6 +141,7 @@ export class SettingsState {
     this.validationErrors = {};
     this.saveSuccessMessage = null;
     this.saveErrorMessage = null;
+    this.syncWarning = null;
   }
 
   async save() {
@@ -125,52 +151,62 @@ export class SettingsState {
     this.isSaving = true;
     this.saveSuccessMessage = null;
     this.saveErrorMessage = null;
+    this.syncWarning = null;
+    let previousNativeSettings: NativeSettings | null = null;
 
     try {
       this.draftSettings.mrBloomName = this.draftSettings.mrBloomName.trim();
 
-      const { api } = await import('$lib/api');
-      
+      const { api } = await import("$lib/api");
+
       const payload = {
         mr_bloom_display_name: this.draftSettings.mrBloomName,
         timezone: this.draftSettings.timezone,
-        default_focus_minutes: this.draftSettings.focusDurationMinutes,
-        default_break_minutes: this.draftSettings.breakDurationMinutes,
+        default_focus_minutes: Number(this.draftSettings.focusDurationMinutes),
+        default_break_minutes: Number(this.draftSettings.breakDurationMinutes),
         launch_on_startup: this.draftSettings.startAtLogin,
-        widget_always_on_top: this.draftSettings.keepWidgetOnTop
+        widget_always_on_top: this.draftSettings.keepWidgetOnTop,
+        milestone_reminder_lead_time_minutes: Number(
+          this.draftSettings.milestoneReminderLeadTimeMinutes,
+        ),
       };
-      
-      await api.put('/me/settings', payload);
-      
-      // Save desktop-only preferences locally
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-          milestoneReminderTime: this.draftSettings.milestoneReminderTime,
-          emailReminders: this.draftSettings.emailReminders
-        }));
-      }
 
-      this.savedSettings = JSON.parse(JSON.stringify(this.draftSettings));
-
-      // Tauri API integration for Keep widget on top
+      previousNativeSettings = await desktop.readSettings();
       try {
-        const widgetWindow = await Window.getByLabel('companion-widget');
-        if (widgetWindow) {
-          await widgetWindow.setAlwaysOnTop(this.savedSettings.keepWidgetOnTop);
+        await desktop.reconcileSettings(payload);
+        await api.put("/me/settings", payload);
+      } catch (error) {
+        if (previousNativeSettings) {
+          try {
+            await desktop.reconcileSettings(previousNativeSettings);
+          } catch {
+            this.syncWarning =
+              "Previous desktop settings could not be restored. Reopen Settings to synchronize.";
+          }
         }
-      } catch (err) {
-        console.warn('Failed to apply always-on-top setting, browser fallback used:', err);
+        throw error;
       }
-
-      // Update the user display name in authStore (matches User schema now, though mr_bloom_display_name is in settings, user has display_name. Wait, user has display_name, not mr_bloom_display_name.)
-      // We'll leave it out since mr_bloom_display_name is part of settings, not the auth user schema.
-      // Removed authStore.updateUser as it does not belong to the user schema.
-
+      this.savedSettings = JSON.parse(JSON.stringify(this.draftSettings));
       this.saveSuccessMessage = "Settings saved successfully.";
+      try {
+        if (typeof localStorage !== "undefined") {
+          localStorage.setItem(
+            SETTINGS_KEY,
+            JSON.stringify({
+              emailReminders: this.savedSettings.emailReminders,
+            }),
+          );
+        }
+      } catch {
+        this.syncWarning =
+          "Settings saved, but local preferences could not be stored.";
+      }
       return true;
-    } catch (e: any) {
-      console.error('Failed to save settings via API', e);
-      this.saveErrorMessage = e.message || 'Failed to save settings. Please try again.';
+    } catch (e: unknown) {
+      this.saveErrorMessage =
+        e instanceof Error
+          ? e.message
+          : "Failed to save settings. Please try again.";
       return false;
     } finally {
       this.isSaving = false;
@@ -182,7 +218,7 @@ export class SettingsState {
   }
 }
 
-const SETTINGS_CONTEXT_KEY = Symbol('SETTINGS_STATE');
+const SETTINGS_CONTEXT_KEY = Symbol("SETTINGS_STATE");
 
 export function setSettingsState() {
   const state = new SettingsState();

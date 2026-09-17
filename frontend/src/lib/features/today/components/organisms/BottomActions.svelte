@@ -1,6 +1,14 @@
 <script lang="ts">
-  import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
-  let { onEdit, onReplan }: { onEdit: () => void; onReplan: () => void } = $props();
+  import AppIcon from "$lib/shared/components/atoms/AppIcon.svelte";
+  let {
+    onEdit,
+    onReplan,
+    disabled = false,
+  }: {
+    onEdit: () => void;
+    onReplan: () => void;
+    disabled?: boolean;
+  } = $props();
 </script>
 
 <footer class="bottom-actions">
@@ -8,7 +16,7 @@
     <AppIcon name="pencil" scale={0.7} />
     <span>EDIT MANUALLY</span>
   </button>
-  <button class="action replan" onclick={onReplan}>
+  <button class="action replan" onclick={onReplan} {disabled}>
     <AppIcon name="replan" scale={0.7} />
     <span>REPLAN WITH MR. BLOOM</span>
   </button>
@@ -41,13 +49,20 @@
     white-space: nowrap;
     cursor: pointer;
   }
-  .edit { width: 210px; }
+  .edit {
+    width: 210px;
+  }
   .replan {
     width: 264px;
     border-color: #177d4d;
     background: var(--bloom-action-primary-bg);
     color: #eff9ee;
   }
-  .action:hover { filter: brightness(1.04); }
-  .action:focus-visible { outline: 2px solid #00aeea; outline-offset: 2px; }
+  .action:hover {
+    filter: brightness(1.04);
+  }
+  .action:focus-visible {
+    outline: 2px solid #00aeea;
+    outline-offset: 2px;
+  }
 </style>

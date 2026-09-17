@@ -30,29 +30,37 @@
       const target = event.target;
       if (
         target instanceof Element &&
-        target.closest('button, input, a, header, [role="button"], [data-no-open-main]')
+        target.closest(
+          'button, input, a, header, [role="button"], [data-no-open-main]',
+        )
       ) {
         return;
       }
       void windowService.openMainWindow();
     };
 
-    node.addEventListener('dblclick', handleDoubleClick);
+    node.addEventListener("dblclick", handleDoubleClick);
     return {
       destroy() {
-        node.removeEventListener('dblclick', handleDoubleClick);
+        node.removeEventListener("dblclick", handleDoubleClick);
       },
     };
   }
 
   let actions = $derived(actionsFor(presentation));
   let timeText = $derived(
-    presentation.kind === "focusing" || presentation.kind === "ending" || presentation.kind === "paused" || presentation.kind === "offline"
+    presentation.kind === "focusing" ||
+      presentation.kind === "ending" ||
+      presentation.kind === "paused" ||
+      presentation.kind === "offline"
       ? presentation.timeText
       : undefined,
   );
   let speechText = $derived(
-    presentation.kind === "ending" || presentation.kind === "paused" || presentation.kind === "behindSchedule" || presentation.kind === "offline"
+    presentation.kind === "ending" ||
+      presentation.kind === "paused" ||
+      presentation.kind === "behindSchedule" ||
+      presentation.kind === "offline"
       ? presentation.speechText
       : undefined,
   );
@@ -68,7 +76,11 @@
   <WidgetTitleBar {windowService} />
 
   <div class="plant-slot">
-    <PlantSprite plant={presentation.activePlant} />
+    {#if presentation.activePlant}
+      <PlantSprite plant={presentation.activePlant} />
+    {:else}
+      <span role="status">Plant unavailable</span>
+    {/if}
   </div>
 
   <div class="character-anchor">

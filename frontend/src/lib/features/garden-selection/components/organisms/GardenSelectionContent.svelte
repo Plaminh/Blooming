@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { GardenSelectionViewModel } from '../../model/state.svelte';
-  import CurrencyBalance from '../molecules/CurrencyBalance.svelte';
-  import PixelHeading from '../atoms/PixelHeading.svelte';
-  import PlantPreviewArea from './PlantPreviewArea.svelte';
-  import PlantIdentity from '../molecules/PlantIdentity.svelte';
-  import CarouselControls from '../molecules/CarouselControls.svelte';
-  import ActionPanel from './ActionPanel.svelte';
+  import { GardenSelectionViewModel } from "../../model/state.svelte";
+  import CurrencyBalance from "../molecules/CurrencyBalance.svelte";
+  import PixelHeading from "../atoms/PixelHeading.svelte";
+  import PlantPreviewArea from "./PlantPreviewArea.svelte";
+  import PlantIdentity from "../molecules/PlantIdentity.svelte";
+  import CarouselControls from "../molecules/CarouselControls.svelte";
+  import ActionPanel from "./ActionPanel.svelte";
 
   let vm = new GardenSelectionViewModel();
 </script>
@@ -16,35 +16,40 @@
   </div>
 
   <div class="main-content">
-    <PixelHeading 
-      title="CHOOSE YOUR PLANT" 
-      subtitle="Pick a companion to grow with you." 
+    <PixelHeading
+      title="CHOOSE YOUR PLANT"
+      subtitle="Pick a companion to grow with you."
     />
-    
+
+    {#if vm.syncWarning}<p role="status">{vm.syncWarning}</p>{/if}
+
     {#if vm.loading}
       <div class="loading">Loading garden...</div>
     {:else if vm.error}
       <div class="error">{vm.error}</div>
     {:else if vm.selectedPlant}
-      <CarouselControls 
-        hasPrevious={vm.hasPrevious} 
-        hasNext={vm.hasNext} 
-        onPrevious={() => vm.previous()} 
+      <CarouselControls
+        hasPrevious={vm.hasPrevious}
+        hasNext={vm.hasNext}
+        onPrevious={() => vm.previous()}
         onNext={() => vm.next()}
       >
         <div class="carousel-center">
-          <PlantPreviewArea species={vm.selectedPlant.species} />
-          <PlantIdentity 
-            name={vm.selectedPlant.name} 
-            description={vm.selectedPlant.description} 
+          {#if vm.selectedFrame !== undefined}<PlantPreviewArea
+              species={vm.selectedPlant.species}
+              frameIndex={vm.selectedFrame}
+            />{/if}
+          <PlantIdentity
+            name={vm.selectedPlant.name}
+            description={vm.selectedPlant.description}
           />
         </div>
       </CarouselControls>
 
-      <ActionPanel 
+      <ActionPanel
         cost={vm.selectedPlant.unlockCost}
         isUnlocked={vm.isSelectedPlantUnlocked}
-        isSelected={vm.selectedPlant.id === vm.activePlantId} 
+        isSelected={vm.selectedPlant.id === vm.activePlantId}
         canUnlock={vm.canUnlockSelectedPlant}
         canWater={vm.waterBalance >= 1}
         vitality={vm.vitality}
@@ -66,14 +71,14 @@
     height: 100%;
     box-sizing: border-box;
   }
-  
+
   .top-bar {
     position: absolute;
     top: 7px;
     right: 10px;
     z-index: 10;
   }
-  
+
   .main-content {
     display: flex;
     flex-direction: column;
@@ -89,11 +94,14 @@
     align-items: center;
     width: 390px;
   }
-  
-  .loading, .error {
+
+  .loading,
+  .error {
     margin-top: 50px;
     font-family: var(--bloom-body-font);
     font-size: 16px;
   }
-  .error { color: #d32f2f; }
+  .error {
+    color: #d32f2f;
+  }
 </style>

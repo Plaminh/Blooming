@@ -105,6 +105,10 @@ class UserSettings(Base):
     __tablename__ = "user_settings"
     __table_args__ = (
         CheckConstraint(
+            "milestone_reminder_lead_time_minutes BETWEEN 0 AND 43200",
+            name="user_settings_milestone_reminder_lead_time_minutes_valid",
+        ),
+        CheckConstraint(
             "default_focus_minutes BETWEEN 1 AND 720",
             name="user_settings_focus_duration_valid",
         ),
@@ -139,6 +143,9 @@ class UserSettings(Base):
     )
     reminders_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("TRUE")
+    )
+    milestone_reminder_lead_time_minutes: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("1440")
     )
     quiet_hours_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("FALSE")
@@ -220,6 +227,7 @@ class AuthSession(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="auth_sessions")
+
 
 class EmailVerificationToken(Base):
     __tablename__ = "email_verification_tokens"

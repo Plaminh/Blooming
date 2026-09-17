@@ -1,39 +1,68 @@
 from datetime import date, datetime, timezone
 from uuid import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+from app.core.errors import ResourceNotFoundError, UnauthorizedOwnershipError
+from app.core.scheduler import DeterministicScheduler, ScheduleTask, ScheduleWindow
+from app.core.time_utils import safe_timezone
 from app.crud.crud_daily_plan import daily_plan as crud_daily_plan
 from app.crud.crud_task import task as crud_task
-from app.schemas.today import TodayTaskEdit, TodayTaskStatusUpdate
-from app.core.errors import ResourceNotFoundError, UnauthorizedOwnershipError
-from app.db.models.users import User
-from app.db.models.tasks import Task
 from app.db.models.daily_plans import PlanBlock
-from app.core.scheduler import DeterministicScheduler, ScheduleTask, ScheduleWindow
-from sqlalchemy import select
-import zoneinfo
+from app.db.models.tasks import Task
+from app.db.models.users import UserSettings
+from app.schemas.today import TodayTaskEdit, TodayTaskStatusUpdate
+
 
 class TodayService:
-    async def get_today(self, db: AsyncSession, user_id: UUID, local_date: date | None = None) -> dict:
+    async def get_today(
+        self, db: AsyncSession, user_id: UUID, local_date: date | None = None
+    ) -> dict:
         if local_date is None:
-            user = await db.get(User, user_id)
-            tz = zoneinfo.ZoneInfo(user.timezone) if user and hasattr(user, 'timezone') and user.timezone else timezone.utc
+            settings = await db.scalar(
+                select(UserSettings).where(UserSettings.user_id == user_id)
+            )
+            tz = safe_timezone(settings.timezone if settings else "UTC")
             local_date = datetime.now(tz).date()
 
         plan = await crud_daily_plan.get_by_date(db, user_id, local_date)
         if not plan or plan.status == "DRAFT":
             return {"plan_date": local_date, "status": "NO_PLAN"}
-        
-        blocks = sorted(plan.plan_blocks, key=lambda b: b.position)
+
+        blocks = sorted(plan.plan_blocks, key=lambda b: b.planned_start_at)
+
+        block_dicts = []
+        for b in blocks:
+            b_dict = {
+                "id": b.id,
+                "block_type": b.block_type,
+                "task_id": b.task_id,
+                "title": b.title,
+                "planned_start_at": b.planned_start_at,
+                "planned_end_at": b.planned_end_at,
+                "position": b.position,
+                "status": b.status,
+                "is_locked": b.is_locked,
+                "description": b.task.description if b.task else None,
+                "category": b.task.category if b.task else None,
+                "estimated_duration_minutes": b.task.estimated_duration_minutes
+                if b.task
+                else None,
+            }
+            block_dicts.append(b_dict)
+
         return {
             "plan_date": plan.plan_date,
             "status": plan.status,
             "reality_check": plan.reality_check,
-            "blocks": blocks
+            "blocks": block_dicts,
         }
 
-    async def update_task_from_today(self, db: AsyncSession, user_id: UUID, task_id: UUID, obj_in: TodayTaskEdit) -> dict:
+    async def update_task_from_today(
+        self, db: AsyncSession, user_id: UUID, task_id: UUID, obj_in: TodayTaskEdit
+    ) -> Task:
         task_db = await crud_task.get_with_plan_blocks(db, id=task_id)
         if not task_db:
             raise ResourceNotFoundError("Task not found")
@@ -44,59 +73,64 @@ class TodayService:
             task_db.title = obj_in.title
         if obj_in.estimated_duration_minutes is not None:
             task_db.estimated_duration_minutes = obj_in.estimated_duration_minutes
-        
+        if "description" in obj_in.model_fields_set:
+            task_db.description = obj_in.description
+        if "category" in obj_in.model_fields_set:
+            task_db.category = obj_in.category
+
         db.add(task_db)
-        
+
         # update title in plan blocks as well
         if obj_in.title is not None:
             for b in task_db.plan_blocks:
                 b.title = obj_in.title
                 db.add(b)
-                
+
         await db.commit()
         return task_db
 
-    async def update_task_status_from_today(self, db: AsyncSession, user_id: UUID, task_id: UUID, obj_in: TodayTaskStatusUpdate) -> dict:
+    async def update_task_status_from_today(
+        self,
+        db: AsyncSession,
+        user_id: UUID,
+        task_id: UUID,
+        obj_in: TodayTaskStatusUpdate,
+        commit: bool = True,
+    ) -> Task:
+        from app.db.models.users import User
+
+        await db.execute(select(User.id).where(User.id == user_id).with_for_update())
         task_db = await crud_task.get_with_plan_blocks(db, id=task_id)
         if not task_db:
             raise ResourceNotFoundError("Task not found")
         if task_db.user_id != user_id:
             raise UnauthorizedOwnershipError()
-            
+
         if task_db.status == obj_in.status:
-            return task_db # Idempotent
+            return task_db  # Idempotent
 
         task_db.status = obj_in.status
         if obj_in.status == "COMPLETED":
             task_db.completed_at = datetime.now(timezone.utc)
-            
-            from app.db.models.garden import GardenState, RewardEvent
+
             from app.core.economy import LEAVES_PER_TASK
-            
-            garden = await db.scalar(select(GardenState).where(GardenState.user_id == user_id))
-            if not garden:
-                garden = GardenState(user_id=user_id, water_balance=0, leaves_balance=0)
-                db.add(garden)
-                
-            idempotency_key = f"task_completed_{task_id}"
-            existing = await db.scalar(select(RewardEvent).where(RewardEvent.idempotency_key == idempotency_key))
-            
-            if not existing:
-                garden.leaves_balance += LEAVES_PER_TASK
-                event = RewardEvent(
-                    user_id=user_id,
-                    event_type="TASK_COMPLETED",
-                    resource_type="LEAVES",
-                    amount=LEAVES_PER_TASK,
-                    idempotency_key=idempotency_key,
-                    source_task_id=task_id
-                )
-                db.add(event)
+            from app.services.garden_service import award_resources
+
+            # Award leaves
+            await award_resources(
+                db=db,
+                user_id=user_id,
+                resource_type="LEAVES",
+                amount=LEAVES_PER_TASK,
+                event_type="TASK_COMPLETED",
+                idempotency_key=f"task_completed_{task_id}",
+                source_id=task_id,
+            )
         else:
             task_db.completed_at = None
 
         db.add(task_db)
-        
+
         # update plan blocks
         block_status_map = {
             "DRAFT": "PLANNED",
@@ -104,7 +138,7 @@ class TodayService:
             "IN_PROGRESS": "ACTIVE",
             "COMPLETED": "COMPLETED",
             "SKIPPED": "SKIPPED",
-            "CANCELLED": "CANCELLED"
+            "CANCELLED": "CANCELLED",
         }
         b_status = block_status_map.get(obj_in.status, "PLANNED")
 
@@ -116,131 +150,152 @@ class TodayService:
                 b.completed_at = None
             db.add(b)
 
-        await db.commit()
+        await db.flush()
+        if commit:
+            await db.commit()
         return task_db
 
-    async def replan_today(self, db: AsyncSession, user_id: UUID, commit: bool = True) -> dict:
-        user = await db.get(User, user_id)
-        tz = zoneinfo.ZoneInfo(user.timezone) if user and hasattr(user, 'timezone') and user.timezone else timezone.utc
-        local_date = datetime.now(tz).date()
+    async def replan_today(
+        self, db: AsyncSession, user_id: UUID, commit: bool = True
+    ) -> dict:
+        from app.core.errors import ValidationError
+        from app.db.models.users import User
 
+        await db.execute(select(User.id).where(User.id == user_id).with_for_update())
+        settings = await db.scalar(
+            select(UserSettings).where(UserSettings.user_id == user_id)
+        )
+        now = datetime.now(timezone.utc)
+        local_date = now.astimezone(
+            safe_timezone(settings.timezone if settings else "UTC")
+        ).date()
         plan = await crud_daily_plan.get_by_date(db, user_id, local_date)
         if not plan or plan.status == "DRAFT":
             return {"plan_date": local_date, "status": "NO_PLAN"}
-
-        now = datetime.now(timezone.utc)
-        
-        # 1. Gather existing blocks
-        blocks = sorted(plan.plan_blocks, key=lambda b: b.planned_start_at)
-        
-        # Load tasks for the blocks
-        block_task_ids = [b.task_id for b in blocks if b.task_id]
-        tasks_result = await db.execute(select(Task).options(selectinload(Task.dependencies)).where(Task.id.in_(block_task_ids)))
-        tasks_dict = {t.id: t for t in tasks_result.scalars().all()}
-        
-        preserved_blocks = []
-        flexible_task_ids = []
-        
-        for b in blocks:
-            b_task = tasks_dict.get(b.task_id) if b.task_id else None
-            # Check if block is in the past, or completed/skipped/cancelled, or is a fixed event/task
-            if b.planned_end_at <= now or b.status in ("COMPLETED", "SKIPPED", "CANCELLED", "ACTIVE"):
-                preserved_blocks.append(b)
-            elif b_task and b_task.scheduling_type == 'FIXED':
-                preserved_blocks.append(b)
-            elif b.block_type == "FIXED_EVENT":
-                preserved_blocks.append(b)
+        await db.refresh(plan, ["plan_blocks", "availability_windows"])
+        blocks = list(plan.plan_blocks)
+        task_ids = {b.task_id for b in blocks if b.task_id}
+        tasks = {
+            t.id: t
+            for t in (
+                await db.scalars(
+                    select(Task)
+                    .options(selectinload(Task.dependencies))
+                    .where(Task.id.in_(task_ids))
+                )
+            ).all()
+        }
+        preserved, eligible = [], []
+        for block in blocks:
+            task = tasks.get(block.task_id)
+            if (
+                block.status != "PLANNED"
+                or block.is_locked
+                or block.block_type == "FIXED_EVENT"
+                or (
+                    task
+                    and (
+                        task.scheduling_type == "FIXED"
+                        or task.status not in ("DRAFT", "PENDING")
+                    )
+                )
+            ):
+                preserved.append(block)
             else:
-                if b_task and b_task.status not in ("COMPLETED", "SKIPPED", "CANCELLED"):
-                    if b.task_id not in flexible_task_ids:
-                        flexible_task_ids.append(b.task_id)
+                eligible.append(block)
 
-        # 2. Prepare windows from now
-        windows = []
-        for w in plan.availability_windows:
-            if w.available_end_at > now:
-                windows.append(ScheduleWindow(
-                    start_at=max(w.available_start_at, now),
-                    end_at=w.available_end_at
-                ))
-                
-        # 3. Load tasks for scheduler
+        # Subtract reservations even when they straddle now or an availability boundary.
+        windows = [
+            ScheduleWindow(max(w.available_start_at, now), w.available_end_at)
+            for w in plan.availability_windows
+            if w.available_end_at > now
+        ]
+        for block in preserved:
+            gaps = []
+            for window in windows:
+                if (
+                    block.planned_end_at <= window.start_at
+                    or block.planned_start_at >= window.end_at
+                ):
+                    gaps.append(window)
+                else:
+                    if window.start_at < block.planned_start_at:
+                        gaps.append(
+                            ScheduleWindow(window.start_at, block.planned_start_at)
+                        )
+                    if block.planned_end_at < window.end_at:
+                        gaps.append(ScheduleWindow(block.planned_end_at, window.end_at))
+            windows = gaps
+
+        completed_ids = set(
+            (
+                await db.scalars(
+                    select(Task.id).where(
+                        Task.user_id == user_id, Task.status == "COMPLETED"
+                    )
+                )
+            ).all()
+        )
         schedule_tasks = []
-        for tid in flexible_task_ids:
-            t = tasks_dict.get(tid)
-            if t:
-                # Add dummy dependency if needed? The scheduler handles it.
-                schedule_tasks.append(ScheduleTask(
-                    id=t.id,
-                    title=t.title,
-                    estimated_duration_minutes=t.estimated_duration_minutes,
-                    priority=t.priority,
-                    scheduling_type=t.scheduling_type,
-                    is_splittable=t.is_splittable,
-                    min_split_duration_minutes=t.min_split_duration_minutes,
-                    preferred_break_duration_minutes=t.preferred_break_duration_minutes,
-                    fixed_start_at=t.fixed_start_at,
-                    fixed_end_at=t.fixed_end_at,
-                    dependencies=[d.depends_on_task_id for d in t.dependencies],
-                    created_at=t.created_at
-                ))
-        
-        # Add preserved blocks as fixed tasks so scheduler schedules around them
-        for b in preserved_blocks:
-            if b.planned_end_at > now:
-                # Need to block this time
-                schedule_tasks.append(ScheduleTask(
-                    id=b.id, # use block id as dummy task id
-                    title=b.title or "Reserved",
-                    estimated_duration_minutes=int((b.planned_end_at - b.planned_start_at).total_seconds() // 60),
-                    priority="URGENT",
-                    scheduling_type="FIXED",
-                    fixed_start_at=b.planned_start_at,
-                    fixed_end_at=b.planned_end_at,
-                    created_at=now
-                ))
-
-        scheduler = DeterministicScheduler()
-        result = scheduler.schedule(schedule_tasks, windows)
-
-        # 4. Apply changes
-        # Delete unpreserved blocks
-        for b in blocks:
-            if b not in preserved_blocks:
-                await db.delete(b)
-
-        # Add new blocks (ignore dummy tasks used for reservation)
-        dummy_ids = {b.id for b in preserved_blocks}
-        new_blocks = []
-        for rb in result.blocks:
-            if rb.task_id not in dummy_ids and rb.block_type != "FIXED_EVENT":
-                new_blocks.append(PlanBlock(
-                    daily_plan_id=plan.id,
-                    task_id=rb.task_id if rb.block_type == "TASK" else None,
-                    block_type=rb.block_type,
-                    title=rb.title,
-                    planned_start_at=rb.start_at,
-                    planned_end_at=rb.end_at,
-                    status="PLANNED",
-                    created_by="SCHEDULER"
-                ))
-        
-        for nb in new_blocks:
-            db.add(nb)
-
+        for task_id in {b.task_id for b in eligible if b.task_id}:
+            task = tasks[task_id]
+            reserved_minutes = sum(
+                int((b.planned_end_at - b.planned_start_at).total_seconds() // 60)
+                for b in preserved
+                if b.task_id == task_id
+            )
+            remaining_minutes = max(
+                0, task.estimated_duration_minutes - reserved_minutes
+            )
+            if remaining_minutes == 0:
+                continue
+            schedule_tasks.append(
+                ScheduleTask(
+                    id=task.id,
+                    title=task.title,
+                    estimated_duration_minutes=remaining_minutes,
+                    priority=task.priority,
+                    scheduling_type="FLEXIBLE",
+                    created_at=task.created_at,
+                    is_splittable=task.is_splittable,
+                    min_split_duration_minutes=task.min_split_duration_minutes,
+                    preferred_break_duration_minutes=task.preferred_break_duration_minutes,
+                    dependencies=[
+                        d.depends_on_task_id
+                        for d in task.dependencies
+                        if d.depends_on_task_id not in completed_ids
+                    ],
+                )
+            )
+        result = DeterministicScheduler().schedule(schedule_tasks, windows)
+        if result.unscheduled_tasks:
+            raise ValidationError(
+                "Unable to fit unfinished work and dependencies in the remaining availability. Adjust the plan and try again."
+            )
+        for block in eligible:
+            await db.delete(block)
         await db.flush()
-
-        # Update positions
-        all_blocks = preserved_blocks + new_blocks
-        all_blocks.sort(key=lambda x: x.planned_start_at)
-        
-        for i, b in enumerate(all_blocks):
-            b.position = i
-            db.add(b)
-            
+        # Preserve historical rows, including their positions; new rows receive unused positions.
+        position = max((b.position for b in preserved), default=-1) + 1
+        for offset, block in enumerate(result.blocks):
+            db.add(
+                PlanBlock(
+                    daily_plan_id=plan.id,
+                    task_id=block.task_id,
+                    block_type=block.block_type,
+                    title=block.title,
+                    planned_start_at=block.start_at,
+                    planned_end_at=block.end_at,
+                    position=position + offset,
+                    status="PLANNED",
+                    created_by="SCHEDULER",
+                )
+            )
+        await db.flush()
+        await db.refresh(plan, ["plan_blocks"])
         if commit:
             await db.commit()
-            
         return await self.get_today(db, user_id, local_date)
+
 
 today_service = TodayService()

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getSettingsState } from '../../model/SettingsState.svelte';
+  import { getSettingsState } from "../../model/SettingsState.svelte";
 
   const settingsState = getSettingsState();
 
@@ -14,28 +14,35 @@
 
 <div class="action-group">
   {#if settingsState.saveSuccessMessage}
-    <div class="success-message" aria-live="polite">{settingsState.saveSuccessMessage}</div>
+    <div class="success-message" aria-live="polite">
+      {settingsState.saveSuccessMessage}
+    </div>
   {/if}
   {#if settingsState.saveErrorMessage}
-    <div class="error-message" aria-live="assertive">{settingsState.saveErrorMessage}</div>
+    <div class="error-message" aria-live="assertive">
+      {settingsState.saveErrorMessage}
+    </div>
   {/if}
-  
-  <button 
-    class="btn-cancel" 
-    type="button" 
+  {#if settingsState.syncWarning}
+    <div role="status">{settingsState.syncWarning}</div>
+  {/if}
+
+  <button
+    class="btn-cancel"
+    type="button"
     onclick={handleCancel}
     disabled={!settingsState.isDirty || settingsState.isSaving}
   >
     CANCEL
   </button>
-  
-  <button 
-    class="btn-save" 
-    type="button" 
+
+  <button
+    class="btn-save"
+    type="button"
     onclick={handleSave}
     disabled={!settingsState.isDirty || settingsState.isSaving}
   >
-    {settingsState.isSaving ? 'SAVING...' : 'SAVE CHANGES'}
+    {settingsState.isSaving ? "SAVING..." : "SAVE CHANGES"}
   </button>
 </div>
 

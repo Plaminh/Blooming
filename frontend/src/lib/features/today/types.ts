@@ -1,5 +1,6 @@
 export type TaskStatus = "in-progress" | "completed" | "upcoming";
-export type TaskCategory = "Learning" | "Work" | "Personal";
+import type { Category } from "$lib/api/types";
+export type TaskCategory = Category;
 
 export interface Task {
   id: string; // the block id
@@ -8,8 +9,9 @@ export interface Task {
   startTime: string;
   endTime: string;
   durationString: string;
+  estimatedDurationMinutes?: number;
   status: TaskStatus;
-  category: TaskCategory;
+  category: TaskCategory | null;
   description?: string;
   notes?: string;
   iconRef: "book" | "break" | "document" | "shoe";

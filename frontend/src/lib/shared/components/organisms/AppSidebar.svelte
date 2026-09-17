@@ -1,37 +1,101 @@
 <script lang="ts">
-  import PlantSprite from '$lib/features/companion-widget/components/atoms/PlantSprite.svelte';
-  import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
-  import SidebarNavigationItem from '../molecules/SidebarNavigationItem.svelte';
-  import { goto } from '$app/navigation';
-  import { GardenSelectionViewModel } from '$lib/features/garden-selection/model/state.svelte';
+  import PlantSprite from "$lib/features/companion-widget/components/atoms/PlantSprite.svelte";
+  import AppIcon from "$lib/shared/components/atoms/AppIcon.svelte";
+  import SidebarNavigationItem from "../molecules/SidebarNavigationItem.svelte";
+  import { goto } from "$app/navigation";
+  import { GardenSelectionViewModel } from "$lib/features/garden-selection/model/state.svelte";
 
-  let { activeRoute = 'TODAY' }: { activeRoute?: string } = $props();
-  
+  import { getPlantFrame } from "$lib/features/garden/utils/spriteMapper";
+  import { onMount } from "svelte";
+  import { desktop } from "$lib/platform/desktopWindow";
+
+  let { activeRoute = "TODAY" }: { activeRoute?: string } = $props();
+
   let vm = new GardenSelectionViewModel();
+  const activePlant = $derived(
+    vm.plants.find((plant) => plant.id === vm.activePlantId),
+  );
+  onMount(() => {
+    let disposed = false;
+    let off = () => {};
+    desktop
+      .onScheduleUpdated(() => void vm.loadState())
+      .then((cleanup) => {
+        if (disposed) cleanup();
+        else off = cleanup;
+      })
+      .catch(() => {
+        vm.error = "Garden synchronization unavailable.";
+      });
+    return () => {
+      disposed = true;
+      off();
+    };
+  });
 </script>
 
 <div class="sidebar">
   <nav class="sidebar-nav" aria-label="Primary navigation">
-    <SidebarNavigationItem label="TODAY" icon="today" active={activeRoute === 'TODAY'} onClick={() => goto('/today')} />
-    <SidebarNavigationItem label="GOALS" icon="goals" active={activeRoute === 'GOALS'} onClick={() => goto('/goals')} />
-    <SidebarNavigationItem label="MR. BLOOM" icon="chat" active={activeRoute === 'MR. BLOOM'} onClick={() => goto('/mr-bloom')} />
-    <SidebarNavigationItem label="STATISTICS" icon="statistics" active={activeRoute === 'STATISTICS'} onClick={() => goto('/statistics')} />
-    <SidebarNavigationItem label="SETTINGS" icon="settings" active={activeRoute === 'SETTINGS'} onClick={() => goto('/settings')} />
+    <SidebarNavigationItem
+      label="TODAY"
+      icon="today"
+      active={activeRoute === "TODAY"}
+      onClick={() => goto("/today")}
+    />
+    <SidebarNavigationItem
+      label="GOALS"
+      icon="goals"
+      active={activeRoute === "GOALS"}
+      onClick={() => goto("/goals")}
+    />
+    <SidebarNavigationItem
+      label="MR. BLOOM"
+      icon="chat"
+      active={activeRoute === "MR. BLOOM"}
+      onClick={() => goto("/mr-bloom")}
+    />
+    <SidebarNavigationItem
+      label="STATISTICS"
+      icon="statistics"
+      active={activeRoute === "STATISTICS"}
+      onClick={() => goto("/statistics")}
+    />
+    <SidebarNavigationItem
+      label="SETTINGS"
+      icon="settings"
+      active={activeRoute === "SETTINGS"}
+      onClick={() => goto("/settings")}
+    />
   </nav>
 
   <div class="sidebar-bottom">
     <div class="plant-container">
-      {#if vm.selectedPlant}
-        <PlantSprite plant={{ species: vm.selectedPlant.species, frameIndex: 5 }} />
+      {#if activePlant}
+        <PlantSprite
+          plant={{
+            species: activePlant.species,
+            frameIndex: getPlantFrame(
+              activePlant.species,
+              vm.growthStage,
+              vm.vitality,
+            ),
+          }}
+        />
       {/if}
     </div>
     <div class="counters" aria-label="Garden currency">
       <div class="counter">
-        <img class="leaf-counter" src="/assets/icons/leaf-icon.png" alt="Leaves" />
+        <img
+          class="leaf-counter"
+          src="/assets/icons/leaf-icon.png"
+          alt="Leaves"
+        />
         <span>{vm.leavesBalance}</span>
       </div>
       <div class="counter">
-        <span class="water-counter"><AppIcon name="water" size="counter-water" label="Water" /></span>
+        <span class="water-counter"
+          ><AppIcon name="water" size="counter-water" label="Water" /></span
+        >
         <span>{vm.waterBalance}</span>
       </div>
     </div>

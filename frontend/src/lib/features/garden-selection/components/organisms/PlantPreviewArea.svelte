@@ -1,10 +1,19 @@
 <script lang="ts">
-  import SpriteRenderer from '$lib/shared/components/atoms/SpriteRenderer.svelte';
-  import { PLANT_ATLAS, PLANT_SOURCES } from '$lib/features/companion-widget/model/plants';
-  import type { PlantSpecies } from '../../types';
-  
-  let { species }: { species: PlantSpecies } = $props();
-  
+  import SpriteRenderer from "$lib/shared/components/atoms/SpriteRenderer.svelte";
+  import {
+    PLANT_ATLAS,
+    PLANT_SOURCES,
+  } from "$lib/features/companion-widget/model/plants";
+  import type { PlantSpecies } from "../../types";
+
+  let {
+    species,
+    frameIndex,
+  }: {
+    species: PlantSpecies;
+    frameIndex: import("$lib/features/companion-widget/types/presentation").PlantFrameIndex;
+  } = $props();
+
   let src = $derived(PLANT_SOURCES[species]);
 </script>
 
@@ -16,7 +25,7 @@
       sheetHeight={PLANT_ATLAS.sheetHeight}
       columns={PLANT_ATLAS.columns}
       rows={PLANT_ATLAS.rows}
-      frameIndex={5}
+      {frameIndex}
       displayHeight={190}
       class="plant-sprite"
     />

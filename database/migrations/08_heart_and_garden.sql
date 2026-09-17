@@ -65,6 +65,8 @@ CREATE TABLE IF NOT EXISTS garden_states (
     leaves_balance      INTEGER NOT NULL DEFAULT 0,
     selected_plant_id   UUID REFERENCES plants(id) ON DELETE SET NULL,
     last_watered_at     TIMESTAMPTZ,
+    growth_points       INTEGER NOT NULL DEFAULT 0,
+    CONSTRAINT garden_states_growth_points_valid CHECK (growth_points >= 0),
     stage               VARCHAR(20) NOT NULL DEFAULT 'DORMANT',
     leaf_count          INTEGER NOT NULL DEFAULT 0,
     flower_count        INTEGER NOT NULL DEFAULT 0,

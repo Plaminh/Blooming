@@ -6,6 +6,6 @@ export interface SettingsProfile {
   breakDurationMinutes: number;
   startAtLogin: boolean;
   keepWidgetOnTop: boolean;
-  milestoneReminderTime: string;
+  milestoneReminderLeadTimeMinutes: number;
   emailReminders: boolean;
 }

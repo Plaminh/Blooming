@@ -1,26 +1,43 @@
 <script lang="ts">
-  import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
-  import TextInput from '$lib/shared/components/atoms/TextInput.svelte';
-  import ToggleSwitch from '../atoms/ToggleSwitch.svelte';
-  import { getSettingsState } from '../../model/SettingsState.svelte';
+  import AppIcon from "$lib/shared/components/atoms/AppIcon.svelte";
+  import ToggleSwitch from "../atoms/ToggleSwitch.svelte";
+  import { getSettingsState } from "../../model/SettingsState.svelte";
 
   const settingsState = getSettingsState();
 </script>
 
-<section class="panel notifications-panel" aria-labelledby="notifications-heading">
+<section
+  class="panel notifications-panel"
+  aria-labelledby="notifications-heading"
+>
   <div class="panel-header">
     <AppIcon name="bell" scale={1.2} />
     <h3 id="notifications-heading">NOTIFICATIONS</h3>
   </div>
-  
+
   <div class="panel-content">
-    <TextInput
-      id="milestoneReminderTime"
-      label="Milestone reminder time"
-      type="time"
-      bind:value={settingsState.draftSettings.milestoneReminderTime}
-      error={settingsState.validationErrors.milestoneReminderTime}
-    />
+    <label for="milestoneReminderLeadTimeMinutes">Milestone reminder</label>
+    <select
+      id="milestoneReminderLeadTimeMinutes"
+      bind:value={settingsState.draftSettings.milestoneReminderLeadTimeMinutes}
+    >
+      <option value={0}>At the deadline</option>
+      <option value={60}>One hour before</option>
+      <option value={1440}>One day before</option>
+      <option value={4320}>Three days before</option>
+      {#if ![0, 60, 1440, 4320].includes(settingsState.draftSettings.milestoneReminderLeadTimeMinutes)}
+        <option
+          value={settingsState.draftSettings.milestoneReminderLeadTimeMinutes}
+          >{settingsState.draftSettings.milestoneReminderLeadTimeMinutes} minutes
+          before</option
+        >
+      {/if}
+    </select>
+    {#if settingsState.validationErrors.milestoneReminderLeadTimeMinutes}
+      <p role="alert">
+        {settingsState.validationErrors.milestoneReminderLeadTimeMinutes}
+      </p>
+    {/if}
 
     <div class="toggles">
       <ToggleSwitch

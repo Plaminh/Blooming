@@ -25,6 +25,9 @@ CREATE TABLE IF NOT EXISTS user_settings (
     default_focus_minutes           INTEGER NOT NULL DEFAULT 25,
     default_break_minutes           INTEGER NOT NULL DEFAULT 5,
     reminders_enabled               BOOLEAN NOT NULL DEFAULT TRUE,
+    milestone_reminder_lead_time_minutes INTEGER NOT NULL DEFAULT 1440,
+    CONSTRAINT user_settings_milestone_reminder_lead_time_minutes_valid
+        CHECK (milestone_reminder_lead_time_minutes BETWEEN 0 AND 43200),
     quiet_hours_enabled             BOOLEAN NOT NULL DEFAULT FALSE,
     quiet_hours_start               TIME,
     quiet_hours_end                 TIME,

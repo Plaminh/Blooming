@@ -1,19 +1,19 @@
 <script lang="ts">
   type BaseProps = {
-    value?: string;
+    value?: string | number;
     placeholder?: string;
     type?: string;
     disabled?: boolean;
     onkeydown?: (e: KeyboardEvent) => void;
-    variant?: 'standard' | 'composer';
+    variant?: "standard" | "composer";
   };
-  
+
   type WithLabel = BaseProps & {
     id: string;
     label: string;
     error?: string;
   };
-  
+
   type WithoutLabel = BaseProps & {
     id?: string;
     label?: never;
@@ -23,13 +23,13 @@
   let {
     id,
     label,
-    value = $bindable(''),
-    placeholder = '',
+    value = $bindable(""),
+    placeholder = "",
     error,
-    type = 'text',
+    type = "text",
     disabled = false,
     onkeydown,
-    variant = 'standard'
+    variant = "standard",
   }: WithLabel | WithoutLabel = $props();
 </script>
 
@@ -49,7 +49,9 @@
       aria-describedby={error ? `${id}-error` : undefined}
     />
     {#if error}
-      <span class="error-message" id={`${id}-error`} aria-live="polite">{error}</span>
+      <span class="error-message" id={`${id}-error`} aria-live="polite"
+        >{error}</span
+      >
     {/if}
   </div>
 {:else}

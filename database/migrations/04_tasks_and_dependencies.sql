@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS tasks (
     milestone_id                UUID REFERENCES milestones(id) ON DELETE SET NULL,
     title                       VARCHAR(200) NOT NULL,
     description                 TEXT,
+    category                    VARCHAR(50) NULL,
+    CONSTRAINT tasks_category_valid
+        CHECK (category IS NULL OR category IN ('Learning', 'Work', 'Personal')),
     estimated_duration_minutes  INTEGER NOT NULL,
     priority                    VARCHAR(20) NOT NULL DEFAULT 'MEDIUM',
     importance                  VARCHAR(20) NOT NULL DEFAULT 'CORE',

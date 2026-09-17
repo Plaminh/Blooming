@@ -1,12 +1,12 @@
-from typing import List, Optional
-from uuid import UUID
 from datetime import date
+from uuid import UUID
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.models.daily_plans import DailyPlan, PlanBlock, AvailabilityWindow
+from app.db.models.daily_plans import DailyPlan, PlanBlock
+
 
 class CRUDDailyPlan:
     async def create_draft(self, db: AsyncSession, *, user_id: UUID, plan_date: date, timezone_snapshot: str, reality_check: str) -> DailyPlan:
@@ -40,26 +40,29 @@ class CRUDDailyPlan:
         await db.flush()
         return db_obj
 
-    async def get_by_date(self, db: AsyncSession, user_id: UUID, plan_date: date) -> Optional[DailyPlan]:
+    async def get_by_date(
+        self, db: AsyncSession, user_id: UUID, plan_date: date
+    ) -> DailyPlan | None:
         result = await db.execute(
             select(DailyPlan)
             .options(
-                selectinload(DailyPlan.plan_blocks),
-                selectinload(DailyPlan.availability_windows)
+                selectinload(DailyPlan.plan_blocks).selectinload(PlanBlock.task),
+                selectinload(DailyPlan.availability_windows),
             )
             .where(and_(DailyPlan.user_id == user_id, DailyPlan.plan_date == plan_date))
         )
         return result.scalars().first()
 
-    async def get(self, db: AsyncSession, id: UUID) -> Optional[DailyPlan]:
+    async def get(self, db: AsyncSession, id: UUID) -> DailyPlan | None:
         result = await db.execute(
             select(DailyPlan)
             .options(
-                selectinload(DailyPlan.plan_blocks),
-                selectinload(DailyPlan.availability_windows)
+                selectinload(DailyPlan.plan_blocks).selectinload(PlanBlock.task),
+                selectinload(DailyPlan.availability_windows),
             )
             .where(DailyPlan.id == id)
         )
         return result.scalars().first()
+
 
 daily_plan = CRUDDailyPlan()

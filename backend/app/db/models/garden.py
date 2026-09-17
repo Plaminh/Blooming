@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -14,7 +15,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    Boolean,
     UniqueConstraint,
     func,
     text,
@@ -184,6 +184,7 @@ class GardenState(Base):
     __table_args__ = (
         CheckConstraint("water_balance >= 0", name="garden_states_water_valid"),
         CheckConstraint("leaves_balance >= 0", name="garden_states_leaves_valid"),
+        CheckConstraint("growth_points >= 0", name="garden_states_growth_points_valid"),
         CheckConstraint(
             "stage IN ('DORMANT', 'SPROUTING', 'GROWING', 'BLOOMING', 'FRUITING')",
             name="garden_states_stage_valid",
@@ -207,11 +208,13 @@ class GardenState(Base):
         Integer, nullable=False, server_default=text("0")
     )
     selected_plant_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("plants.id", ondelete="SET NULL")
+        UUID(as_uuid=True), ForeignKey("plants.id", ondelete="SET NULL")
+    )
+    growth_points: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
     )
     last_watered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    
+
     stage: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default=text("'DORMANT'")
     )

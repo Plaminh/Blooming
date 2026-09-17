@@ -1,35 +1,11 @@
 export type CompanionWidgetKind =
-  | "focusing"
-  | "ending"
-  | "paused"
-  | "behindSchedule"
-  | "offline"
-  | "reminders";
+  "focusing" | "ending" | "paused" | "behindSchedule" | "offline" | "reminders";
 
 export type PlantSpecies =
-  | "monstera"
-  | "sunflower"
-  | "bonsai"
-  | "jasmine"
-  | "lavender";
+  "monstera" | "sunflower" | "bonsai" | "jasmine" | "lavender";
 
 export type PlantFrameIndex =
-  | 0
-  | 1
-  | 2
-  | 3
-  | 4
-  | 5
-  | 6
-  | 7
-  | 8
-  | 9
-  | 10
-  | 11
-  | 12
-  | 13
-  | 14
-  | 15;
+  0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
 
 export interface ActivePlantPresentation {
   species: PlantSpecies;
@@ -38,7 +14,7 @@ export interface ActivePlantPresentation {
 
 type WidgetScenePresentation = {
   /** Presentation-only lifecycle state; this feature performs no growth logic. */
-  activePlant: ActivePlantPresentation;
+  activePlant: ActivePlantPresentation | null;
 };
 
 export type ReminderItem = {

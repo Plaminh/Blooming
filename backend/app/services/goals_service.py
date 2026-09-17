@@ -1,12 +1,15 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.errors import ResourceNotFoundError, UnauthorizedOwnershipError
 from app.db.models.goals import Goal, Milestone
+from app.db.models.users import User
 from app.schemas.goals import GoalCreate, GoalUpdate, MilestoneCreate, MilestoneUpdate
+
 
 class GoalsService:
     async def get_goal(self, db: AsyncSession, goal_id: UUID, user_id: UUID) -> Goal:
@@ -62,24 +65,30 @@ class GoalsService:
         await db.flush()
 
     # Milestone operations
-    async def get_milestone(self, db: AsyncSession, goal_id: UUID, milestone_id: UUID, user_id: UUID) -> Milestone:
-        goal = await self.get_goal(db, goal_id, user_id)
+    async def get_milestone(
+        self, db: AsyncSession, goal_id: UUID, milestone_id: UUID, user_id: UUID
+    ) -> Milestone:
+        await self.get_goal(db, goal_id, user_id)
         result = await db.execute(
-            select(Milestone).where(Milestone.id == milestone_id, Milestone.goal_id == goal_id)
+            select(Milestone).where(
+                Milestone.id == milestone_id, Milestone.goal_id == goal_id
+            )
         )
         milestone = result.scalars().first()
         if not milestone:
             raise ResourceNotFoundError("Milestone not found in this goal")
         return milestone
 
-    async def create_milestone(self, db: AsyncSession, goal_id: UUID, obj_in: MilestoneCreate, user_id: UUID) -> Milestone:
+    async def create_milestone(
+        self, db: AsyncSession, goal_id: UUID, obj_in: MilestoneCreate, user_id: UUID
+    ) -> Milestone:
         goal = await self.get_goal(db, goal_id, user_id)
-        
+
         # Determine position (max + 1)
         max_pos = 0
         if goal.milestones:
             max_pos = max(m.position for m in goal.milestones) + 1
-            
+
         milestone = Milestone(
             goal_id=goal_id,
             title=obj_in.title,
@@ -87,53 +96,71 @@ class GoalsService:
             expected_outcome=obj_in.expected_outcome,
             due_at=obj_in.due_at,
             status=obj_in.status,
-            position=max_pos
+            position=max_pos,
         )
         db.add(milestone)
         await db.flush()
-        
-        from datetime import datetime, timezone
-        if milestone.due_at:
-            # Auto-create reminder
-            from app.db.models.reminders import Reminder
-            reminder = Reminder(
-                user_id=user_id,
-                milestone_id=milestone.id,
-                reminder_type="MILESTONE_DUE",
-                message=f"Milestone Due: {milestone.title}",
-                due_at=milestone.due_at,
-                original_due_at=milestone.due_at,
-                status="SCHEDULED" if milestone.due_at > datetime.now(timezone.utc) else "DUE"
-            )
-            db.add(reminder)
-            await db.flush()
-            
+
+        from app.services.reminders_service import reminders_service
+
+        await reminders_service.sync_milestone_reminder(
+            db,
+            user_id,
+            milestone.id,
+            milestone.title,
+            milestone.due_at,
+            milestone.status,
+        )
+
         return milestone
 
-    async def update_milestone(self, db: AsyncSession, goal_id: UUID, milestone_id: UUID, obj_in: MilestoneUpdate, user_id: UUID) -> Milestone:
+    async def update_milestone(
+        self,
+        db: AsyncSession,
+        goal_id: UUID,
+        milestone_id: UUID,
+        obj_in: MilestoneUpdate,
+        user_id: UUID,
+    ) -> Milestone:
+        await db.execute(select(User.id).where(User.id == user_id).with_for_update())
         milestone = await self.get_milestone(db, goal_id, milestone_id, user_id)
-        
+
         update_data = obj_in.model_dump(exclude_unset=True)
-        if 'due_at' in update_data and update_data['due_at'] != milestone.due_at:
-            # Handle reminder sync if we move milestone
-            # The spec says "Move milestone and synchronize its reminder."
-            # We also need to update existing reminder if due_at changes
-            pass # We will handle reminder syncing here or in reminders_service?
-            # We'll just update it here for simplicity
-            from app.db.models.reminders import Reminder
-            result = await db.execute(
-                select(Reminder).where(Reminder.milestone_id == milestone.id, Reminder.reminder_type == "MILESTONE_DUE")
-            )
-            reminders = result.scalars().all()
-            for r in reminders:
-                if r.status in ("SCHEDULED", "DUE"):
-                    r.due_at = update_data['due_at']
-                    r.original_due_at = update_data['due_at']
-                    db.add(r)
-        
+
         for field, value in update_data.items():
             setattr(milestone, field, value)
-            
+
+        if "status" in update_data:
+            milestone.completed_at = (
+                datetime.now(timezone.utc) if milestone.status == "COMPLETED" else None
+            )
+            if milestone.status == "COMPLETED":
+                from app.core.economy import LEAVES_PER_MILESTONE
+                from app.services.garden_service import award_resources
+
+                await award_resources(
+                    db,
+                    user_id,
+                    "LEAVES",
+                    LEAVES_PER_MILESTONE,
+                    "MILESTONE_COMPLETED",
+                    f"milestone_completed_{milestone.id}",
+                    milestone.id,
+                )
+        if {"due_at", "status", "title"} & update_data.keys():
+            from app.services.reminders_service import reminders_service
+
+            await reminders_service.sync_milestone_reminder(
+                db,
+                user_id,
+                milestone.id,
+                milestone.title,
+                milestone.due_at,
+                milestone.status,
+                reactivate="status" in update_data
+                and milestone.status not in ("COMPLETED", "CANCELLED"),
+            )
+
         await db.flush()
         return milestone
 
@@ -142,46 +169,5 @@ class GoalsService:
         await db.delete(milestone)
         await db.flush()
 
-goals_service = GoalsService()
-from uuid import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from datetime import datetime, timezone
-from app.db.models.goals import Milestone
-from app.db.models.garden import GardenState, RewardEvent
-from app.core.economy import LEAVES_PER_MILESTONE
-from fastapi import HTTPException
 
-async def complete_milestone(db: AsyncSession, user_id: UUID, milestone_id: UUID):
-    from app.db.models.goals import Goal
-    milestone = await db.scalar(select(Milestone).join(Goal).where(Milestone.id == milestone_id, Goal.user_id == user_id))
-    if not milestone:
-        raise HTTPException(status_code=404, detail="Milestone not found")
-        
-    if milestone.status == "COMPLETED":
-        return milestone
-        
-    milestone.status = "COMPLETED"
-    milestone.completed_at = datetime.now(timezone.utc)
-    
-    garden = await db.scalar(select(GardenState).where(GardenState.user_id == user_id))
-    if not garden:
-        garden = GardenState(user_id=user_id, water_balance=0, leaves_balance=0)
-        db.add(garden)
-        
-    idempotency_key = f"milestone_completed_{milestone_id}"
-    existing = await db.scalar(select(RewardEvent).where(RewardEvent.idempotency_key == idempotency_key))
-    if not existing:
-        garden.leaves_balance += LEAVES_PER_MILESTONE
-        event = RewardEvent(
-            user_id=user_id,
-            event_type="MILESTONE_COMPLETED",
-            resource_type="LEAVES",
-            amount=LEAVES_PER_MILESTONE,
-            idempotency_key=idempotency_key,
-            source_milestone_id=milestone_id
-        )
-        db.add(event)
-        
-    await db.commit()
-    return milestone
+goals_service = GoalsService()

@@ -1,4 +1,3 @@
-from typing import List
 from uuid import UUID
 
 from sqlalchemy import select
@@ -8,12 +7,16 @@ from sqlalchemy.orm import selectinload
 from app.db.models.tasks import Task, TaskDependency
 from app.schemas.planning import TaskCreate, TaskUpdate
 
+
 class CRUDTask:
-    async def create(self, db: AsyncSession, *, obj_in: TaskCreate, user_id: UUID) -> Task:
+    async def create(
+        self, db: AsyncSession, *, obj_in: TaskCreate, user_id: UUID
+    ) -> Task:
         db_obj = Task(
             user_id=user_id,
             title=obj_in.title,
             description=obj_in.description,
+            category=obj_in.category,
             estimated_duration_minutes=obj_in.estimated_duration_minutes,
             priority=obj_in.priority,
             scheduling_type=obj_in.scheduling_type,
@@ -23,7 +26,7 @@ class CRUDTask:
             fixed_start_at=obj_in.fixed_start_at,
             fixed_end_at=obj_in.fixed_end_at,
             deadline_at=obj_in.deadline_at,
-            status="DRAFT"
+            status="DRAFT",
         )
         db.add(db_obj)
         await db.flush()
@@ -51,10 +54,15 @@ class CRUDTask:
         )
         return result.scalars().first()
 
-    async def get_multi_by_user(self, db: AsyncSession, user_id: UUID, skip: int = 0, limit: int = 100) -> List[Task]:
+    async def get_multi_by_user(
+        self, db: AsyncSession, user_id: UUID, skip: int = 0, limit: int = 100
+    ) -> list[Task]:
         result = await db.execute(
-            select(Task).options(selectinload(Task.dependencies))
-            .where(Task.user_id == user_id).offset(skip).limit(limit)
+            select(Task)
+            .options(selectinload(Task.dependencies))
+            .where(Task.user_id == user_id)
+            .offset(skip)
+            .limit(limit)
         )
         return list(result.scalars().all())
 
@@ -85,5 +93,6 @@ class CRUDTask:
             await db.delete(obj)
             await db.flush()
         return obj
+
 
 task = CRUDTask()

@@ -39,7 +39,6 @@ describe('Today Screen Feature', () => {
     vi.setSystemTime(new Date('2024-04-23T09:00:00Z'));
 
     (api.get as any).mockImplementation(async (url: string) => {
-      console.log('MOCK CALLED WITH URL:', url);
       if (url.includes('2024-04-23')) {
         return { blocks: mockBlocks };
       }
@@ -99,7 +98,7 @@ describe('Today Screen Feature', () => {
     await fireEvent.click(taskButton);
     
     // The Task Details panel should update to show its category
-    expect(screen.getByText('Work')).toBeInTheDocument(); // Category
+    expect(screen.getByText('Uncategorized')).toBeInTheDocument(); // No category supplied by the API
   });
 
   it('supports single focus-preset selection and Start Focus local action', async () => {

@@ -1,5 +1,6 @@
-export type PlantId = 'monstera' | 'sunflower' | 'bonsai' | 'jasmine' | 'lavender';
-export type PlantSpecies = PlantId;
+export type { PlantSpecies } from "$lib/features/companion-widget/types/presentation";
+import type { PlantSpecies } from "$lib/features/companion-widget/types/presentation";
+export type PlantId = string;
 
 export interface PlantPresentation {
   id: PlantId;

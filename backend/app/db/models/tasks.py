@@ -60,6 +60,10 @@ class Task(Base):
             name="tasks_status_valid",
         ),
         CheckConstraint(
+            "category IS NULL OR category IN ('Learning', 'Work', 'Personal')",
+            name="tasks_category_valid",
+        ),
+        CheckConstraint(
             "(scheduling_type = 'FIXED' AND fixed_start_at IS NOT NULL"
             " AND fixed_end_at IS NOT NULL AND fixed_end_at > fixed_start_at)"
             " OR (scheduling_type = 'FLEXIBLE' AND fixed_start_at IS NULL"
@@ -107,6 +111,7 @@ class Task(Base):
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+    category: Mapped[str | None] = mapped_column(String(50))
     estimated_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
     priority: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default=text("'MEDIUM'")

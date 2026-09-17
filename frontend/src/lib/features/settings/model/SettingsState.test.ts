@@ -40,7 +40,7 @@ describe('SettingsState', () => {
     expect(state.savedSettings.breakDurationMinutes).toBe(5);
     expect(state.savedSettings.startAtLogin).toBe(true);
     expect(state.savedSettings.keepWidgetOnTop).toBe(true);
-    expect(state.savedSettings.milestoneReminderTime).toBe('20:00');
+    expect(state.savedSettings.milestoneReminderLeadTimeMinutes).toBe(1440);
     expect(state.savedSettings.emailReminders).toBe(true);
   });
 
@@ -85,16 +85,16 @@ describe('SettingsState', () => {
     expect(state.validationErrors.breakDurationMinutes).toBeDefined();
   });
 
-  it('validates time format', () => {
-    state.draftSettings.milestoneReminderTime = 'invalid';
+  it('validates reminder lead time', () => {
+    state.draftSettings.milestoneReminderLeadTimeMinutes = NaN;
     expect(state.validate()).toBe(false);
-    expect(state.validationErrors.milestoneReminderTime).toBeDefined();
+    expect(state.validationErrors.milestoneReminderLeadTimeMinutes).toBeDefined();
 
-    state.draftSettings.milestoneReminderTime = '25:00';
+    state.draftSettings.milestoneReminderLeadTimeMinutes = -1;
     expect(state.validate()).toBe(false);
-    expect(state.validationErrors.milestoneReminderTime).toBeDefined();
+    expect(state.validationErrors.milestoneReminderLeadTimeMinutes).toBeDefined();
 
-    state.draftSettings.milestoneReminderTime = '12:30';
+    state.draftSettings.milestoneReminderLeadTimeMinutes = 60;
     expect(state.validate()).toBe(true);
   });
 
