@@ -34,6 +34,8 @@ export type MrBloomChatAnimation = keyof typeof MR_BLOOM_CHAT_ANIMATIONS;
  * row 3 waiting/thinking, row 4 alert/waving, row 6 worried/sad, row 7 sleeping.
  */
 export const MR_BLOOM_ROWS: Record<CompanionWidgetKind, number> = {
+  focusing: 3,
+  ending: 4,
   paused: 7,
   behindSchedule: 6,
   offline: 3,
@@ -42,6 +44,8 @@ export const MR_BLOOM_ROWS: Record<CompanionWidgetKind, number> = {
 
 /** Columns whose baked effects do not conflict with each state's overlay. */
 export const MR_BLOOM_FRAME_SEQUENCE = {
+  focusing: [0, 1, 2, 3],
+  ending: [0, 1],
   paused: [0, 1, 2, 3],
   behindSchedule: [0, 2],
   offline: [0, 1, 2, 3],

@@ -57,6 +57,38 @@ export const PANEL_POSITION = {
 } as const;
 
 export const WIDGET_LAYOUTS: Record<CompanionWidgetKind, WidgetVisualLayout> = {
+  focusing: {
+    panel: { ...PANEL_POSITION, width: 250, height: 86 },
+    character: { ...MR_BLOOM_POSITION, status: { x: 90, y: 36 } },
+    plant: { left: -4, bottom: 4 },
+    timer: { top: 78, right: 18 },
+    actions: {
+      top: 220,
+      right: 12,
+      gap: 9,
+      primaryWidth: 164,
+      secondaryWidth: 132,
+      height: 58,
+      compactPrimaryWidth: 124,
+      compactSecondaryWidth: 114,
+    },
+  },
+  ending: {
+    panel: { ...PANEL_POSITION, width: 366, height: 90 },
+    character: { ...MR_BLOOM_POSITION, status: { x: 168, y: 76 } },
+    plant: { left: -4, bottom: 4 },
+    timer: { top: 78, right: 18 },
+    actions: {
+      top: 213,
+      right: 14,
+      gap: 7,
+      primaryWidth: 129,
+      secondaryWidth: 149,
+      height: 58,
+      compactPrimaryWidth: 124,
+      compactSecondaryWidth: 114,
+    },
+  },
   paused: {
     panel: { ...PANEL_POSITION, width: 250, height: 86 },
     character: { ...MR_BLOOM_POSITION, status: { x: 90, y: 36 } },

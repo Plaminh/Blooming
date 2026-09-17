@@ -4,6 +4,18 @@ export function actionsFor(
   presentation: CompanionWidgetPresentation,
 ): WidgetAction[] {
   switch (presentation.kind) {
+    case "focusing":
+      return [
+        { id: "pause", label: "PAUSE", variant: "primary", icon: "stop", onClick: presentation.onPause },
+        { id: "end", label: "END", variant: "secondary", onClick: presentation.onEnd },
+      ];
+    case "ending":
+      return [
+        { id: "done", label: "DONE", variant: "primary", onClick: presentation.onDone },
+        { id: "early", label: "FINISHED EARLY", variant: "primary", onClick: presentation.onFinishedEarly },
+        { id: "more", label: "NEED MORE TIME", variant: "secondary", onClick: presentation.onNeedMoreTime },
+        { id: "skip", label: "SKIP", variant: "secondary", onClick: presentation.onSkip },
+      ];
     case "paused":
       return [
         {

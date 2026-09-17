@@ -47,12 +47,14 @@
 
   let actions = $derived(actionsFor(presentation));
   let timeText = $derived(
-    presentation.kind === "paused" || presentation.kind === "offline"
+    presentation.kind === "focusing" || presentation.kind === "ending" || presentation.kind === "paused" || presentation.kind === "offline"
       ? presentation.timeText
       : undefined,
   );
   let speechText = $derived(
-    presentation.kind === "reminders" ? undefined : presentation.speechText,
+    presentation.kind === "ending" || presentation.kind === "paused" || presentation.kind === "behindSchedule" || presentation.kind === "offline"
+      ? presentation.speechText
+      : undefined,
   );
 </script>
 
