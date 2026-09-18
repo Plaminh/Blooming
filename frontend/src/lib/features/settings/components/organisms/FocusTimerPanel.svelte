@@ -1,19 +1,9 @@
 <script lang="ts">
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
-  import SelectField from '../atoms/SelectField.svelte';
+  import FocusTimerFields from '../molecules/FocusTimerFields.svelte';
   import { getSettingsState } from '../../model/SettingsState.svelte';
 
   const settingsState = getSettingsState();
-
-  const focusOptions = [5, 10, 15, 20, 25, 30, 45, 60].map(val => ({
-    value: val,
-    label: `${val} minutes`
-  }));
-
-  const breakOptions = [5, 10, 15, 20].map(val => ({
-    value: val,
-    label: `${val} minutes`
-  }));
 </script>
 
 <section class="panel focus-panel" aria-labelledby="focus-heading">
@@ -23,20 +13,11 @@
   </div>
   
   <div class="panel-content">
-    <SelectField
-      id="focusDuration"
-      label="Focus duration"
-      bind:value={settingsState.draftSettings.focusDurationMinutes}
-      options={focusOptions}
-      error={settingsState.validationErrors.focusDurationMinutes}
-    />
-
-    <SelectField
-      id="breakDuration"
-      label="Break duration"
-      bind:value={settingsState.draftSettings.breakDurationMinutes}
-      options={breakOptions}
-      error={settingsState.validationErrors.breakDurationMinutes}
+    <FocusTimerFields
+      bind:focusMinutes={settingsState.draftSettings.focusDurationMinutes}
+      bind:breakMinutes={settingsState.draftSettings.breakDurationMinutes}
+      focusError={settingsState.validationErrors.focusDurationMinutes}
+      breakError={settingsState.validationErrors.breakDurationMinutes}
     />
   </div>
 </section>

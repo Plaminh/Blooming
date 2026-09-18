@@ -17,6 +17,8 @@
   let tasks = $state<Task[]>([]);
   let selectedTaskId = $state("");
   let selectedFocusPreset = $state<FocusPreset>("25/5");
+  let customFocusMinutes = $state(25);
+  let customBreakMinutes = $state(5);
   let isPending = $state(false);
   let focusStarted = $state(false);
   let isLoading = $state(false);
@@ -203,6 +205,9 @@
     if (selectedFocusPreset === "50/10") {
       focusMinutes = 50;
       breakMinutes = 10;
+    } else if (selectedFocusPreset === "Custom") {
+      focusMinutes = customFocusMinutes;
+      breakMinutes = customBreakMinutes;
     }
 
     try {
@@ -275,6 +280,7 @@
     <TodayTimeline
       {tasks}
       {currentDate}
+      isToday={requestedDate === null}
       {selectedTaskId}
       {isLoading}
       {loadError}
@@ -293,7 +299,14 @@
       task={selectedTask}
       {nextTask}
       {selectedFocusPreset}
+      {customFocusMinutes}
+      {customBreakMinutes}
       onPresetSelect={(preset) => (selectedFocusPreset = preset)}
+      onCustomSaved={(focusMinutes, breakMinutes) => {
+        customFocusMinutes = focusMinutes;
+        customBreakMinutes = breakMinutes;
+        selectedFocusPreset = 'Custom';
+      }}
       onStartFocus={handleStartFocus}
       focusDisabled={isPending || focusStarted}
       onSaveTask={handleSaveTask}

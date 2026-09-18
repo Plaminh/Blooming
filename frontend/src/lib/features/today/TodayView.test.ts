@@ -7,7 +7,8 @@ vi.mock('$lib/api', () => ({
   api: {
     get: vi.fn(),
     post: vi.fn(),
-    patch: vi.fn()
+    patch: vi.fn(),
+    put: vi.fn()
   }
 }));
 
@@ -37,16 +38,23 @@ describe('Today Screen Feature', () => {
     vi.resetAllMocks();
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2024-04-23T09:00:00Z'));
+    HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+    HTMLDialogElement.prototype.close = function () {
+      this.removeAttribute('open');
+      this.dispatchEvent(new Event('close'));
+    };
 
     (api.get as any).mockImplementation(async (url: string) => {
+      if (url === '/me/settings') return { default_focus_minutes: 50, default_break_minutes: 10 };
       const parsedUrl = new URL(url, "http://localhost");
       if (parsedUrl.pathname === '/today') {
         const dateParam = parsedUrl.searchParams.get('date');
         if (!dateParam || dateParam === '2024-04-23') {
-          return { blocks: mockBlocks };
+          return { plan_date: '2024-04-23', status: 'ACTIVE', timezone: 'UTC', blocks: mockBlocks };
         }
+        return { plan_date: dateParam, status: 'NO_PLAN', timezone: 'UTC', blocks: [] };
       }
-      return { blocks: [] };
+      throw new Error(`Unexpected request: ${url}`);
     });
   });
 
@@ -73,6 +81,7 @@ describe('Today Screen Feature', () => {
     // Move to next day (Apr 24)
     await fireEvent.click(nextBtn);
     expect(screen.getByText('Wed, Apr 24, 2024')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Return to today' })).toHaveTextContent('Apr 24');
     
     // Day without mock tasks shows empty state
     await waitFor(() => {
@@ -85,6 +94,7 @@ describe('Today Screen Feature', () => {
     
     // Jump to Today (current system date, mocked to Apr 23)
     await fireEvent.click(todayBtn);
+    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument();
     // Should show tasks because it's the demo day
     await waitFor(() => {
       expect(screen.getAllByText('Study databases').length).toBeGreaterThan(0);
@@ -122,5 +132,25 @@ describe('Today Screen Feature', () => {
     
     await fireEvent.click(startFocusBtn);
     expect(api.post).toHaveBeenCalledWith('/focus/start', expect.any(Object));
+  });
+
+  it('uses saved custom durations when starting focus', async () => {
+    vi.mocked(api.put).mockResolvedValue({ default_focus_minutes: 45, default_break_minutes: 15 });
+    render(TodayPage);
+    await waitFor(() => expect(screen.getAllByText('Study databases').length).toBeGreaterThan(0));
+
+    await fireEvent.click(screen.getByRole('button', { name: /CUSTOM/i }));
+    await screen.findByRole('dialog', { name: 'CUSTOM FOCUS TIMER' });
+    await fireEvent.change(screen.getByLabelText('Focus duration'), { target: { value: '45' } });
+    await fireEvent.change(screen.getByLabelText('Break duration'), { target: { value: '15' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(api.put).toHaveBeenCalled());
+
+    await fireEvent.click(screen.getByText('START FOCUS'));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/focus/start', {
+      task_id: '1',
+      planned_focus_seconds: 45 * 60,
+      planned_break_seconds: 15 * 60,
+    }));
   });
 });

@@ -1,12 +1,13 @@
 <script lang="ts">
-  let { onDateChange }: { onDateChange: (offset: number) => void } = $props();
+  let { currentDate, isToday, onDateChange }: { currentDate: Date; isToday: boolean; onDateChange: (offset: number) => void } = $props();
+  let dateLabel = $derived(isToday ? 'Today' : currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
 </script>
 
 <div class="date-navigator">
   <button class="nav-button" onclick={() => onDateChange(-1)} aria-label="Previous day">
     <span class="chevron previous" aria-hidden="true"></span>
   </button>
-  <button class="today-button" onclick={() => onDateChange(0)}>Today</button>
+  <button class="today-button" onclick={() => onDateChange(0)} aria-label={isToday ? 'Today' : 'Return to today'}>{dateLabel}</button>
   <button class="nav-button" onclick={() => onDateChange(1)} aria-label="Next day">
     <span class="chevron next" aria-hidden="true"></span>
   </button>

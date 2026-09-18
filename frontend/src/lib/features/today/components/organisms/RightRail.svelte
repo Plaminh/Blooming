@@ -4,11 +4,15 @@
   import AppIcon from "$lib/shared/components/atoms/AppIcon.svelte";
   import FocusPresetOption from "../atoms/FocusPresetOption.svelte";
   import NextSessionSummary from "../molecules/NextSessionSummary.svelte";
+  import CustomFocusDialog from './CustomFocusDialog.svelte';
   let {
     task,
     nextTask,
     selectedFocusPreset,
+    customFocusMinutes,
+    customBreakMinutes,
     onPresetSelect,
+    onCustomSaved,
     onStartFocus,
     onSaveTask,
     focusDisabled = false,
@@ -16,7 +20,10 @@
     task: Task | undefined;
     nextTask: Task | undefined;
     selectedFocusPreset: FocusPreset;
+    customFocusMinutes: number;
+    customBreakMinutes: number;
     onPresetSelect: (preset: FocusPreset) => void;
+    onCustomSaved: (focusMinutes: number, breakMinutes: number) => void;
     onStartFocus: () => void;
     onSaveTask: (id: string, updates: TodayTaskEdit) => Promise<void>;
     focusDisabled?: boolean;
@@ -41,6 +48,12 @@
   let saveError = $state<string | null>(null);
   let editDescription = $state<string>("");
   let isSaving = $state(false);
+  let customDialogOpen = $state(false);
+
+  function selectFocusPreset(preset: FocusPreset) {
+    if (preset === 'Custom') customDialogOpen = true;
+    else onPresetSelect(preset);
+  }
 
   export function startEditing() {
     if (!task?.task_id || isSaving || isEditing) return;
@@ -198,7 +211,6 @@
   <section class="panel focus-setup" aria-labelledby="focus-heading">
     <header class="panel-strip">
       <h2 id="focus-heading">FOCUS SETUP</h2>
-      <span class="help" aria-label="Focus setup help">?</span>
     </header>
     <div class="focus-body">
       <p>Focus for this task</p>
@@ -207,10 +219,10 @@
           <FocusPresetOption
             preset={preset.id}
             label={preset.label}
-            focusTime={preset.focus}
-            breakTime={preset.break}
+            focusTime={preset.id === 'Custom' && selectedFocusPreset === 'Custom' ? `${customFocusMinutes} min focus` : preset.focus}
+            breakTime={preset.id === 'Custom' && selectedFocusPreset === 'Custom' ? `${customBreakMinutes} min break` : preset.break}
             selected={selectedFocusPreset === preset.id}
-            onSelect={onPresetSelect}
+            onSelect={selectFocusPreset}
           />
         {/each}
       </div>
@@ -225,6 +237,12 @@
     </div>
   </section>
 </div>
+
+<CustomFocusDialog
+  open={customDialogOpen}
+  onClose={() => customDialogOpen = false}
+  onSave={(focusMinutes, breakMinutes) => onCustomSaved(focusMinutes, breakMinutes)}
+/>
 
 <style>
   .right-rail-container {
@@ -380,17 +398,6 @@
     color: #074da0;
     font-family: inherit;
     resize: vertical;
-  }
-  .help {
-    display: grid;
-    width: 23px;
-    height: 23px;
-    place-items: center;
-    border: 2px solid white;
-    border-radius: 50%;
-    font-size: 15px;
-    font-weight: 800;
-    line-height: 1;
   }
   .focus-body {
     padding: 3px 10px 7px;

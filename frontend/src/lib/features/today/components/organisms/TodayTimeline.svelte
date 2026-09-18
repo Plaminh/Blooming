@@ -6,9 +6,10 @@
   import TimelineHourLabel from '../atoms/TimelineHourLabel.svelte';
   import TimelineCard from '../molecules/TimelineCard.svelte';
 
-  let { tasks, currentDate, selectedTaskId, isLoading = false, loadError = null, onSelect, onDateChange }: {
+  let { tasks, currentDate, isToday = true, selectedTaskId, isLoading = false, loadError = null, onSelect, onDateChange }: {
     tasks: Task[];
     currentDate: Date;
+    isToday?: boolean;
     selectedTaskId: string;
     isLoading?: boolean;
     loadError?: string | null;
@@ -49,7 +50,7 @@
       <PageHeading id="today-heading" title="TODAY" />
       <p>{formattedDate}</p>
     </div>
-    <DateNavigation {onDateChange} />
+    <DateNavigation {currentDate} {isToday} {onDateChange} />
   </header>
 
   <div class="timeline-view">

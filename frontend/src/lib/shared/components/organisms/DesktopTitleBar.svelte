@@ -10,6 +10,10 @@
   let {
     variant = 'standard',
     artworkVariant = variant,
+    title = 'BLOOMING',
+    titleId,
+    showLogo = true,
+    closeLabel = 'Close window',
     windowService = desktopWindowService,
     onAction = () => {},
     showSizeControls = true,
@@ -18,6 +22,10 @@
   }: {
     variant?: 'standard' | 'compact';
     artworkVariant?: 'standard' | 'compact';
+    title?: string;
+    titleId?: string;
+    showLogo?: boolean;
+    closeLabel?: string;
     windowService?: DesktopWindowService;
     onAction?: (action: TitleBarAction) => void;
     showSizeControls?: boolean;
@@ -72,15 +80,17 @@
 </script>
 
 <header class="desktop-titlebar desktop-titlebar--{variant}" use:draggableTitleBar>
-  <div class="desktop-titlebar__brand" aria-label="Blooming">
-    <img
-      src="/assets/icons/leaf-icon.png"
-      alt=""
-      class="desktop-titlebar__logo desktop-titlebar__logo--{artworkVariant}"
-      width="40"
-      height="40"
-    />
-    <span class="desktop-titlebar__title">BLOOMING</span>
+  <div class="desktop-titlebar__brand" aria-label={title}>
+    {#if showLogo}
+      <img
+        src="/assets/icons/leaf-icon.png"
+        alt=""
+        class="desktop-titlebar__logo desktop-titlebar__logo--{artworkVariant}"
+        width="40"
+        height="40"
+      />
+    {/if}
+    <span class="desktop-titlebar__title" id={titleId}>{title}</span>
   </div>
   <div class="desktop-titlebar__controls">
     {#if showSizeControls}
@@ -110,7 +120,7 @@
       class="desktop-window-control desktop-window-control--close"
       type="button"
       onclick={hide}
-      aria-label="Close window"
+      aria-label={closeLabel}
     >
       <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
         <path d="m3.5 3.5 11 11m0-11-11 11" stroke="currentColor" stroke-width="2.5" />
