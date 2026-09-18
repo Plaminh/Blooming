@@ -1,10 +1,15 @@
 {
-  "name": "blooming",
-  "version": "1.0.0",
-  "scripts": {
-    "dev": "concurrently \"cd backend && python run.py\" \"cd frontend && npm run dev\""
-  },
+  "name": "blooming-monorepo",
+  "private": true,
   "devDependencies": {
     "concurrently": "^9.0.0"
+  },
+  "scripts": {
+    "db:up": "docker compose up -d --wait",
+    "backend": "node scripts/dev-backend.cjs",
+    "web": "cd frontend && npm run dev",
+    "tauri": "cd frontend && npm run tauri dev",
+    "dev:web": "npm run db:up && concurrently -n api,web -c green,magenta \"npm run backend\" \"npm run web\"",
+    "dev:tauri": "npm run db:up && concurrently -n api,tauri -c green,magenta \"npm run backend\" \"npm run tauri\""
   }
 }

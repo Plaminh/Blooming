@@ -1,32 +1,23 @@
+# ./docker-compose.yml
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:16
     container_name: blooming-postgres
     restart: unless-stopped
-
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
     ports:
-      - "${POSTGRES_PORT}:5432"
-
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - blooming_postgres_data:/var/lib/postgresql/data
-
-      # Cho PostgreSQL nhìn thấy các file schema
-      - ./database:/docker-entrypoint-initdb.d:ro
-
+      - blooming_pgdata:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d   # tự chạy install.sql khi volume rỗng
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
-        ]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
 
 volumes:
-  blooming_postgres_data:
+  blooming_pgdata:
