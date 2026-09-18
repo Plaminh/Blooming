@@ -257,6 +257,9 @@ class PlanningService:
                 # Replace existing plan
                 existing_plan.status = "ARCHIVED"
                 db.add(existing_plan)
+                # Release the partial unique index entry before confirming the
+                # replacement; ORM update ordering otherwise depends on UUIDs.
+                await db.flush()
 
         # Transition to CONFIRMED
         draft.status = "CONFIRMED"
