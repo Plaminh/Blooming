@@ -5,20 +5,14 @@
   import AppIcon, { type IconName } from '$lib/shared/components/atoms/AppIcon.svelte';
   import GoalsPanelHeader from '../atoms/GoalsPanelHeader.svelte';
 
-  let { goal, onAddMilestone, onUpdateMilestone }: { 
+  let { goal, onUpdateMilestone }: { 
     goal: Goal | null, 
-    onAddMilestone?: () => void,
     onUpdateMilestone?: (milestoneId: string, updates: any) => void 
   } = $props();
 </script>
 
 <section class="panel goal-details">
-  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dcd7ca;">
-    <GoalsPanelHeader title="GOAL DETAILS" id="goal-details-heading" />
-    {#if onAddMilestone}
-      <button style="margin-right: 10px; cursor: pointer;" onclick={onAddMilestone}>+ Milestone</button>
-    {/if}
-  </div>
+  <GoalsPanelHeader title="GOAL DETAILS" id="goal-details-heading" />
   
   <div class="panel-body">
     {#if goal}

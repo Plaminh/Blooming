@@ -66,7 +66,7 @@ Users can organize their long-term objectives using goals and milestones synchro
 
 **Why this priority**: Goals provide the overarching structure for the user's focus sessions.
 
-**Independent Test**: Can be tested by loading the Goals screen, adding new goals/milestones, and verifying they appear upon refresh.
+**Independent Test**: Can be tested by loading the Goals screen, adding new goals via Mr. Bloom, and verifying they appear upon refresh.
 
 **Acceptance Scenarios**:
 

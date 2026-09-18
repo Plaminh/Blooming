@@ -10,35 +10,33 @@
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Manual Goal Management (Priority: P1)
+### User Story 1 - Goal Management (Priority: P1)
 
-As a user, I want to manage my goals so that I can define and track my high-level objectives.
+As a user, I want to manage my existing goals so that I can refine and track my high-level objectives.
+Goals and roadmap structure are created through Mr. Bloom. The Goals screen is used to view and manually edit existing Goal/Roadmap data.
 
 **Why this priority**: Goals are the foundational entity for this feature, required before milestones and reminders can be meaningful.
 
-**Independent Test**: Can be fully tested by creating, viewing, editing, and deleting a goal, and verifying the data persists and displays correctly in the UI.
+**Independent Test**: Can be fully tested by editing an existing goal and verifying the data persists and displays correctly in the UI.
 
 **Acceptance Scenarios**:
 
-1. **Given** the Goals/Roadmap screen is open, **When** I create a new goal with valid data, **Then** the goal is saved to the backend and appears in the UI.
-2. **Given** I have existing goals, **When** I edit a goal's details, **Then** the updated details are persisted and immediately reflect in the UI without a manual reload.
-3. **Given** an existing goal with no dependent records (or safely handled ones), **When** I delete the goal and confirm, **Then** the goal is removed from the UI and backend.
+1. **Given** I have existing goals, **When** I edit a goal's details, **Then** the updated details are persisted and immediately reflect in the UI without a manual reload.
 
 ---
 
-### User Story 2 - Manual Milestone Management (Priority: P1)
+### User Story 2 - Milestone Management (Priority: P1)
 
-As a user, I want to manage milestones within a goal so that I can break down my objectives into actionable steps and track their status and target dates.
+As a user, I want to manage milestones within a goal so that I can track their status and target dates.
+Goals and roadmap structure are created through Mr. Bloom. The Goals screen is used to view and manually edit existing Goal/Roadmap data.
 
 **Why this priority**: Milestones make goals actionable and provide the context for reminder generation and tracking.
 
-**Independent Test**: Can be fully tested by creating a milestone under an existing goal, updating its status and target date, and ensuring changes persist and the roadmap ordering remains stable.
+**Independent Test**: Can be fully tested by updating the status and target date of an existing milestone, and ensuring changes persist and the roadmap ordering remains stable.
 
 **Acceptance Scenarios**:
 
-1. **Given** I am viewing a goal, **When** I add a new milestone, **Then** it is saved to exactly that goal and appears in the milestone list.
-2. **Given** an existing milestone, **When** I update its status and target date, **Then** the changes are persisted, displayed immediately, and the milestone ordering remains stable.
-3. **Given** an existing milestone, **When** I delete it, **Then** it is successfully removed from the backend and the UI updates accordingly.
+1. **Given** an existing milestone, **When** I update its status and target date, **Then** the changes are persisted, displayed immediately, and the milestone ordering remains stable.
 
 ---
 
@@ -83,9 +81,9 @@ As a user, I want to take action on my due reminders (create plan, mark complete
 ### Functional Requirements
 
 - **FR-001**: The system MUST load and display persisted goals in the existing Goals/Roadmap UI.
-- **FR-002**: Users MUST be able to manually create, view, edit, and delete goals, with deletion requiring confirmation.
+- **FR-002**: Goals and roadmap structure are created through Mr. Bloom. Users MUST be able to view and edit existing goals.
 - **FR-003**: The UI MUST preserve its current design, reusing existing components, layouts, dialogs, form controls, stores, services, and types wherever possible.
-- **FR-004**: Users MUST be able to manually create, view, edit, and delete milestones belonging to a specific goal.
+- **FR-004**: Users MUST be able to view and edit existing milestones belonging to a specific goal.
 - **FR-005**: The system MUST allow milestone status updates using predefined project statuses, and allow target-date updates.
 - **FR-006**: The UI MUST immediately display milestone changes after a successful action without requiring a manual reload, maintaining stable ordering and roadmap presentation.
 - **FR-007**: The backend MUST prevent a milestone from being modified through a different goal.
@@ -108,7 +106,7 @@ As a user, I want to take action on my due reminders (create plan, mark complete
 
 ### Measurable Outcomes
 
-- **SC-001**: Users can complete the full demo flow (load goals, create goal, add milestones, edit milestone, load due reminder, perform reminder action) without any AI service or external API being required.
+- **SC-001**: Users can complete the full demo flow (load goals, create goal and roadmap milestones via Mr. Bloom draft, edit existing milestone, load due reminder, perform reminder action) without any backend AI service or external API being required.
 - **SC-002**: 100% of state-mutating actions (create, edit, delete, actions) immediately reflect in the local UI state without a full page reload.
 - **SC-003**: `GET /reminders/due` returns only the correct user's due reminders and 0 records of completed/dismissed/postponed status.
 - **SC-004**: Automated tests verify critical CRUD operations, user ownership boundaries, due-reminder filtering, and reminder-action flows.

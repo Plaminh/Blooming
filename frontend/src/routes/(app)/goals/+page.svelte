@@ -6,6 +6,7 @@
   import { overlayStore } from '$lib/shared/stores/overlayStore';
   import { goalsStore } from '$lib/features/goals/stores/goalsStore';
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
 
   let selectedGoalId = $state<string | null>(null);
   let showFallback = $state(false);
@@ -49,18 +50,13 @@
       {selectedGoalId}
       onSelect={(id) => (selectedGoalId = id)}
       onCreateGoal={() => {
-        const title = prompt("Goal Title:");
-        if (title) goalsStore.createGoal({ title });
+        goto('/mr-bloom');
       }}
     />
   </div>
   <div class="col-goal-details">
     <GoalDetailsPanel 
       goal={selectedGoal} 
-      onAddMilestone={() => {
-        const title = prompt("Milestone Title:");
-        if (title && selectedGoalId) goalsStore.addMilestone(selectedGoalId, { title });
-      }}
       onUpdateMilestone={(milestoneId, updates) => {
         if (selectedGoalId) goalsStore.updateMilestone(selectedGoalId, milestoneId, updates);
       }}

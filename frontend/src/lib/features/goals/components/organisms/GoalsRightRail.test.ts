@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 import GoalsRightRail from './GoalsRightRail.svelte';
-const FIXTURE_GOALS: any[] = [
+import type { Goal } from '../../models';
+
+const FIXTURE_GOALS: Goal[] = [
   {
     id: 'g1',
     title: 'Launch MVP',
@@ -9,10 +11,10 @@ const FIXTURE_GOALS: any[] = [
     target_date: '2024-06-30T00:00:00Z',
     iconRef: 'sprout',
     milestones: [
-      { id: 'm1', title: 'Design concept', description: 'Define core problem.', status: 'COMPLETED' },
-      { id: 'm2', title: 'Build planning core', description: 'Build Today, Goals and Settings.', status: 'IN_PROGRESS' },
-      { id: 'm3', title: 'Implement desktop widget', description: 'Create widget.', status: 'PENDING' },
-      { id: 'm4', title: 'Validate MVP', description: 'Test with early users.', status: 'PENDING' }
+      { id: 'm1', title: 'Design concept', description: 'Define core problem.', status: 'COMPLETED', due_at: '' },
+      { id: 'm2', title: 'Build planning core', description: 'Build Today, Goals and Settings.', status: 'IN_PROGRESS', due_at: '' },
+      { id: 'm3', title: 'Implement desktop widget', description: 'Create widget.', status: 'PENDING', due_at: '' },
+      { id: 'm4', title: 'Validate MVP', description: 'Test with early users.', status: 'PENDING', due_at: '' }
     ]
   }
 ];

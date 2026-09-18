@@ -70,7 +70,7 @@ Users can initiate actions such as creating, editing, and refining goals using t
 
 **Acceptance Scenarios**:
 
-1. **Given** the Goals screen is loaded, **When** the user clicks "CREATE GOAL WITH MR. BLOOM", **Then** the existing creation flow is triggered (or an accessible typed local UI action occurs if no flow exists).
+1. **Given** the Goals screen is loaded, **When** the user clicks "CREATE GOAL WITH MR. BLOOM", **Then** the user is navigated to /mr-bloom to create a roadmap draft.
 2. **Given** a goal is selected, **When** the user clicks "EDIT MANUALLY" or "REFINE WITH MR. BLOOM", **Then** the appropriate existing dialogs/flows open (or an approved local UI behavior triggers).
 3. **Given** the user navigates using the keyboard, **When** they Tab through the screen, **Then** focus states are visible and button semantics are correct for all actions.
 

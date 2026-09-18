@@ -9,7 +9,8 @@
     secondaryLabel = 'DISCARD',
     onSecondary,
     balanced = false,
-    iconSize
+    iconSize,
+    disabled = false
   }: {
     primaryLabel: string;
     onPrimary: () => void;
@@ -17,6 +18,7 @@
     onSecondary?: () => void;
     balanced?: boolean;
     iconSize?: IconSize;
+    disabled?: boolean;
   } = $props();
 
   const handleSecondary = () => onSecondary ? onSecondary() : mrBloomStore.discardDraft();
@@ -26,9 +28,10 @@
   <ActionButton
     label={secondaryLabel}
     variant={secondaryLabel === 'DISCARD' ? 'danger' : 'secondary'}
+    {disabled}
     onclick={handleSecondary}
   />
-  <ActionButton label={primaryLabel} variant="primary" icon="play" {iconSize} onclick={onPrimary} />
+  <ActionButton label={primaryLabel} variant="primary" icon="play" {iconSize} {disabled} onclick={onPrimary} />
 </footer>
 
 <style>

@@ -23,10 +23,10 @@
 
 ---
 
-## Phase 3: Manual Goal CRUD (Priority: P1) [US1]
+## Phase 3: Goal CRUD (Priority: P1) [US1]
 
 **Goal**: Implement backend and frontend to support creating, updating, listing, and deleting goals.
-**Independent Test**: Can manually create, edit, and delete a goal via the Goals/Roadmap UI, and verify changes persist after reload.
+**Independent Test**: Can edit and delete a goal via the Goals/Roadmap UI, and verify changes persist after reload.
 
 - [x] T007 [US1] Create `backend/app/services/goals_service.py` with Goal CRUD methods enforcing `user_id` ownership.
 - [x] T008 [US1] Implement endpoints in `backend/app/api/routes/goals.py` for Goal CRUD operations.
@@ -37,17 +37,17 @@
 
 ---
 
-## Phase 4: Manual Milestone CRUD (Priority: P1) [US2]
+## Phase 4: Milestone CRUD (Priority: P1) [US2]
 
 **Goal**: Manage milestones within a goal, including status and date updates.
-**Independent Test**: Can add a milestone to a goal, edit its status and target date, and see changes immediately on the UI.
+**Independent Test**: Can edit a milestone's status and target date, and see changes immediately on the UI.
 
 - [x] T013 [P] [US2] Add `MilestoneCreate`, `MilestoneUpdate`, `MilestoneResponse` schemas to `backend/app/schemas/goals.py`.
 - [x] T014 [US2] Implement Milestone CRUD methods in `backend/app/services/goals_service.py` (enforce goal ownership, validate milestone position).
 - [x] T015 [US2] Implement Milestone endpoints in `backend/app/api/routes/goals.py` (`POST`, `PUT`, `DELETE`).
 - [x] T016 [US2] Add Milestone tests to `backend/tests/api/routes/test_goals.py`. (Removed during cleanup)
 - [x] T017 [US2] Add Milestone API methods to `frontend/src/lib/features/goals/stores/goalsStore.ts`.
-- [x] T018 [US2] Update `frontend/src/lib/features/goals/components/organisms/GoalDetailsPanel.svelte` (or appropriate sub-component) to handle milestone creation, status updates, and deletion using the store.
+- [x] T018 [US2] Update `frontend/src/lib/features/goals/components/organisms/GoalDetailsPanel.svelte` (or appropriate sub-component) to handle milestone status updates and deletion using the store.
 
 ---
 
@@ -99,8 +99,8 @@
 ## Dependencies & Execution Order
 
 - **Setup & Foundations (Phase 1-2)**: Must be completed first.
-- **Manual Goal CRUD (Phase 3)**: Unblocks Milestone CRUD.
-- **Manual Milestone CRUD (Phase 4)**: Must follow Phase 3.
+- **Goal CRUD (Phase 3)**: Unblocks Milestone CRUD.
+- **Milestone CRUD (Phase 4)**: Must follow Phase 3.
 - **Due Reminders (Phase 5)**: Can be started in parallel with Phase 4, but depends on basic Goal/Milestone domain knowledge.
 - **Reminder Actions (Phase 6)**: Must follow Phase 5 and relies on Phase 4's Milestone endpoints.
 - **Integration & Validation (Phase 7-8)**: Executed after all features are implemented.

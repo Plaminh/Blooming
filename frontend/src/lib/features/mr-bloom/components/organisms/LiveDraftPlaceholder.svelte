@@ -1,5 +1,5 @@
 <script lang="ts">
-  import AppIcon from "$lib/shared/components/atoms/AppIcon.svelte";
+  import PlantSprite from "$lib/features/companion-widget/components/atoms/PlantSprite.svelte";
   import PanelHeading from "../atoms/PanelHeading.svelte";
 </script>
 
@@ -17,7 +17,7 @@
         <span class="sparkle s4"></span>
         <span class="sparkle s5"></span>
       </div>
-      <AppIcon name="document" scale={3} />
+      <PlantSprite plant={{ species: "monstera", frameIndex: 0, scale: 1.35 }} />
     </div>
 
     <h3 class="heading">Your draft will grow here</h3>

@@ -6,7 +6,7 @@
 
 ## Summary
 
-Make the existing Goals/Roadmap experience functional with real persisted data. Users will manually manage goals and milestones, and due reminders can be loaded and actioned using the existing backend architecture and SvelteKit frontend without requiring AI.
+Make the existing Goals/Roadmap experience functional with real persisted data. Users will manage goals via Mr. Bloom drafts and manually edit milestones, and due reminders can be loaded and actioned using the existing backend architecture and SvelteKit frontend without requiring AI.
 
 ## Technical Context
 
