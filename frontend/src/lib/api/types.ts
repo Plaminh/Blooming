@@ -61,6 +61,9 @@ export interface UserSettingsResponse {
   launch_on_startup: boolean;
   widget_always_on_top: boolean;
   milestone_reminder_lead_time_minutes: number;
+  weather_enabled: boolean;
+  weather_location: string | null;
+  weather_animation_enabled: boolean;
 }
 export interface WaterPlantResponse {
   water_balance: number;

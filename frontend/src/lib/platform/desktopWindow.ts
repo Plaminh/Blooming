@@ -193,6 +193,16 @@ export const desktop = {
     const { listen } = await import("@tauri-apps/api/event");
     return listen<null>("blooming:schedule-updated", callback);
   },
+  async settingsUpdated(): Promise<void> {
+    if (!isTauriRuntime()) return;
+    const { emitTo } = await import("@tauri-apps/api/event");
+    await emitTo<null>("companion-widget", "blooming:settings-updated", null);
+  },
+  async onSettingsUpdated(callback: () => void): Promise<() => void> {
+    if (!isTauriRuntime()) return () => {};
+    const { listen } = await import("@tauri-apps/api/event");
+    return listen<null>("blooming:settings-updated", callback);
+  },
   async setTrayAlert(alert: boolean) {
     if (!isTauriRuntime()) return;
     const { invoke } = await import("@tauri-apps/api/core");

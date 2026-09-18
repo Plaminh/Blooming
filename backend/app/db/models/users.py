@@ -168,6 +168,9 @@ class UserSettings(Base):
         Boolean, nullable=False, server_default=text("FALSE")
     )
     weather_location: Mapped[str | None] = mapped_column(String(100))
+    weather_animation_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("TRUE")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

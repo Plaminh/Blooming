@@ -34,6 +34,25 @@
       options={timezoneOptions}
     />
 
+    <TextInput
+      id="weatherLocation"
+      label="Weather location (city)"
+      bind:value={settingsState.draftSettings.weatherLocation}
+      error={settingsState.validationErrors.weatherLocation}
+    />
+
+    <ToggleSwitch
+      id="weatherEnabled"
+      label="Show local weather in widget"
+      bind:checked={settingsState.draftSettings.weatherEnabled}
+    />
+
+    <ToggleSwitch
+      id="weatherAnimationEnabled"
+      label="Animate rain in widget"
+      bind:checked={settingsState.draftSettings.weatherAnimationEnabled}
+    />
+
     <div class="toggles">
       <ToggleSwitch
         id="startAtLogin"

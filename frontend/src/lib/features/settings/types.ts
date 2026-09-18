@@ -8,4 +8,7 @@ export interface SettingsProfile {
   keepWidgetOnTop: boolean;
   milestoneReminderLeadTimeMinutes: number;
   emailReminders: boolean;
+  weatherEnabled: boolean;
+  weatherLocation: string;
+  weatherAnimationEnabled: boolean;
 }

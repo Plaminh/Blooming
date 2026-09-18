@@ -18,6 +18,9 @@ export class SettingsState {
     keepWidgetOnTop: true,
     milestoneReminderLeadTimeMinutes: 1440,
     emailReminders: true,
+    weatherEnabled: false,
+    weatherLocation: "",
+    weatherAnimationEnabled: true,
   });
 
   draftSettings = $state<SettingsProfile>(
@@ -79,6 +82,9 @@ export class SettingsState {
           milestoneReminderLeadTimeMinutes:
             stored.milestone_reminder_lead_time_minutes ?? 1440,
           emailReminders: this.savedSettings.emailReminders, // Keep local pref
+          weatherEnabled: stored.weather_enabled ?? false,
+          weatherLocation: stored.weather_location ?? "",
+          weatherAnimationEnabled: stored.weather_animation_enabled ?? true,
         };
         this.savedSettings = { ...this.savedSettings, ...mappedSettings };
         this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
@@ -103,6 +109,7 @@ export class SettingsState {
       focusDurationMinutes,
       breakDurationMinutes,
       milestoneReminderLeadTimeMinutes,
+      weatherLocation,
     } = this.draftSettings;
 
     if (!mrBloomName || mrBloomName.trim() === "") {
@@ -130,6 +137,11 @@ export class SettingsState {
     ) {
       this.validationErrors.milestoneReminderLeadTimeMinutes =
         "Must be a whole number between 0 and 43200.";
+      isValid = false;
+    }
+
+    if (weatherLocation.trim().length > 100 || (this.draftSettings.weatherEnabled && !weatherLocation.trim())) {
+      this.validationErrors.weatherLocation = "Enter a location (up to 100 characters) to enable weather.";
       isValid = false;
     }
 
@@ -169,6 +181,9 @@ export class SettingsState {
         milestone_reminder_lead_time_minutes: Number(
           this.draftSettings.milestoneReminderLeadTimeMinutes,
         ),
+        weather_enabled: this.draftSettings.weatherEnabled,
+        weather_location: this.draftSettings.weatherLocation.trim() || null,
+        weather_animation_enabled: this.draftSettings.weatherAnimationEnabled,
       };
 
       previousNativeSettings = await desktop.readSettings();
@@ -188,6 +203,11 @@ export class SettingsState {
       }
       this.savedSettings = JSON.parse(JSON.stringify(this.draftSettings));
       this.saveSuccessMessage = "Settings saved successfully.";
+      try {
+        await desktop.settingsUpdated();
+      } catch {
+        this.syncWarning = "Settings saved, but the widget could not refresh immediately.";
+      }
       try {
         if (typeof localStorage !== "undefined") {
           localStorage.setItem(

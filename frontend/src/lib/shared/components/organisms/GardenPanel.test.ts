@@ -3,7 +3,8 @@ import { render, waitFor } from '@testing-library/svelte';
 import GardenPanel from './GardenPanel.svelte';
 import { api } from '$lib/api';
 import { notifyGardenUpdated } from '$lib/features/garden-selection/model/gardenUpdates';
-import { WIDGET_SCENE } from '$lib/features/companion-widget/model/atlas';
+import { DAYTIME_ASSETS, SEASON_ASSETS, getDaytimeFromHour, getSeasonFromMonth } from '$lib/features/companion-widget/model/environment';
+
 
 vi.mock('$lib/api', () => ({
   api: { get: vi.fn(), post: vi.fn() },
@@ -22,8 +23,13 @@ describe('GardenPanel', () => {
 
   it('uses the widget sky and bushes without characters or plants', () => {
     const { container } = render(GardenPanel);
-    expect(container.querySelector('.garden-scene .sky')).toHaveAttribute('src', WIDGET_SCENE.skySrc);
-    expect(container.querySelector('.garden-scene .bushes')).toHaveAttribute('src', WIDGET_SCENE.bushesSrc);
+    const now = new Date();
+    const hour = now.getHours();
+    const month = now.getMonth();
+    const daytime = getDaytimeFromHour(hour);
+    const season = getSeasonFromMonth(month);
+    expect((container.querySelector('.garden-scene .sky') as HTMLImageElement).src).toContain(DAYTIME_ASSETS[daytime]);
+    expect((container.querySelector('.garden-scene .bushes') as HTMLImageElement).src).toContain(SEASON_ASSETS[season]);
     expect(container.querySelector('.garden-scene [data-species]')).not.toBeInTheDocument();
     expect(container.querySelector('.garden-scene .flower')).not.toBeInTheDocument();
   });

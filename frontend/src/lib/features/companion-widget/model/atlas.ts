@@ -53,12 +53,11 @@ export const MR_BLOOM_FRAME_SEQUENCE = {
 } as const satisfies Record<CompanionWidgetKind, readonly number[]>;
 
 export const WIDGET_SCENE = {
-  skySrc: "/assets/widget/backgrounds/default-sky.png",
-  bushesSrc: "/assets/widget/backgrounds/background-bushes.png",
   frameWidth: 1880,
   frameHeight: 837,
   bushesWidth: 1881,
   bushesHeight: 836,
+  bushesOffsetY: -65,
   anchor: "bottom-left",
 } as const;
 

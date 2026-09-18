@@ -3,6 +3,7 @@
   import { api } from '$lib/api';
   import OnboardingSetupView from '$lib/features/onboarding-setup/components/pages/OnboardingSetupView.svelte';
   import type { OnboardingSetupData } from '$lib/features/onboarding-setup/model/OnboardingSetupState.svelte';
+  import { desktop } from '$lib/platform/desktopWindow';
 
   async function handleFinish(data: OnboardingSetupData) {
     const defaultFocusMinutes = data.focusPreset === '50 / 10' ? 50 : 25;
@@ -15,7 +16,14 @@
       default_break_minutes: defaultBreakMinutes,
       launch_on_startup: data.startAtLogin,
       widget_always_on_top: data.keepWidgetOnTop,
+      weather_location: data.weatherLocation.trim() || null,
+      weather_enabled: Boolean(data.weatherLocation.trim()),
     });
+    try {
+      await desktop.settingsUpdated();
+    } catch {
+      // Saved settings still apply when the widget next opens or refreshes.
+    }
     
     goto('/today');
   }

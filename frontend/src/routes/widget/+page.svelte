@@ -9,6 +9,8 @@
   import type { GardenState, TodayResponse } from "$lib/api/types";
   import { selectedPlantPresentation } from "$lib/features/garden/utils/spriteMapper";
   import { desktop } from "$lib/platform/desktopWindow";
+  import type { UserSettingsResponse } from "$lib/api/types";
+  import type { Weather } from "$lib/features/companion-widget/model/environment";
 
   interface FocusSession {
     id: string;
@@ -31,6 +33,29 @@
   let fetching = false;
   let finishWarning = $state<string | null>(null);
   let finishError = $state<string | null>(null);
+  let timezone = $state("UTC");
+  let weather = $state<Weather>("CLEAR");
+  let rainEnabled = $state(true);
+  const ENVIRONMENT_REFRESH_MS = 15 * 60 * 1000;
+  let environmentRequestId = 0;
+
+  async function refreshEnvironment() {
+    const requestId = ++environmentRequestId;
+    try {
+      const settings: UserSettingsResponse = await api.get("/me/settings");
+      if (requestId !== environmentRequestId) return;
+      timezone = settings.timezone;
+      rainEnabled = settings.weather_animation_enabled !== false;
+      if (settings.weather_enabled && settings.weather_location?.trim()) {
+        const response: { condition: Weather } = await api.get("/me/weather");
+        if (requestId === environmentRequestId) weather = response.condition;
+      } else {
+        weather = "CLEAR";
+      }
+    } catch {
+      if (requestId === environmentRequestId) weather = "CLEAR";
+    }
+  }
 
   async function fetchSession() {
     if (fetching) return;
@@ -66,12 +91,25 @@
 
   onMount(() => {
     void fetchSession();
+    void refreshEnvironment();
+    const environmentRefresh = setInterval(() => void refreshEnvironment(), ENVIRONMENT_REFRESH_MS);
     const clock = setInterval(() => {
       now = new Date();
     }, 1000);
     const refresh = setInterval(() => void fetchSession(), 60000);
     let disposed = false;
     let unlisten = () => {};
+    let unlistenSettings = () => {};
+    const refreshSettings = () => void refreshEnvironment();
+    window.addEventListener("storage", refreshSettings);
+    window.addEventListener("focus", refreshSettings);
+    desktop
+      .onSettingsUpdated(refreshSettings)
+      .then((off) => {
+        if (disposed) off();
+        else unlistenSettings = off;
+      })
+      .catch(() => {});
     desktop
       .onScheduleUpdated(() => void fetchSession())
       .then((off) => {
@@ -87,8 +125,12 @@
     return () => {
       disposed = true;
       unlisten();
+      unlistenSettings();
+      window.removeEventListener("storage", refreshSettings);
+      window.removeEventListener("focus", refreshSettings);
       clearInterval(clock);
       clearInterval(refresh);
+      clearInterval(environmentRefresh);
     };
   });
 
@@ -230,4 +272,4 @@
 </script>
 
 {#if finishError}<p role="alert">{finishError}</p>{/if}
-<CompanionWidget {presentation} />
+<CompanionWidget {presentation} {weather} {timezone} {rainEnabled} />

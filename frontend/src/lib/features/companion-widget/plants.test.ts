@@ -97,7 +97,7 @@ describe("plant presentation", () => {
 
   it("uses the same far-left plant anchor in every state", () => {
     for (const layout of Object.values(WIDGET_LAYOUTS)) {
-      expect(layout.plant).toEqual({ left: -4, bottom: 4 });
+      expect(layout.plant).toEqual({ left: -4, bottom: 0 });
     }
   });
 });

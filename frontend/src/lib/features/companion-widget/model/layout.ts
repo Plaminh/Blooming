@@ -60,7 +60,7 @@ export const WIDGET_LAYOUTS: Record<CompanionWidgetKind, WidgetVisualLayout> = {
   focusing: {
     panel: { ...PANEL_POSITION, width: 250, height: 86 },
     character: { ...MR_BLOOM_POSITION, status: { x: 90, y: 36 } },
-    plant: { left: -4, bottom: 4 },
+    plant: { left: -4, bottom: 0 },
     timer: { top: 78, right: 18 },
     actions: {
       top: 220,
@@ -76,7 +76,7 @@ export const WIDGET_LAYOUTS: Record<CompanionWidgetKind, WidgetVisualLayout> = {
   ending: {
     panel: { ...PANEL_POSITION, width: 366, height: 90 },
     character: { ...MR_BLOOM_POSITION, status: { x: 168, y: 76 } },
-    plant: { left: -4, bottom: 4 },
+    plant: { left: -4, bottom: 0 },
     timer: { top: 78, right: 18 },
     actions: {
       top: 213,
@@ -92,7 +92,7 @@ export const WIDGET_LAYOUTS: Record<CompanionWidgetKind, WidgetVisualLayout> = {
   paused: {
     panel: { ...PANEL_POSITION, width: 250, height: 86 },
     character: { ...MR_BLOOM_POSITION, status: { x: 90, y: 36 } },
-    plant: { left: -4, bottom: 4 },
+    plant: { left: -4, bottom: 0 },
     timer: { top: 78, right: 18 },
     actions: {
       top: 220,
@@ -108,7 +108,7 @@ export const WIDGET_LAYOUTS: Record<CompanionWidgetKind, WidgetVisualLayout> = {
   behindSchedule: {
     panel: { ...PANEL_POSITION, width: 366, height: 90 },
     character: { ...MR_BLOOM_POSITION, status: { x: 168, y: 76 } },
-    plant: { left: -4, bottom: 4 },
+    plant: { left: -4, bottom: 0 },
     actions: {
       top: 213,
       right: 14,
@@ -123,7 +123,7 @@ export const WIDGET_LAYOUTS: Record<CompanionWidgetKind, WidgetVisualLayout> = {
   offline: {
     panel: { ...PANEL_POSITION, width: 252, height: 111 },
     character: { ...MR_BLOOM_POSITION, status: { x: 163, y: 70 } },
-    plant: { left: -4, bottom: 4 },
+    plant: { left: -4, bottom: 0 },
     timer: { top: 78, right: 20 },
     actions: {
       top: 220,
@@ -139,7 +139,7 @@ export const WIDGET_LAYOUTS: Record<CompanionWidgetKind, WidgetVisualLayout> = {
   reminders: {
     panel: { ...PANEL_POSITION, width: 328, height: 128 },
     character: { ...MR_BLOOM_POSITION, status: { x: 172, y: 79 } },
-    plant: { left: -4, bottom: 4 },
+    plant: { left: -4, bottom: 0 },
     actions: {
       top: 210,
       right: 14,

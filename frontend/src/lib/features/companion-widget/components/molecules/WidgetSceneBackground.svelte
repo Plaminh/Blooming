@@ -1,12 +1,32 @@
 <script lang="ts">
   import { WIDGET_SCENE } from "../../model/atlas";
+  import {
+    type Daytime,
+    type Season,
+    type Weather,
+    getDaytimeFromHour,
+    getSeasonFromMonth,
+    datePartsInTimezone,
+    DAYTIME_ASSETS,
+    SEASON_ASSETS,
+    WEATHER_ASSETS
+  } from "../../model/environment";
+  import RainLayer from "../atoms/RainLayer.svelte";
+  import { clockStore } from "$lib/shared/stores/clockStore";
 
   type Props = {
     class?: string;
     variant?: "widget" | "garden";
+    weather?: Weather;
+    rainEnabled?: boolean;
+    timezone?: string;
   };
 
-  let { class: className = "", variant = "widget" }: Props = $props();
+  let { class: className = "", variant = "widget", weather = 'CLEAR', rainEnabled = true, timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' }: Props = $props();
+
+  let zonedTime = $derived(datePartsInTimezone($clockStore, timezone));
+  let currentDaytime: Daytime = $derived(getDaytimeFromHour(zonedTime.hour));
+  let currentSeason: Season = $derived(getSeasonFromMonth(zonedTime.month));
 </script>
 
 <div
@@ -16,16 +36,34 @@
   style:--frame-h="{WIDGET_SCENE.frameHeight}px"
   style:--bushes-w="{WIDGET_SCENE.bushesWidth}px"
   style:--bushes-h="{WIDGET_SCENE.bushesHeight}px"
+  style:--bushes-offset-y="{WIDGET_SCENE.bushesOffsetY}px"
 >
   <div class="frame">
-    <img class="sky" src={WIDGET_SCENE.skySrc} alt="" width={WIDGET_SCENE.frameWidth} height={WIDGET_SCENE.frameHeight} />
+    <!-- 1. Time Background -->
+    <img class="sky" src={DAYTIME_ASSETS[currentDaytime]} alt="" width={WIDGET_SCENE.frameWidth} height={WIDGET_SCENE.frameHeight} />
+
+    <!-- 2. Season Vegetation -->
     <img
       class="bushes"
-      src={WIDGET_SCENE.bushesSrc}
+      src={SEASON_ASSETS[currentSeason]}
       alt=""
       width={WIDGET_SCENE.bushesWidth}
       height={WIDGET_SCENE.bushesHeight}
     />
+
+    <!-- 3. Weather Effect Overlay -->
+    {#if WEATHER_ASSETS[weather]}
+      <img
+        class="weather-overlay"
+        src={WEATHER_ASSETS[weather]}
+        alt=""
+        width={WIDGET_SCENE.frameWidth}
+        height={WIDGET_SCENE.frameHeight}
+      />
+    {/if}
+
+    <!-- 4. Rain Animation -->
+    <RainLayer {weather} enabled={rainEnabled} />
   </div>
 </div>
 
@@ -72,13 +110,15 @@
   }
 
   .scene--garden .sky,
-  .scene--garden .bushes {
+  .scene--garden .bushes,
+  .scene--garden .weather-overlay {
     width: auto;
     height: 100%;
   }
 
   .sky,
-  .bushes {
+  .bushes,
+  .weather-overlay {
     position: absolute;
     left: 0;
     bottom: 0;
@@ -87,13 +127,24 @@
     image-rendering: pixelated;
   }
 
-  .sky {
+  .sky, .weather-overlay {
     width: var(--frame-w);
     height: var(--frame-h);
+  }
+
+  .weather-overlay {
+    z-index: 3;
+    pointer-events: none;
   }
 
   .bushes {
     width: var(--bushes-w);
     height: var(--bushes-h);
+    z-index: 2;
+  }
+
+  .scene--widget .bushes {
+    /* The seasonal sprites have transparent space below the tree row. */
+    bottom: var(--bushes-offset-y);
   }
 </style>

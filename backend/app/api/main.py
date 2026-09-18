@@ -13,6 +13,7 @@ from app.api.routes import (
     today,
     user_settings,
     users,
+    weather,
 )
 
 api_router = APIRouter()
@@ -20,6 +21,7 @@ api_router.include_router(health.router)
 api_router.include_router(auth.router)
 api_router.include_router(users.router)
 api_router.include_router(user_settings.router)
+api_router.include_router(weather.router)
 api_router.include_router(assistant.router)
 api_router.include_router(planning.router)
 api_router.include_router(focus.router)

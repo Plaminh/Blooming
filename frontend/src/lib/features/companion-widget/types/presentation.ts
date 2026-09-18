@@ -80,6 +80,9 @@ export type CompanionWidgetPresentation =
 
 export type CompanionWidgetProps = {
   presentation: CompanionWidgetPresentation;
+  weather?: import("../model/environment").Weather;
+  timezone?: string;
+  rainEnabled?: boolean;
 };
 
 export type WidgetActionVariant = "primary" | "secondary";

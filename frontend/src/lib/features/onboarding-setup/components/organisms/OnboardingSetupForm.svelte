@@ -85,6 +85,24 @@
       </FormField>
     </div>
 
+    <div class="field-row">
+      <FormField
+        id="weather-location"
+        label="Weather location (optional)"
+        description="City used for the widget's current weather."
+        descriptionId="weather-location-description"
+      >
+        <Input
+          id="weather-location"
+          bind:value={state.weatherLocation}
+          placeholder="City, country"
+          maxlength={100}
+          ariaDescribedby="weather-location-description"
+          disabled={pending}
+        />
+      </FormField>
+    </div>
+
     <div class="field-row preset-row">
       <FormField
         label="Focus session preset"
@@ -175,8 +193,11 @@
   .form-content {
     position: absolute;
     top: 250px;
+    bottom: 95px;
     left: 60px;
     width: 755px;
+    overflow-y: auto;
+    padding-right: 8px;
   }
 
   .timezone-row {

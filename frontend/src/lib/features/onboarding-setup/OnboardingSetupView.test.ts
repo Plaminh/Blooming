@@ -59,6 +59,7 @@ describe('OnboardingSetupView', () => {
     expect(onFinish).toHaveBeenCalledWith({
       name: 'Sprout',
       timezone: 'Europe/London',
+      weatherLocation: '',
       focusPreset: '50 / 10',
       startAtLogin: false,
       keepWidgetOnTop: true,

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SettingsState } from './SettingsState.svelte';
 import { api } from '$lib/api';
+import { desktop } from '$lib/platform/desktopWindow';
 
 vi.mock('$lib/api', () => ({
   api: {
@@ -99,12 +100,23 @@ describe('SettingsState', () => {
   });
 
   it('saves successfully', async () => {
+    const notifyWidget = vi.spyOn(desktop, 'settingsUpdated').mockResolvedValue();
     state.draftSettings.mrBloomName = 'Saved Name';
+    state.draftSettings.weatherEnabled = true;
+    state.draftSettings.weatherLocation = 'Ho Chi Minh City';
+    state.draftSettings.weatherAnimationEnabled = false;
     const success = await state.save();
     
     expect(success).toBe(true);
     expect(state.savedSettings.mrBloomName).toBe('Saved Name');
     expect(state.isDirty).toBe(false);
-    expect(api.put).toHaveBeenCalledWith('/me/settings', expect.any(Object));
+    expect(api.put).toHaveBeenCalledWith('/me/settings', expect.objectContaining({
+      weather_enabled: true,
+      weather_location: 'Ho Chi Minh City',
+      weather_animation_enabled: false,
+    }));
+    expect(notifyWidget).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(api.put).mock.invocationCallOrder[0]).toBeLessThan(notifyWidget.mock.invocationCallOrder[0]);
+    notifyWidget.mockRestore();
   });
 });

@@ -4,6 +4,7 @@
     value = $bindable(),
     placeholder = '',
     required = false,
+    maxlength,
     disabled = false,
     ariaDescribedby,
   }: {
@@ -11,6 +12,7 @@
     value: string;
     placeholder?: string;
     required?: boolean;
+    maxlength?: number;
     disabled?: boolean;
     ariaDescribedby?: string;
   } = $props();
@@ -23,6 +25,7 @@
     bind:value
     {placeholder}
     {required}
+    {maxlength}
     {disabled}
     aria-describedby={ariaDescribedby}
     class="setup-input"

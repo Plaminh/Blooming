@@ -1,10 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createDesktopWindowService,
+  desktop,
   desktopWindowService,
   type DesktopWindowHandle,
   type DesktopWindowResolver,
 } from './desktopWindow';
+import { emitTo, listen } from '@tauri-apps/api/event';
+
+vi.mock('@tauri-apps/api/event', () => ({
+  emitTo: vi.fn().mockResolvedValue(undefined),
+  listen: vi.fn().mockResolvedValue(() => {}),
+}));
 
 function windowHandle(overrides: Partial<DesktopWindowHandle> = {}): DesktopWindowHandle {
   return {
@@ -31,6 +38,18 @@ function resolver(mainWindow: DesktopWindowHandle | null): DesktopWindowResolver
 }
 
 describe('desktopWindowService', () => {
+  it('notifies the companion widget after settings change', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true });
+    try {
+      const callback = vi.fn();
+      await desktop.settingsUpdated();
+      await desktop.onSettingsUpdated(callback);
+      expect(emitTo).toHaveBeenCalledWith('companion-widget', 'blooming:settings-updated', null);
+      expect(listen).toHaveBeenCalledWith('blooming:settings-updated', callback);
+    } finally {
+      delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    }
+  });
   it('shows a hidden main window and focuses the existing instance', async () => {
     const mainWindow = windowHandle({ isVisible: vi.fn().mockResolvedValue(false) });
     const service = createDesktopWindowService(resolver(mainWindow));

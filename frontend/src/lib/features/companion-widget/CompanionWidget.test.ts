@@ -13,6 +13,7 @@ import {
 import type { CompanionWidgetPresentation } from "./types/presentation";
 import { WIDGET_SCENE } from "./model/atlas";
 import { WIDGET_LAYOUTS, MR_BLOOM_POSITION, PANEL_POSITION } from "./model/layout";
+import { DAYTIME_ASSETS, SEASON_ASSETS, WEATHER_ASSETS } from "./model/environment";
 import type { DesktopWindowService } from "$lib/platform/desktopWindow";
 
 function mockWindowService(): DesktopWindowService {
@@ -39,6 +40,26 @@ function follows(first: Element, second: Element): boolean {
 }
 
 describe("CompanionWidget", () => {
+  it("passes configured timezone, weather, and rain preference to the scene", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-05-15T02:00:00Z"));
+    try {
+      const { container } = render(CompanionWidget, {
+        props: {
+          presentation: pausedFixture,
+          timezone: "Asia/Ho_Chi_Minh",
+          weather: "RAIN",
+          rainEnabled: false,
+        },
+      });
+      expect((container.querySelector(".sky") as HTMLImageElement).src).toContain(DAYTIME_ASSETS.MORNING);
+      expect((container.querySelector(".bushes") as HTMLImageElement).src).toContain(SEASON_ASSETS.SPRING);
+      expect((container.querySelector(".weather-overlay") as HTMLImageElement).src).toContain(WEATHER_ASSETS.RAIN!);
+      expect(container.querySelector(".rain-layer")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("opens main exactly once for a genuine surface double-click, never a single click", async () => {
     const user = userEvent.setup();
     const windowService = mockWindowService();

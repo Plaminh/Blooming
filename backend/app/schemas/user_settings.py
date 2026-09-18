@@ -20,6 +20,7 @@ class UserSettingsUpdate(BaseModel):
     launch_on_startup: bool | None = Field(default=None)
     weather_enabled: bool | None = Field(default=None)
     weather_location: str | None = Field(default=None, max_length=100)
+    weather_animation_enabled: bool | None = Field(default=None)
 
     @model_validator(mode="after")
     def validate_non_nullable_and_timezone(self) -> "UserSettingsUpdate":
@@ -34,6 +35,7 @@ class UserSettingsUpdate(BaseModel):
             "widget_always_on_top",
             "launch_on_startup",
             "weather_enabled",
+            "weather_animation_enabled",
             "milestone_reminder_lead_time_minutes",
         ]
         for field in non_nullable:
@@ -64,3 +66,4 @@ class UserSettingsResponse(BaseModel):
     launch_on_startup: bool
     weather_enabled: bool
     weather_location: str | None
+    weather_animation_enabled: bool

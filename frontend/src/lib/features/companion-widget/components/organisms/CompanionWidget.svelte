@@ -23,6 +23,9 @@
   let {
     presentation,
     windowService = desktopWindowService,
+    weather = "CLEAR",
+    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    rainEnabled = true,
   }: CompanionWidgetProps & { windowService?: DesktopWindowService } = $props();
 
   function openMainOnDoubleClick(node: HTMLElement) {
@@ -72,7 +75,7 @@
   aria-label="Blooming companion"
   style={widgetLayoutStyle(presentation.kind)}
 >
-  <WidgetSceneBackground />
+  <WidgetSceneBackground {weather} {timezone} {rainEnabled} />
   <WidgetTitleBar {windowService} />
 
   <div class="plant-slot">

@@ -6,6 +6,7 @@ export interface OnboardingSetupData {
   focusPreset: FocusPreset;
   startAtLogin: boolean;
   keepWidgetOnTop: boolean;
+  weatherLocation: string;
 }
 
 export class OnboardingSetupState {
@@ -14,6 +15,7 @@ export class OnboardingSetupState {
   focusPreset = $state<FocusPreset>('25 / 5');
   startAtLogin = $state(true);
   keepWidgetOnTop = $state(true);
+  weatherLocation = $state('');
 
   constructor(initialData?: Partial<OnboardingSetupData>) {
     if (initialData) {
@@ -22,6 +24,7 @@ export class OnboardingSetupState {
       if (initialData.focusPreset !== undefined) this.focusPreset = initialData.focusPreset;
       if (initialData.startAtLogin !== undefined) this.startAtLogin = initialData.startAtLogin;
       if (initialData.keepWidgetOnTop !== undefined) this.keepWidgetOnTop = initialData.keepWidgetOnTop;
+      if (initialData.weatherLocation !== undefined) this.weatherLocation = initialData.weatherLocation;
     }
   }
 
@@ -32,6 +35,7 @@ export class OnboardingSetupState {
       focusPreset: this.focusPreset,
       startAtLogin: this.startAtLogin,
       keepWidgetOnTop: this.keepWidgetOnTop,
+      weatherLocation: this.weatherLocation,
     };
   }
 }

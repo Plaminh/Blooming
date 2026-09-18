@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
     launch_on_startup               BOOLEAN NOT NULL DEFAULT FALSE,
     weather_enabled                 BOOLEAN NOT NULL DEFAULT FALSE,
     weather_location                VARCHAR(100),
+    weather_animation_enabled       BOOLEAN NOT NULL DEFAULT TRUE,
     created_at                      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at                      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
