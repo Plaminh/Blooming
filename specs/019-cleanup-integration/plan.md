@@ -1,24 +1,56 @@
-# Implementation Plan: Corrective integration cleanup
+# Implementation Plan: Corrective Bug Fixes and Technical Cleanup
 
-Frontend: SvelteKit / Svelte 5 / TypeScript. Backend: FastAPI / Pydantic / SQLAlchemy / PostgreSQL. Desktop: Tauri 2 / Rust.
+Frontend: SvelteKit / Svelte 5 / TypeScript. Backend: FastAPI / Pydantic / SQLAlchemy / PostgreSQL.
 
-## Scope and governance
+## Scope and Governance
 
-The user's corrective decision overrides the constitution's new-test requirement for this feature: remove feature-specific tests, retain historical tests, and validate through static checks, builds, unaffected tests and manual exercises. No commit or push. Never recreate the developer database volume automatically.
+This plan addresses a specific set of critical bug fixes for the Daily Plan replacement constraint, the `CREATE_PLAN` reminder action, frontend testing, and dead-code removal for garden vitality.
 
-## Implementation order
+**Testing restrictions for this feature:**
+- NO backend testing (unit, integration, API) will be implemented in this phase. Do not create test files, `conftest.py`, or configure SQLite/Testcontainers.
 
-1. Audit the diff, remove the two feature Alembic revisions, test-only additions, rewrite scripts and unused event contracts; restore editor files and unrelated root lockfile churn.
-2. Edit the authoritative CREATE TABLE files in `database/migrations/` directly: `01_users_and_auth.sql`, `04_tasks_and_dependencies.sql`, `08_heart_and_garden.sql`. No feature Alembic migration and no baseline revision edits. Keep existing currency, plants, ownership and legacy stage intact.
-3. Synchronize ORM and Pydantic contracts. Task category is Learning, Work, Personal or NULL. Growth points are nonnegative; expose `growth_stage` separately from persisted `stage`: SPROUTING 0-99, GROWING 100-299, BLOOMING 300-699, FLOURISHING 700+. Reminder lead time is 0-43200 minutes, default 1440.
-4. Repair `PATCH /api/v1/today/tasks/{task_id}` and `POST /api/v1/today/replan`. Use the deterministic scheduler, preserve completed/active/locked/fixed blocks and surface failures. Emit Tauri schedule events only following successful API operations.
-5. Award task growth (10) or milestone growth (50) directly with the eligible Leaves ledger entry, reusing original completion keys. Serialize balance updates and never commit in reward helpers. No GROWTH currency.
-6. Synchronize milestone reminders on creation, deadline/title/status edits and lead-time changes. Preserve `original_due_at` as deadline; `due_at` is deadline minus lead time. Quiet hours use UserSettings timezone and enable flag, inclusive start/exclusive end, same-day/overnight, invalid-zone UTC fallback, without status mutation on suppression.
-7. Share typed API contracts and atlas-backed species/stage/vitality mapping. Unknown/unavailable garden data renders a neutral fallback. Task edit drafts survive errors; title, duration, category and notes use one request contract. Countdown transition is guarded in an effect, never derived computation.
-8. Extend the existing typed `platform/desktopWindow.ts` wrapper for events, autostart, always-on-top and tray state. Reconcile actual native state, propagate failures. Poll from the root application layout in the companion window; keep it alive when hidden. Rust creates one clickable tray and propagates command errors. No native notification popup or Rust reminder scheduler.
+## Implementation Order
+
+### 1. Database Migrations and Models (Daily Plan)
+1. Edit `database/migrations/05_daily_planning.sql` directly to remove the `UNIQUE (user_id, plan_date)` constraint and replace it with a partial unique index on `(user_id, plan_date)` where status is `DRAFT`, `CONFIRMED`, or `ACTIVE`.
+2. Do not add an Alembic revision for this fix. Existing databases require manual recreation or a separately executed manual schema update. Never recreate or delete the developer’s database automatically.
+3. Update `backend/app/db/models/daily_plans.py` to remove `UniqueConstraint` and add `Index` with `postgresql_where`.
+
+### 2. Services: Planning and Reminders
+1. **Planning Service**: Ensure `save_daily_plan` naturally archives the old plan and persists the new one. The new partial unique index will resolve the `IntegrityError`. No extra cleanup code should be needed if the state changes correctly.
+2. **Reminders Service**: Refactor `CREATE_PLAN` action in `backend/app/services/reminders_service.py`.
+   - Read user's timezone from `UserSettings`.
+   - Resolve local date accurately using `now.astimezone(tz).date()`.
+   - Replace `db.add(DailyPlan(...))` with `crud_daily_plan.create_draft(...)`.
+   - Catch `PlanAlreadyExistsError` to return a user-friendly message redirecting them to the Today screen and mark the action COMPLETED. Keep the current 30-minute task logic.
+
+### 3. Economy Constants (Garden)
+1. Remove `VITALITY_WATERING_EFFECT` from `backend/app/core/economy.py`.
+2. Remove any dead references or imports of this constant.
+3. Verify `water_plant()` in `backend/app/services/garden_service.py` functions correctly by updating `last_watered_at` and does not refer to the deleted constant.
+
+### 4. Frontend Testing
+1. Update `frontend/src/lib/features/today/TodayView.test.ts`.
+2. Refactor the MSW (or local SvelteKit mock) network handler for `/today` to correctly match the bare `/today` request and the `/today?date=...` request.
+3. Verify that `TodayView.test.ts` passes without altering `+page.svelte`.
+
+## Affected Files
+
+### Backend
+- `backend/app/db/models/daily_plans.py`
+- `backend/app/services/reminders_service.py`
+- `backend/app/core/economy.py`
+- `backend/app/services/garden_service.py` (if imports exist)
+- `database/migrations/05_daily_planning.sql`
+
+### Frontend
+- `frontend/src/lib/features/today/TodayView.test.ts`
+
+## Error-Handling Behavior
+- `PlanAlreadyExistsError` during `CREATE_PLAN`: Handled gracefully. Converted to a success response directing the user to the Today page, not a 500 server error.
+- Invalid or missing Timezone: Should fallback to UTC when resolving the date for `CREATE_PLAN`.
 
 ## Validation
-
-Use Python compile, Ruff lint on changed production files and format checks on substantially edited files, FastAPI import/lifespan/route checks, SQLAlchemy metadata inspection, disposable PostgreSQL initialization and direct service exercises. Preserve baseline formatting in unchanged backend definitions. No backend test files remain; no Python type checker is configured. Frontend: `npm run check`, the complete unfiltered `npm run test`, production build; no repository formatter/linter script is configured. Rust: `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo build`, and `cargo test` (zero tests is not native runtime evidence).
-
-Record actual results and manual runtime gaps in quickstart.md. Native runtime tasks stay open until exercised. Existing local databases must be manually updated or recreated for direct SQL-file changes to take effect; CREATE TABLE IF NOT EXISTS does not alter existing tables.
+- **Backend checks**: `ruff check`, `ruff format`, `pytest` (only running existing unaffected tests, DO NOT write new backend tests).
+- **Database checks**: Confirm the direct SQL edits are correct. Existing instances must be manually recreated.
+- **Frontend checks**: `npm run test` for the Today feature to verify the fix.

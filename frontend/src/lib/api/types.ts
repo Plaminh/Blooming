@@ -40,7 +40,15 @@ export interface TodayBlock {
   status: "PLANNED" | "ACTIVE" | "COMPLETED" | "SKIPPED" | "CANCELLED";
   block_type: "TASK" | "BREAK" | "BUFFER" | "FIXED_EVENT";
 }
+export interface UnscheduledReason {
+  code: string;
+  task_id: string;
+  dependency_id?: string | null;
+}
 export interface TodayResponse {
+  timezone?: string;
+  unscheduled_tasks?: string[];
+  reasons?: UnscheduledReason[];
   plan_date: string;
   status: string;
   blocks?: TodayBlock[];

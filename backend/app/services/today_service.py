@@ -1,4 +1,7 @@
+import logging
 from datetime import date, datetime, timezone
+
+from fastapi.encoders import jsonable_encoder
 from uuid import UUID
 
 from sqlalchemy import select
@@ -10,27 +13,31 @@ from app.core.scheduler import DeterministicScheduler, ScheduleTask, ScheduleWin
 from app.core.time_utils import safe_timezone
 from app.crud.crud_daily_plan import daily_plan as crud_daily_plan
 from app.crud.crud_task import task as crud_task
-from app.db.models.daily_plans import PlanBlock
+from app.db.models.daily_plans import PlanBlock, PlanRevision
 from app.db.models.tasks import Task
 from app.db.models.users import UserSettings
 from app.schemas.today import TodayTaskEdit, TodayTaskStatusUpdate
+
+
+logger = logging.getLogger(__name__)
+USABLE_PLAN_STATUSES = {"CONFIRMED", "ACTIVE", "COMPLETED"}
 
 
 class TodayService:
     async def get_today(
         self, db: AsyncSession, user_id: UUID, local_date: date | None = None
     ) -> dict:
+        settings = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+        tz = safe_timezone(settings.timezone if settings else "UTC")
         if local_date is None:
-            settings = await db.scalar(
-                select(UserSettings).where(UserSettings.user_id == user_id)
-            )
-            tz = safe_timezone(settings.timezone if settings else "UTC")
             local_date = datetime.now(tz).date()
 
         plan = await crud_daily_plan.get_by_date(db, user_id, local_date)
-        if not plan or plan.status == "DRAFT":
-            return {"plan_date": local_date, "status": "NO_PLAN"}
+        if not plan or plan.status not in USABLE_PLAN_STATUSES:
+            return {"plan_date": local_date, "status": "NO_PLAN", "timezone": str(tz)}
 
+        revision = await db.scalar(select(PlanRevision).where(PlanRevision.daily_plan_id == plan.id).order_by(PlanRevision.revision_number.desc()).limit(1))
+        scheduling = revision.after_snapshot if revision else {}
         blocks = sorted(plan.plan_blocks, key=lambda b: b.planned_start_at)
 
         block_dicts = []
@@ -58,12 +65,15 @@ class TodayService:
             "status": plan.status,
             "reality_check": plan.reality_check,
             "blocks": block_dicts,
+            "timezone": str(tz),
+            "unscheduled_tasks": scheduling.get("unscheduled_tasks", []),
+            "reasons": scheduling.get("reasons", []),
         }
 
     async def update_task_from_today(
         self, db: AsyncSession, user_id: UUID, task_id: UUID, obj_in: TodayTaskEdit
     ) -> Task:
-        task_db = await crud_task.get_with_plan_blocks(db, id=task_id)
+        task_db = await crud_task.get_with_plan_blocks(db, id=task_id, user_id=user_id)
         if not task_db:
             raise ResourceNotFoundError("Task not found")
         if task_db.user_id != user_id:
@@ -100,7 +110,7 @@ class TodayService:
         from app.db.models.users import User
 
         await db.execute(select(User.id).where(User.id == user_id).with_for_update())
-        task_db = await crud_task.get_with_plan_blocks(db, id=task_id)
+        task_db = await crud_task.get_with_plan_blocks(db, id=task_id, user_id=user_id)
         if not task_db:
             raise ResourceNotFoundError("Task not found")
         if task_db.user_id != user_id:
@@ -158,7 +168,6 @@ class TodayService:
     async def replan_today(
         self, db: AsyncSession, user_id: UUID, commit: bool = True
     ) -> dict:
-        from app.core.errors import ValidationError
         from app.db.models.users import User
 
         await db.execute(select(User.id).where(User.id == user_id).with_for_update())
@@ -170,36 +179,31 @@ class TodayService:
             safe_timezone(settings.timezone if settings else "UTC")
         ).date()
         plan = await crud_daily_plan.get_by_date(db, user_id, local_date)
-        if not plan or plan.status == "DRAFT":
+        if not plan or plan.status not in USABLE_PLAN_STATUSES:
             return {"plan_date": local_date, "status": "NO_PLAN"}
         await db.refresh(plan, ["plan_blocks", "availability_windows"])
         blocks = list(plan.plan_blocks)
-        task_ids = {b.task_id for b in blocks if b.task_id}
+        previous = await db.scalar(select(PlanRevision).where(PlanRevision.daily_plan_id == plan.id).order_by(PlanRevision.revision_number.desc()).limit(1))
+        pending_ids = {UUID(tid) for tid in previous.after_snapshot.get("unscheduled_tasks", [])} if previous else set()
+        task_ids = {b.task_id for b in blocks if b.task_id} | pending_ids
         tasks = {
             t.id: t
             for t in (
                 await db.scalars(
                     select(Task)
                     .options(selectinload(Task.dependencies))
-                    .where(Task.id.in_(task_ids))
+                    .where(Task.id.in_(task_ids), Task.user_id == user_id)
                 )
             ).all()
         }
+        from app.db.models.focus import FocusRun
+        active_task_ids = set((await db.scalars(select(FocusRun.task_id).where(FocusRun.user_id == user_id, FocusRun.status.in_(("READY", "FOCUSING", "PAUSED"))))).all())
         preserved, eligible = [], []
         for block in blocks:
             task = tasks.get(block.task_id)
-            if (
-                block.status != "PLANNED"
-                or block.is_locked
-                or block.block_type == "FIXED_EVENT"
-                or (
-                    task
-                    and (
-                        task.scheduling_type == "FIXED"
-                        or task.status not in ("DRAFT", "PENDING")
-                    )
-                )
-            ):
+            terminal = block.status in ("COMPLETED", "SKIPPED", "CANCELLED") or (task and task.status in ("COMPLETED", "SKIPPED", "CANCELLED"))
+            fixed_remaining = block.planned_end_at > now and (block.is_locked or block.status == "ACTIVE" or block.task_id in active_task_ids or block.block_type == "FIXED_EVENT" or (task and task.scheduling_type == "FIXED"))
+            if terminal or fixed_remaining:
                 preserved.append(block)
             else:
                 eligible.append(block)
@@ -211,6 +215,8 @@ class TodayService:
             if w.available_end_at > now
         ]
         for block in preserved:
+            if block.status in ("COMPLETED", "SKIPPED", "CANCELLED") or (tasks.get(block.task_id) and tasks[block.task_id].status in ("COMPLETED", "SKIPPED", "CANCELLED")):
+                continue
             gaps = []
             for window in windows:
                 if (
@@ -237,10 +243,13 @@ class TodayService:
             ).all()
         )
         schedule_tasks = []
-        for task_id in {b.task_id for b in eligible if b.task_id}:
-            task = tasks[task_id]
+        candidate_ids = {b.task_id for b in eligible if b.task_id} | pending_ids
+        for task_id in sorted(candidate_ids, key=str):
+            task = tasks.get(task_id)
+            if not task or task.status not in ("DRAFT", "PENDING", "IN_PROGRESS"):
+                continue
             reserved_minutes = sum(
-                int((b.planned_end_at - b.planned_start_at).total_seconds() // 60)
+                max(0, int((b.planned_end_at - (b.planned_start_at if b.status == "COMPLETED" else max(b.planned_start_at, now))).total_seconds() // 60))
                 for b in preserved
                 if b.task_id == task_id
             )
@@ -267,11 +276,11 @@ class TodayService:
                     ],
                 )
             )
-        result = DeterministicScheduler().schedule(schedule_tasks, windows)
-        if result.unscheduled_tasks:
-            raise ValidationError(
-                "Unable to fit unfinished work and dependencies in the remaining availability. Adjust the plan and try again."
-            )
+        reserved_ends = {}
+        for block in preserved:
+            if block.task_id and block.task_id not in completed_ids and block.planned_end_at > now and block.status not in ("SKIPPED", "CANCELLED"):
+                reserved_ends[block.task_id] = max(reserved_ends.get(block.task_id, now), block.planned_end_at)
+        result = DeterministicScheduler().schedule(schedule_tasks, windows, satisfied_dependencies=reserved_ends)
         for block in eligible:
             await db.delete(block)
         await db.flush()
@@ -291,10 +300,13 @@ class TodayService:
                     created_by="SCHEDULER",
                 )
             )
+        plan.reality_check = "OVERLOADED" if result.unscheduled_tasks else ("COMFORTABLE" if result.workload_minutes <= result.available_minutes * 0.8 else "TIGHT")
+        db.add(PlanRevision(daily_plan_id=plan.id, revision_number=(previous.revision_number if previous else 0) + 1, reason="Replan unfinished work", trigger_type="RECOVERY", generated_by="SYSTEM", before_snapshot={"block_ids": [str(b.id) for b in blocks]}, after_snapshot=jsonable_encoder({"unscheduled_tasks": result.unscheduled_tasks, "reasons": result.reasons})))
         await db.flush()
         await db.refresh(plan, ["plan_blocks"])
         if commit:
             await db.commit()
+        logger.info("replan_result", extra={"unscheduled_count": len(result.unscheduled_tasks), "scheduled_count": len(result.blocks), "committed": commit})
         return await self.get_today(db, user_id, local_date)
 
 

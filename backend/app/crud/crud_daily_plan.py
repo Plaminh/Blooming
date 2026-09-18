@@ -53,14 +53,14 @@ class CRUDDailyPlan:
         )
         return result.scalars().first()
 
-    async def get(self, db: AsyncSession, id: UUID) -> DailyPlan | None:
+    async def get(self, db: AsyncSession, id: UUID, user_id: UUID) -> DailyPlan | None:
         result = await db.execute(
             select(DailyPlan)
             .options(
                 selectinload(DailyPlan.plan_blocks).selectinload(PlanBlock.task),
                 selectinload(DailyPlan.availability_windows),
             )
-            .where(DailyPlan.id == id)
+            .where(DailyPlan.id == id, DailyPlan.user_id == user_id)
         )
         return result.scalars().first()
 

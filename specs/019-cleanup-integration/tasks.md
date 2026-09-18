@@ -1,150 +1,34 @@
-# Tasks: Full-Stack Cleanup and Missing Integration Completion
+# Implementation Tasks: Corrective Bug Fixes and Technical Cleanup
 
 **Input**: Design documents from `/specs/019-cleanup-integration/`
 
-**Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/, quickstart.md
+**Prerequisites**: plan.md, spec.md
 
-**Validation decision**: No new feature-specific test files. Preserve historical tests; only adapt a pre-existing test where an intentional production type change requires it. Validate with static checks, builds, unaffected tests and recorded manual flows.
+## Phase 1: Database Migration and Models (Daily Plan Replace Fix)
 
-**Organization**: Tasks are grouped by user story and phase to enable independent implementation and testing of each story.
+- [ ] T001: Edit `database/migrations/05_daily_planning.sql` directly to drop the `daily_plans_one_per_local_date` constraint and add a partial unique index `daily_plans_one_active_per_local_date` on `(user_id, plan_date)` where status is `DRAFT`, `CONFIRMED`, or `ACTIVE`. Do not add an Alembic revision for this fix.
+- [ ] T002: Update `backend/app/db/models/daily_plans.py` to replace `UniqueConstraint` with an SQLAlchemy `Index(..., postgresql_where=...)`.
 
-## Phase 1: Baseline and safety (Shared Infrastructure)
+## Phase 2: Reminder Service (CREATE_PLAN Fix)
 
-**Purpose**: Confirm the active feature artifacts, constitution, and current state.
+- [ ] T004: Update `backend/app/services/reminders_service.py` to retrieve `UserSettings.timezone`, fallback to UTC, and determine `local_date` correctly using `now.astimezone(tz).date()`.
+- [ ] T005: Update the `CREATE_PLAN` logic in `reminders_service.py` to call `crud_daily_plan.create_draft(...)` instead of inserting a `DailyPlan` instance directly.
+- [ ] T006: Add try-except logic in the `CREATE_PLAN` block to catch `PlanAlreadyExistsError`. Upon catching, mark the action as COMPLETED and return a user-friendly message: "A plan already exists for today. Open Today to view it."
 
-- [x] T001 Record the current migration head and check status in `backend/alembic/versions/` and log.
-- [x] T002 [P] Search for hard-coded plant species and sprite frames in `frontend/src/`.
-- [x] T003 [P] Search for hard-coded task categories and obsolete `blooming:*` events in `frontend/src/`.
-- [x] T004 [P] Search for milestone-reminder localStorage keys in `frontend/src/`.
-- [x] T005 [P] Audit `backend/tests/`: no historical backend tests remain after removing feature-only files; do not claim pytest passed.
-- [x] T006 [P] Run and record frontend checks/build and the complete unfiltered test suite in `frontend/`; correct the obsolete TodayView category expectation.
-- [x] T007 [P] Run and record Rust formatting, strict Clippy, build and cargo test in `frontend/src-tauri/`; cargo test passes with zero tests.
+## Phase 3: Dead Code Removal (Garden Vitality)
 
----
+- [ ] T007: Remove the `VITALITY_WATERING_EFFECT` constant from `backend/app/core/economy.py`.
+- [ ] T008: Search the backend codebase and remove any unused imports of `VITALITY_WATERING_EFFECT` (e.g., in `garden_service.py`).
 
-## Phase 2: Contract foundations (Blocking Prerequisites)
+## Phase 4: Frontend Testing (TodayView Fix)
 
-**Purpose**: Update API/native contracts and shared typed models.
+- [ ] T009: Update `frontend/src/lib/features/today/TodayView.test.ts` to properly intercept both `/today` (no date query param) and `/today?date=YYYY-MM-DD`. Ensure the mock returns correct initial data when no date query is provided.
+- [ ] T010: Run frontend tests to ensure `TodayView.test.ts` passes successfully without modifying `+page.svelte`.
 
-- [x] T012 [P] Update API client contracts for `Category` and `GardenState` in `frontend/src/lib/api/types.ts` (or equivalent).
-- [x] T013 [P] Define `blooming:schedule-updated` Tauri event typed payload in `frontend/src/lib/platform/desktopWindow.ts` (or equivalent).
+## Verification Instructions
 
----
-
-## Phase 3: Direct SQL schema and models
-
-**Purpose**: Edit authoritative CREATE TABLE definitions directly and synchronize ORM models. No feature Alembic migration; preserve the baseline.
-
-- [x] T014 Modify existing `database/migrations/01_users_and_auth.sql`, `04_tasks_and_dependencies.sql`, and `08_heart_and_garden.sql` directly for `category` in `tasks`, `growth_points` in `garden_states`, and `milestone_reminder_lead_time_minutes` in `user_settings`.
-- [x] T015 Update `Task` model in `backend/app/db/models/tasks.py` with `category` field.
-- [x] T016 Update `GardenState` model in `backend/app/db/models/garden.py` with `growth_points` field.
-- [x] T017 Update `UserSettings` model in `backend/app/db/models/users.py` with `milestone_reminder_lead_time_minutes` field.
-- [x] T018 Update Pydantic schemas in `backend/app/schemas/` to reflect model changes.
-- [x] T019 Initialize the SQL schema in an isolated disposable PostgreSQL database and inspect SQLAlchemy metadata; never alter the developer volume.
-
----
-
-## Phase 4: User Story 1 - Today Page Actions (Priority: P1)
-
-**Goal**: The Edit and Replan actions on the Today page perform real operations and refresh the schedule.
-
-**Independent Test**: Edit a block's title/notes and Replan unfinished blocks, ensuring backend updates and UI refreshes via Tauri event.
-
-### Implementation for User Story 1
-
-- [x] T020 [US1] Expose Replan endpoint (`POST /api/v1/today/replan`) in `backend/app/api/routes/today.py` using the deterministic scheduler.
-- [x] T021 [US1] Update task update flow (`PATCH /api/v1/today/tasks/{task_id}`) to handle `description` (Notes) and `category` in `backend/app/api/routes/today.py` and `today_service.py`.
-- [x] T022 [US1] Wire Today page Edit UI to map `description` to Notes and save via API in `frontend/src/routes/(app)/today/+page.svelte` and related components.
-- [x] T023 [US1] Wire Today page Replan action to the real backend endpoint in `frontend/src/routes/(app)/today/+page.svelte`.
-- [x] T024 [US1] Replace fake Category/Notes mappings and show `Uncategorized` for `NULL` categories in `frontend/src/lib/features/today/types.ts` and UI components.
-- [ ] T025 [US1] Emit `blooming:schedule-updated` Tauri event from main window on successful Replan and Focus Start in `frontend/src/routes/(app)/today/+page.svelte`.
-- [ ] T026 [US1] Listen to Tauri event `blooming:schedule-updated` in the companion widget `frontend/src/routes/widget/+page.svelte` to refresh data.
-
----
-
-## Phase 5: User Story 2 - Accurate Garden State (Priority: P1)
-
-**Goal**: Plant's actual species, growth stage, and vitality reflect in the widget and garden views based on thresholds.
-
-**Independent Test**: Complete a task to earn points, then verify the garden and widget views display the derived valid sprite frames.
-
-### Implementation for User Story 2
-
-- [x] T027 [US2] Centralize growth point thresholds (`SPROUTING`, `GROWING`, `BLOOMING`, `FLOURISHING`) and reward amounts in `backend/app/services/garden_service.py`.
-- [x] T028 [US2] Implement atomic growth award logic for eligible task/milestone completion in `backend/app/services/garden_service.py`.
-- [x] T029 [US2] Update Garden API response to expose `growth_points` and derived `growth_stage` in `backend/app/api/routes/garden.py`.
-- [x] T030 [US2] Add shared sprite-frame mapping utility in `frontend/src/lib/features/garden/utils/spriteMapper.ts` that maps species and growth stage to exact frames based on actual sprite atlas dimensions.
-- [x] T031 [US2] Update widget view (`frontend/src/routes/widget/+page.svelte`) and garden view to load authoritative selected-plant state and use the sprite-frame mapping, removing hardcoded `monstera` and frame `0`.
-
----
-
-## Phase 6: User Story 3 - Milestone Reminders & Quiet Hours (Priority: P2)
-
-**Goal**: Milestone reminders trigger at correct lead times and respect quiet hours.
-
-**Independent Test**: Set lead time to 1 day before, configure quiet hours to an overnight range, and verify reminder evaluation correctly offsets time and suppresses notification.
-
-### Implementation for User Story 3
-
-- [x] T033 [P] [US3] Add a pure local-time interval helper for quiet hours in `backend/app/core/time_utils.py`.
-- [x] T034 [US3] Implement quiet hours suppression logic using IANA timezone in `backend/app/services/reminders_service.py` during polling evaluation.
-- [x] T035 [US3] Implement milestone reminder lead time calculation without modifying milestone deadlines in `backend/app/services/reminders_service.py` and `backend/app/services/goals_service.py`.
-- [x] T036 [US3] Persist and load milestone reminder lead time in Settings UI (`frontend/src/lib/features/settings/components/organisms/NotificationsPanel.svelte`), presenting clear choices (e.g., 24h).
-- [x] T037 [US3] Remove obsolete milestone-reminder localStorage keys and compatibility state from frontend stores/utils.
-
----
-
-## Phase 7: User Story 4 - Desktop Integrations (Priority: P2)
-
-**Goal**: Implement Start at login, Always-on-top, and a tray icon indicator.
-
-**Independent Test**: Toggle autostart/always-on-top to verify behavior, and create a due reminder to verify the tray icon changes to a red-dot variant.
-
-### Implementation for User Story 4
-
-- [x] T038 [US4] Add `tauri-plugin-autostart` dependency in `frontend/src-tauri/Cargo.toml` and register plugin in `lib.rs`.
-- [x] T039 [US4] Add Tauri capabilities/permissions for always-on-top and autostart in `frontend/src-tauri/tauri.conf.json` or `capabilities/`.
-- [ ] T040 [US4] Add frontend native wrapper in `frontend/src/lib/platform/desktopWindow.ts` to sync Settings UI toggles (Always-on-top, Start at login) with Tauri APIs.
-- [ ] T041 [US4] Create exactly one tray instance using `tauri` tray API in `frontend/src-tauri/src/lib.rs`, reusing the Blooming leaf icon.
-- [ ] T042 [US4] Add centralized Rust tray-state command in `lib.rs` to toggle normal and red-dot tray assets.
-- [ ] T043 [US4] Call tray-state command from frontend reminder evaluation loop to set red-dot when reminders are due and clear when empty.
-
----
-
-## Phase 8: Polish & Cross-Cutting Concerns
-
-**Purpose**: Improvements that affect multiple user stories and final cleanup.
-
-- [ ] T044 [P] Ensure focus-session start errors surface via `aria-live` or toast in `frontend/src/routes/(app)/today/+page.svelte`.
-- [x] T045 [P] Prevent repeated widget countdown transitions and completion calls; verify in browser (native sleep/wake remains a manual gate) in `frontend/src/routes/widget/+page.svelte`.
-- [x] T046 [P] Suppress verification links and sensitive values in backend production output (`backend/app/core/logging.py` or equivalent).
-- [x] T047 [P] Remove obsolete `blooming:*` CustomEvent dispatch/listener logic entirely from the frontend.
-- [x] T048 [P] Remove dead imports, stale comments, and unreachable code across the repository.
-- [ ] T049 Run full verification checks: Python compile and available lint/format checks, unaffected tests, `npm run check`, frontend build, `cargo fmt --check`, strict Clippy, safe Tauri build, and manual native flows.
-- [x] T050 Update any API, migration, setup, and architecture documentation that has changed.
-
----
-
-## Dependencies and validation status
-
-SQL definitions and contracts precede production integrations. No new feature tests or migrations are permitted by the corrective scope decision. Completion boxes are reopened until applicable implementation and validation pass. Native runtime tasks remain open until manually exercised in Tauri; compilation alone is insufficient.
-
-The current validation evidence and outstanding checks are recorded in quickstart.md.
-
-
-## Completion evidence
-
-All 50 original boxes were reopened during the audit. T008-T011 and T032 were removed because the user prohibits new feature tests. Production/static/direct-database/browser evidence completes the checked tasks above; detailed results are in quickstart.md.
-
-Still open: T025-T026 (real cross-window events), T040-T043 (native settings, tray and background polling), T044 (real focus-start failure flow), and T049 (full verification including native runtime). Implementations exist and browser failure injection passes, but their native end-to-end evidence is incomplete. Do not mark them complete based only on compilation.
-
-## Final corrective pass
-
-- [x] T051 Persist initial GardenState on reads; retain conflict-safe creation, caller-owned mutation commits, reward rollback and concurrent idempotency. Verified against disposable PostgreSQL.
-- [x] T052 Keep Today save/Replan/Focus and Garden unlock/select/water successful after API success when native synchronization fails. Verified through Chromium failure injection; no new test files.
-- [x] T053 Snapshot native settings and compensate for failed API saves; report post-save local failures separately. Verified through Chromium failure injection.
-- [x] T054 Correct the existing SQL smoke test for reward_events and resource balances; install every authoritative SQL source and validate schema objects in disposable PostgreSQL.
-- [x] T055 Verify no complete_milestone callers remain; repair Goals/Reminders session dependencies and verify application import, route registration, lifespan and database health.
-- [x] T056 Add tray Quit and restrict hide-on-close to main/companion; remove root error content and main-window reminder polling. Source/build verification complete; native behavior remains under T040-T043/T049.
-- [x] T057 Remove obsolete feature-test bytecode and formatting-only changes from AST-identical backend definitions. Preserve useful historical tests and all functional changes.
-- [x] T058 Document non-destructive existing-database updates, actual validation results and exact remaining native checks in quickstart.md.
+- Verify `database/migrations/05_daily_planning.sql` and `backend/app/db/models/daily_plans.py` have the correct unique index and lack the old unique constraint. Existing instances require manual database recreation.
+- Ensure `save_daily_plan(replace_existing=True)` works by mocking or calling the planning service manually.
+- Run `npm run test` in the frontend directory.
+- Verify `CREATE_PLAN` no longer generates `DailyPlan` without `create_draft` and handles the existing plan error gracefully.
+- Run `ruff check` and `ruff format` on backend to ensure compliance.

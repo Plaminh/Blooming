@@ -58,8 +58,12 @@ class DailyPlan(Base):
             " OR (status <> 'COMPLETED')",
             name="daily_plans_completion_valid",
         ),
-        UniqueConstraint(
-            "user_id", "plan_date", name="daily_plans_one_per_local_date"
+        Index(
+            "daily_plans_one_active_per_local_date",
+            "user_id",
+            "plan_date",
+            unique=True,
+            postgresql_where=text("status IN ('DRAFT', 'CONFIRMED', 'ACTIVE')"),
         ),
     )
 

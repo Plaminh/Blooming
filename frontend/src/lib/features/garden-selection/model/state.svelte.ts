@@ -5,6 +5,7 @@ import type {
 } from "$lib/api/types";
 import {
   getPlantFrame,
+  getPlantScale,
   isPlantSpecies,
 } from "$lib/features/garden/utils/spriteMapper";
 import { desktop } from "$lib/platform/desktopWindow";
@@ -90,6 +91,10 @@ export class GardenSelectionViewModel {
 
   get selectedPlant(): PlantPresentation | undefined {
     return this.plants[this.currentIndex];
+  }
+
+  get selectedScale() {
+    return getPlantScale(this.growthStage, this.vitality);
   }
 
   get selectedFrame() {

@@ -123,7 +123,7 @@ class RemindersService:
         user_id: UUID,
     ) -> Reminder:
         await db.execute(select(User.id).where(User.id == user_id).with_for_update())
-        result = await db.execute(select(Reminder).where(Reminder.id == reminder_id))
+        result = await db.execute(select(Reminder).where(Reminder.id == reminder_id, Reminder.user_id == user_id))
         reminder = result.scalars().first()
 
         if not reminder:
@@ -194,42 +194,55 @@ class RemindersService:
                 reminder.status = "SCHEDULED" if reminder.due_at > now else "DUE"
 
         elif action_type == "CREATE_PLAN":
-            # Delegate plan creation to planning service if needed, or inline for small scope
-            # "Define the smallest valid plan that can be created from reminder context."
+            from app.db.models.daily_plans import PlanBlock
+            from app.db.models.tasks import Task
+            from app.crud.crud_daily_plan import daily_plan as crud_daily_plan
+            from app.core.errors import PlanAlreadyExistsError
+
+            settings = await db.scalar(
+                select(UserSettings).where(UserSettings.user_id == user_id)
+            )
+            tz = safe_timezone(settings.timezone if settings else "UTC")
+            local_date = now.astimezone(tz).date()
+
+            try:
+                plan = await crud_daily_plan.create_draft(
+                    db,
+                    user_id=user_id,
+                    plan_date=local_date,
+                    timezone_snapshot=settings.timezone if settings else "UTC",
+                    reality_check="COMFORTABLE",
+                )
+                plan_created = True
+            except PlanAlreadyExistsError:
+                plan_created = False
+
             reminder.status = "COMPLETED"
             reminder.completed_at = now
 
-            from app.db.models.daily_plans import DailyPlan, PlanBlock
-            from app.db.models.tasks import Task
+            if plan_created:
+                task = Task(
+                    user_id=user_id,
+                    milestone_id=reminder.milestone_id,
+                    title=f"Work on {reminder.message}",
+                    estimated_duration_minutes=30,
+                    priority="HIGH",
+                    status="DRAFT",
+                )
+                db.add(task)
+                await db.flush()
 
-            task = Task(
-                user_id=user_id,
-                milestone_id=reminder.milestone_id,
-                title=f"Work on {reminder.message}",
-                estimated_duration_minutes=30,
-                priority="HIGH",
-                status="DRAFT",
-            )
-            db.add(task)
-            await db.flush()
-
-            plan = DailyPlan(
-                user_id=user_id,
-                plan_date=now.date(),
-                status="DRAFT",
-                reality_check="COMFORTABLE",
-            )
-            db.add(plan)
-            await db.flush()
-
-            block = PlanBlock(
-                daily_plan_id=plan.id,
-                task_id=task.id,
-                title=task.title,
-                block_type="FLEXIBLE",
-                status="PLANNED",
-            )
-            db.add(block)
+                block = PlanBlock(
+                    daily_plan_id=plan.id,
+                    task_id=task.id,
+                    title=task.title,
+                    block_type="TASK",
+                    planned_start_at=now,
+                    planned_end_at=now + timedelta(minutes=30),
+                    position=0,
+                    status="PLANNED",
+                )
+                db.add(block)
 
         db.add(reminder)
         await db.flush()

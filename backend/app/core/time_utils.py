@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, time, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -6,6 +7,7 @@ def safe_timezone(name: str):
     try:
         return ZoneInfo(name)
     except (ZoneInfoNotFoundError, ValueError, TypeError):
+        logging.getLogger(__name__).warning("invalid_timezone_fallback", extra={"fallback": "UTC"})
         return timezone.utc
 
 

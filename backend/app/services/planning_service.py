@@ -10,19 +10,30 @@ from app.db.models.tasks import Task
 from app.schemas.planning import TaskCreate, TaskUpdate
 
 class PlanningService:
+    async def validate_dependency_times(self, db, user_id, dependencies, fixed_start):
+        for dep_id in dependencies:
+            dep = await crud_task.get(db, id=dep_id, user_id=user_id)
+            if not dep:
+                raise ResourceNotFoundError("Dependency task not found")
+            if fixed_start and dep.status != "COMPLETED" and dep.fixed_end_at and dep.fixed_end_at > fixed_start:
+                raise ValidationError(f"Dependency {dep_id} ends after the fixed task starts")
+
     async def create_task(self, db: AsyncSession, obj_in: TaskCreate, user_id: UUID) -> Task:
         if obj_in.dependencies:
             if len(set(obj_in.dependencies)) != len(obj_in.dependencies):
                 raise ValidationError("Duplicate dependencies are not allowed")
             for dep_id in obj_in.dependencies:
-                dep_task = await crud_task.get(db, id=dep_id)
+                dep_task = await crud_task.get(db, id=dep_id, user_id=user_id)
                 if not dep_task or dep_task.user_id != user_id:
-                    raise UnauthorizedOwnershipError("Dependency task not found or unauthorized")
+                    raise ResourceNotFoundError("Dependency task not found")
 
-        return await crud_task.create(db, obj_in=obj_in, user_id=user_id)
+        await self.validate_dependency_times(db, user_id, obj_in.dependencies, obj_in.fixed_start_at)
+        task = await crud_task.create(db, obj_in=obj_in, user_id=user_id)
+        await db.commit()
+        return task
 
     async def update_task(self, db: AsyncSession, task_id: UUID, obj_in: TaskUpdate, user_id: UUID) -> Task:
-        db_obj = await crud_task.get(db, id=task_id)
+        db_obj = await crud_task.get(db, id=task_id, user_id=user_id)
         if not db_obj:
             raise ResourceNotFoundError("Task not found")
         if db_obj.user_id != user_id:
@@ -43,7 +54,7 @@ class PlanningService:
 
             for dep_id in obj_in.dependencies:
                 if dep_id not in user_task_ids:
-                    raise UnauthorizedOwnershipError("Dependency task not found or unauthorized")
+                    raise ResourceNotFoundError("Dependency task not found")
 
             task_dict = {t.id: [d.depends_on_task_id for d in t.dependencies] for t in all_user_tasks}
             task_dict[task_id] = list(obj_in.dependencies)
@@ -88,10 +99,14 @@ class PlanningService:
             if merged_min_split > merged_estimated_duration:
                 raise ValidationError("min_split_duration_minutes cannot exceed estimated_duration_minutes")
 
-        return await crud_task.update(db, db_obj=db_obj, obj_in=obj_in)
+        dependencies = obj_in.dependencies if obj_in.dependencies is not None else [d.depends_on_task_id for d in db_obj.dependencies]
+        await self.validate_dependency_times(db, user_id, dependencies, merged_fixed_start)
+        task = await crud_task.update(db, db_obj=db_obj, obj_in=obj_in)
+        await db.commit()
+        return task
 
     async def get_task(self, db: AsyncSession, task_id: UUID, user_id: UUID) -> Task:
-        db_obj = await crud_task.get(db, id=task_id)
+        db_obj = await crud_task.get(db, id=task_id, user_id=user_id)
         if not db_obj:
             raise ResourceNotFoundError("Task not found")
         if db_obj.user_id != user_id:
@@ -102,12 +117,13 @@ class PlanningService:
         return await crud_task.get_multi_by_user(db, user_id=user_id, skip=skip, limit=limit)
 
     async def delete_task(self, db: AsyncSession, task_id: UUID, user_id: UUID) -> None:
-        db_obj = await crud_task.get(db, id=task_id)
+        db_obj = await crud_task.get(db, id=task_id, user_id=user_id)
         if not db_obj:
             raise ResourceNotFoundError("Task not found")
         if db_obj.user_id != user_id:
             raise UnauthorizedOwnershipError()
-        await crud_task.delete(db, id=task_id)
+        await crud_task.delete(db, id=task_id, user_id=user_id)
+        await db.commit()
 
     async def generate_timeline(self, db: AsyncSession, request: Any, user_id: UUID) -> Any:
         if len(set(request.task_ids)) != len(request.task_ids):
@@ -198,6 +214,7 @@ class PlanningService:
             draft_blocks.append(db_b)
 
         await db.flush()
+        await db.commit()
 
         return {
             "draft_id": draft_plan.id,
@@ -221,7 +238,7 @@ class PlanningService:
         from app.core.errors import PlanAlreadyExistsError, ValidationError
         from datetime import datetime, timezone
 
-        draft = await crud_daily_plan.get(db, request.draft_id)
+        draft = await crud_daily_plan.get(db, request.draft_id, user_id)
         if not draft:
             raise ResourceNotFoundError("Timeline Draft not found")
         if draft.user_id != user_id:
@@ -255,7 +272,7 @@ class PlanningService:
         result = await db.execute(
             select(DailyPlan)
             .options(selectinload(DailyPlan.plan_blocks))
-            .where(DailyPlan.id == draft.id)
+            .where(DailyPlan.id == draft.id, DailyPlan.user_id == user_id)
         )
         return result.scalars().first()
 

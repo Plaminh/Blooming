@@ -6,7 +6,7 @@
   } from "$lib/features/companion-widget/types/presentation";
   import { onMount } from "svelte";
   import { api, APIError } from "$lib/api";
-  import type { GardenState } from "$lib/api/types";
+  import type { GardenState, TodayResponse } from "$lib/api/types";
   import { selectedPlantPresentation } from "$lib/features/garden/utils/spriteMapper";
   import { desktop } from "$lib/platform/desktopWindow";
 
@@ -29,6 +29,7 @@
   let endRequested = $state(false);
   let completedSessionId: string | null = null;
   let fetching = false;
+  let finishWarning = $state<string | null>(null);
   let finishError = $state<string | null>(null);
 
   async function fetchSession() {
@@ -152,31 +153,23 @@
     finishError = null;
     const previousEndingLocal = isEndingLocal;
     try {
-      const startedAt = new Date(session.started_at);
-      let elapsedSeconds = 0;
-
-      if (session.status === "PAUSED" && session.paused_at) {
-        const pausedAt = new Date(session.paused_at);
-        elapsedSeconds =
-          Math.floor((pausedAt.getTime() - startedAt.getTime()) / 1000) -
-          session.total_paused_seconds;
-      } else {
-        elapsedSeconds =
-          Math.floor((now.getTime() - startedAt.getTime()) / 1000) -
-          session.total_paused_seconds;
-      }
-      const actualDurationSeconds = Math.max(0, elapsedSeconds);
-
-      await api.post("/focus/finish", {
+      const result: { replan?: TodayResponse | null } = await api.post("/focus/finish", {
+        run_id: session.id,
         outcome,
-        actual_duration_seconds: actualDurationSeconds,
         should_replan: true,
       });
+      finishWarning = result.replan?.unscheduled_tasks?.length
+        ? `Focus saved. ${result.replan.unscheduled_tasks.length} task(s) need manual scheduling. Open Today for details.`
+        : null;
       completedSessionId = session.id;
       activeSession = null;
       isEndingLocal = false;
-      await desktop.scheduleUpdated();
-      await desktop.hideCurrent();
+      try {
+        await desktop.scheduleUpdated();
+        if (!finishWarning) await desktop.hideCurrent();
+      } catch {
+        finishWarning = [finishWarning, "Focus saved, but window synchronization failed."].filter(Boolean).join(" ");
+      }
       await fetchSession();
     } catch (err: unknown) {
       isEndingLocal = previousEndingLocal;
@@ -193,7 +186,7 @@
       return {
         kind: "offline",
         activePlant,
-        speechText: "Waiting for a focus session...",
+        speechText: finishWarning ?? "Waiting for a focus session...",
       };
     }
 

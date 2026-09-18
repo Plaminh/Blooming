@@ -10,6 +10,7 @@ export type PlantFrameIndex =
 export interface ActivePlantPresentation {
   species: PlantSpecies;
   frameIndex: PlantFrameIndex;
+  scale?: number;
 }
 
 type WidgetScenePresentation = {

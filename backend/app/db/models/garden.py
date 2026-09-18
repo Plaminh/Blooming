@@ -185,15 +185,6 @@ class GardenState(Base):
         CheckConstraint("water_balance >= 0", name="garden_states_water_valid"),
         CheckConstraint("leaves_balance >= 0", name="garden_states_leaves_valid"),
         CheckConstraint("growth_points >= 0", name="garden_states_growth_points_valid"),
-        CheckConstraint(
-            "stage IN ('DORMANT', 'SPROUTING', 'GROWING', 'BLOOMING', 'FRUITING')",
-            name="garden_states_stage_valid",
-        ),
-        CheckConstraint(
-            "leaf_count >= 0 AND flower_count >= 0 AND fruit_count >= 0",
-            name="garden_states_visual_counts_valid",
-        ),
-        CheckConstraint("version >= 1", name="garden_states_version_valid"),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -215,24 +206,6 @@ class GardenState(Base):
     )
     last_watered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    stage: Mapped[str] = mapped_column(
-        String(20), nullable=False, server_default=text("'DORMANT'")
-    )
-    leaf_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("0")
-    )
-    flower_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("0")
-    )
-    fruit_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("0")
-    )
-    version: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("1")
-    )
-    stage_changed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

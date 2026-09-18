@@ -22,14 +22,24 @@ class TodayBlock(BaseModel):
     is_locked: bool
 
 
+class UnscheduledReason(BaseModel):
+    code: str
+    task_id: UUID
+    dependency_id: UUID | None = None
+
+
 class TodayResponse(BaseModel):
     plan_date: date
     status: str
+    timezone: str = "UTC"
+    unscheduled_tasks: list[UUID] = Field(default_factory=list)
+    reasons: list[UnscheduledReason] = Field(default_factory=list)
     reality_check: str | None = None
     blocks: list[TodayBlock] = Field(default_factory=list)
 
 
 class TodayNoPlanResponse(BaseModel):
+    timezone: str = "UTC"
     plan_date: date
     status: Literal["NO_PLAN"] = "NO_PLAN"
 

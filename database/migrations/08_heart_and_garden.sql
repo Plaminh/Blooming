@@ -67,25 +67,13 @@ CREATE TABLE IF NOT EXISTS garden_states (
     last_watered_at     TIMESTAMPTZ,
     growth_points       INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT garden_states_growth_points_valid CHECK (growth_points >= 0),
-    stage               VARCHAR(20) NOT NULL DEFAULT 'DORMANT',
-    leaf_count          INTEGER NOT NULL DEFAULT 0,
-    flower_count        INTEGER NOT NULL DEFAULT 0,
-    fruit_count         INTEGER NOT NULL DEFAULT 0,
-    version             INTEGER NOT NULL DEFAULT 1,
-    stage_changed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT garden_states_water_valid
         CHECK (water_balance >= 0),
     CONSTRAINT garden_states_leaves_valid
-        CHECK (leaves_balance >= 0),
-    CONSTRAINT garden_states_stage_valid
-        CHECK (stage IN ('DORMANT', 'SPROUTING', 'GROWING', 'BLOOMING', 'FRUITING')),
-    CONSTRAINT garden_states_visual_counts_valid
-        CHECK (leaf_count >= 0 AND flower_count >= 0 AND fruit_count >= 0),
-    CONSTRAINT garden_states_version_valid
-        CHECK (version >= 1)
+        CHECK (leaves_balance >= 0)
 );
 
 -- Seed catalog data idempotently

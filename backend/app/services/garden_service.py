@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from typing import Literal
 from uuid import UUID
@@ -20,6 +21,7 @@ GROWTH_THRESHOLDS = {
 }
 
 REWARD_AMOUNTS = {"TASK_COMPLETION": 10, "MILESTONE_COMPLETION": 50}
+logger = logging.getLogger(__name__)
 
 
 async def _ensure_garden_state(
@@ -76,6 +78,7 @@ async def award_resources(
         .returning(RewardEvent.id)
     )
     if inserted is None:
+        logger.info("resource_award_duplicate", extra={"event_type": event_type})
         return False
     if resource_type == "WATER":
         garden.water_balance += amount
@@ -88,6 +91,7 @@ async def award_resources(
         if amount > 0:
             garden.growth_points += growth.get(event_type, 0)
     await db.flush()
+    logger.info("resource_award_staged", extra={"event_type": event_type, "resource_type": resource_type, "amount": amount})
     return True
 
 
@@ -163,7 +167,7 @@ async def unlock_plant(
         return await get_garden_state(db, user_id)
 
     if garden.leaves_balance < plant.unlock_cost:
-        raise HTTPException(status_code=402, detail="Insufficient leaves")
+        raise HTTPException(status_code=409, detail={"code": "INSUFFICIENT_LEAVES", "message": "Insufficient leaves", "required": plant.unlock_cost, "available": garden.leaves_balance})
 
     garden.leaves_balance -= plant.unlock_cost
 
@@ -181,6 +185,7 @@ async def unlock_plant(
     db.add(event)
 
     await db.commit()
+    logger.info("plant_unlocked", extra={"plant_id": str(plant_id), "cost": plant.unlock_cost})
     return await get_garden_state(db, user_id)
 
 
@@ -195,7 +200,7 @@ async def select_plant(
     )
 
     if not ownership:
-        raise HTTPException(status_code=403, detail="Plant not owned")
+        raise HTTPException(status_code=404, detail="Unlocked plant not found")
 
     garden.selected_plant_id = plant_id
     await db.commit()
@@ -207,10 +212,10 @@ async def water_plant(db: AsyncSession, user_id: UUID) -> WaterPlantResponse:
     garden, _ = await _ensure_garden_state(db, user_id)
 
     if not garden.selected_plant_id:
-        raise HTTPException(status_code=400, detail="No plant selected")
+        raise HTTPException(status_code=409, detail="No plant selected")
 
     if garden.water_balance < WATERING_COST:
-        raise HTTPException(status_code=402, detail="Insufficient water")
+        raise HTTPException(status_code=409, detail={"code": "INSUFFICIENT_WATER", "message": "Insufficient water", "required": WATERING_COST, "available": garden.water_balance})
 
     garden.water_balance -= WATERING_COST
     now = datetime.now(timezone.utc)
@@ -225,6 +230,7 @@ async def water_plant(db: AsyncSession, user_id: UUID) -> WaterPlantResponse:
     )
     db.add(event)
     await db.commit()
+    logger.info("garden_watered", extra={"cost": WATERING_COST})
 
     return WaterPlantResponse(
         water_balance=garden.water_balance,

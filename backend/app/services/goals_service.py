@@ -16,7 +16,7 @@ class GoalsService:
         result = await db.execute(
             select(Goal)
             .options(selectinload(Goal.milestones))
-            .where(Goal.id == goal_id)
+            .where(Goal.id == goal_id, Goal.user_id == user_id)
         )
         goal = result.scalars().first()
         if not goal:

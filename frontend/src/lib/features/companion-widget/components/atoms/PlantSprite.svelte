@@ -26,6 +26,8 @@
   class="plant {className}"
   data-species={plant.species}
   data-frame={frame}
+  style:transform="scale({plant.scale ?? 1})"
+  style:transform-origin="bottom center"
   aria-hidden="true"
   style:--sheet-w="{PLANT_ATLAS.sheetWidth}px"
   style:--sheet-h="{PLANT_ATLAS.sheetHeight}px"

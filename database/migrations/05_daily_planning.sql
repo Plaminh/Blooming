@@ -29,10 +29,12 @@ CREATE TABLE IF NOT EXISTS daily_plans (
             (status = 'COMPLETED' AND completed_at IS NOT NULL)
             OR
             (status <> 'COMPLETED')
-        ),
-    CONSTRAINT daily_plans_one_per_local_date
-        UNIQUE (user_id, plan_date)
+        )
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS daily_plans_one_active_per_local_date 
+    ON daily_plans (user_id, plan_date) 
+    WHERE status IN ('DRAFT', 'CONFIRMED', 'ACTIVE');
 
 CREATE TABLE IF NOT EXISTS availability_windows (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),

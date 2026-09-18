@@ -35,6 +35,11 @@ export function getPlantFrame(
   if (vitality < 75) return 12;
   return healthyFrames[species][stage];
 }
+// Decline cells are mature silhouettes; retain development size for young plants.
+export function getPlantScale(stage: GrowthStage, vitality: number): number {
+  if (vitality >= 75) return 1;
+  return { SPROUTING: 0.45, GROWING: 0.7, BLOOMING: 0.9, FLOURISHING: 1 }[stage];
+}
 export function selectedPlantPresentation(
   garden: GardenState,
 ): ActivePlantPresentation | null {
@@ -44,6 +49,7 @@ export function selectedPlantPresentation(
   if (!plant || !isPlantSpecies(plant.species)) return null;
   return {
     species: plant.species,
+    scale: getPlantScale(garden.growth_stage, garden.vitality),
     frameIndex: getPlantFrame(
       plant.species,
       garden.growth_stage,

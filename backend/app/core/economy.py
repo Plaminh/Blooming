@@ -8,7 +8,6 @@ LEAVES_PER_MILESTONE = 1
 
 # Economy Constants
 WATERING_COST = 1
-VITALITY_WATERING_EFFECT = 10
 
 # Vitality Constants
 VITALITY_MAX = 100

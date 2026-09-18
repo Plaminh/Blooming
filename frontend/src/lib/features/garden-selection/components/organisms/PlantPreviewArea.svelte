@@ -9,8 +9,10 @@
   let {
     species,
     frameIndex,
+    scale = 1,
   }: {
     species: PlantSpecies;
+    scale?: number;
     frameIndex: import("$lib/features/companion-widget/types/presentation").PlantFrameIndex;
   } = $props();
 
@@ -18,7 +20,7 @@
 </script>
 
 <div class="plant-preview-area">
-  <div class="artwork-wrapper">
+  <div class="artwork-wrapper" style:transform="scale({scale})" style:transform-origin="bottom center">
     <SpriteRenderer
       {src}
       sheetWidth={PLANT_ATLAS.sheetWidth}

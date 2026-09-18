@@ -226,9 +226,9 @@ BEGIN
     );
 
     INSERT INTO garden_states (
-        user_id, water_balance, stage, leaf_count
+        user_id, water_balance, growth_points
     ) VALUES (
-        sample_user_id, 10, 'SPROUTING', 1
+        sample_user_id, 10, 1
     );
 
     IF NOT EXISTS (

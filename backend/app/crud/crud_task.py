@@ -37,20 +37,20 @@ class CRUDTask:
 
         await db.flush()
         # Return loaded instance
-        return await self.get(db, id=db_obj.id)
+        return await self.get(db, id=db_obj.id, user_id=db_obj.user_id)
 
-    async def get(self, db: AsyncSession, id: UUID) -> Task | None:
+    async def get(self, db: AsyncSession, id: UUID, user_id: UUID) -> Task | None:
         result = await db.execute(
-            select(Task).options(selectinload(Task.dependencies)).where(Task.id == id)
+            select(Task).options(selectinload(Task.dependencies)).where(Task.id == id, Task.user_id == user_id)
         )
         return result.scalars().first()
 
-    async def get_with_plan_blocks(self, db: AsyncSession, id: UUID) -> Task | None:
+    async def get_with_plan_blocks(self, db: AsyncSession, id: UUID, user_id: UUID) -> Task | None:
         result = await db.execute(
             select(Task).options(
                 selectinload(Task.dependencies),
                 selectinload(Task.plan_blocks)
-            ).where(Task.id == id)
+            ).where(Task.id == id, Task.user_id == user_id)
         )
         return result.scalars().first()
 
@@ -85,10 +85,10 @@ class CRUDTask:
                 db.add(dep_obj)
 
         await db.flush()
-        return await self.get(db, id=db_obj.id)
+        return await self.get(db, id=db_obj.id, user_id=db_obj.user_id)
 
-    async def delete(self, db: AsyncSession, *, id: UUID) -> Task | None:
-        obj = await db.get(Task, id)
+    async def delete(self, db: AsyncSession, *, id: UUID, user_id: UUID) -> Task | None:
+        obj = await self.get(db, id=id, user_id=user_id)
         if obj:
             await db.delete(obj)
             await db.flush()

@@ -1,6 +1,7 @@
 """Shared FastAPI dependencies."""
 
 import uuid
+import logging
 from collections.abc import AsyncGenerator
 from typing import Annotated
 
@@ -19,8 +20,10 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
-        except Exception:
+        except Exception as exc:
             await session.rollback()
+            if not isinstance(exc, HTTPException):
+                logging.getLogger(__name__).error("transaction_failed", extra={"error_type": type(exc).__name__})
             raise
 
 SessionDep = Annotated[AsyncSession, Depends(get_db_session)]

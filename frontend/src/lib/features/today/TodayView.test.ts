@@ -39,8 +39,12 @@ describe('Today Screen Feature', () => {
     vi.setSystemTime(new Date('2024-04-23T09:00:00Z'));
 
     (api.get as any).mockImplementation(async (url: string) => {
-      if (url.includes('2024-04-23')) {
-        return { blocks: mockBlocks };
+      const parsedUrl = new URL(url, "http://localhost");
+      if (parsedUrl.pathname === '/today') {
+        const dateParam = parsedUrl.searchParams.get('date');
+        if (!dateParam || dateParam === '2024-04-23') {
+          return { blocks: mockBlocks };
+        }
       }
       return { blocks: [] };
     });

@@ -1,10 +1,8 @@
-from typing import Sequence
 from uuid import UUID
 from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.focus import FocusRun, FocusRunEvent
-from app.schemas.focus import FocusSessionStart
 
 class CRUDFocus:
     async def get_active_session(self, db: AsyncSession, user_id: UUID) -> FocusRun | None:
@@ -12,7 +10,7 @@ class CRUDFocus:
             select(FocusRun).where(
                 FocusRun.user_id == user_id,
                 FocusRun.status.in_(['READY', 'FOCUSING', 'PAUSED'])
-            )
+            ).execution_options(populate_existing=True)
         )
         return result.scalars().first()
 

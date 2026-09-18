@@ -11,6 +11,9 @@
   let rail: RightRail;
 
   let currentDate = $state(new Date());
+  let requestedDate = $state<string | null>(null);
+  let planTimezone = $state("UTC");
+  let replanWarning = $state<string | null>(null);
   let tasks = $state<Task[]>([]);
   let selectedTaskId = $state("");
   let selectedFocusPreset = $state<FocusPreset>("25/5");
@@ -32,15 +35,7 @@
     loadError = null;
 
     try {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const isoDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
-
-      const params = new URLSearchParams({
-        date: isoDate,
-        tz: tz,
-      });
-
-      const data: TodayResponse = await api.get(`/today?${params.toString()}`);
+      const data: TodayResponse = await api.get(requestedDate ? `/today?date=${requestedDate}` : "/today");
 
       if (reqId !== currentRequestId) return;
 
@@ -56,7 +51,13 @@
   }
 
   function applySchedule(data: TodayResponse) {
-    if (data && data.blocks) {
+    planTimezone = data.timezone ?? "UTC";
+    const [year, month, day] = data.plan_date.split("-").map(Number);
+    currentDate = new Date(year, month - 1, day, 12);
+    replanWarning = data.unscheduled_tasks?.length
+      ? `${data.unscheduled_tasks.length} task(s) could not be scheduled. Completed work is saved. Adjust availability and replan. ${data.reasons?.map((reason) => `${reason.task_id}: ${reason.code}${reason.dependency_id ? ` (dependency ${reason.dependency_id})` : ""}`).join("; ") ?? ""}`
+      : null;
+    if (data.status !== "NO_PLAN" && data.blocks) {
       tasks = data.blocks.map((b) => {
         let start = new Date();
         let end = new Date();
@@ -78,11 +79,13 @@
             hour: "2-digit",
             minute: "2-digit",
             hour12: false,
+            timeZone: planTimezone,
           }),
           endTime: end.toLocaleTimeString("en-GB", {
             hour: "2-digit",
             minute: "2-digit",
             hour12: false,
+            timeZone: planTimezone,
           }),
           durationString: `(${Math.max(0, durationMins)} min)`,
           estimatedDurationMinutes:
@@ -112,11 +115,12 @@
 
   function handleDateChange(offset: number) {
     if (offset === 0) {
-      currentDate = new Date();
+      requestedDate = null;
     } else {
       const nextDate = new Date(currentDate);
       nextDate.setDate(nextDate.getDate() + offset);
       currentDate = nextDate;
+      requestedDate = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}-${String(nextDate.getDate()).padStart(2, "0")}`;
     }
     updateSchedule();
   }
@@ -235,7 +239,7 @@
       ++currentRequestId;
       isLoading = false;
       loadError = null;
-      currentDate = new Date();
+      requestedDate = null;
       applySchedule(data);
       await syncWidget("Replanned, but widget sync failed.");
     } catch (err: unknown) {
@@ -250,6 +254,9 @@
 </script>
 
 <div class="today-content">
+  {#if replanWarning}
+    <div class="toast-error" role="status" aria-live="polite">{replanWarning}</div>
+  {/if}
   {#if syncWarning}
     <div class="toast-error" role="status" aria-live="polite">
       {syncWarning}

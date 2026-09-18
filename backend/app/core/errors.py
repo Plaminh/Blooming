@@ -12,7 +12,7 @@ class AppError(HTTPException):
 
 class CyclicDependencyError(AppError):
     def __init__(self, message: str = "A cyclic dependency was detected."):
-        super().__init__(status.HTTP_400_BAD_REQUEST, "CYCLIC_DEPENDENCY", message)
+        super().__init__(status.HTTP_422_UNPROCESSABLE_ENTITY, "CYCLIC_DEPENDENCY", message)
 
 class ResourceNotFoundError(AppError):
     def __init__(self, message: str = "The requested resource was not found."):
@@ -40,8 +40,8 @@ class PlanAlreadyExistsError(AppError):
 
 class InvalidStatusTransitionError(AppError):
     def __init__(self, message: str = "The requested status transition is invalid."):
-        super().__init__(status.HTTP_400_BAD_REQUEST, "INVALID_STATUS_TRANSITION", message)
+        super().__init__(status.HTTP_409_CONFLICT, "INVALID_STATUS_TRANSITION", message)
 
 class ValidationError(AppError):
     def __init__(self, message: str = "A validation error occurred."):
-        super().__init__(status.HTTP_400_BAD_REQUEST, "VALIDATION_ERROR", message)
+        super().__init__(status.HTTP_422_UNPROCESSABLE_ENTITY, "VALIDATION_ERROR", message)

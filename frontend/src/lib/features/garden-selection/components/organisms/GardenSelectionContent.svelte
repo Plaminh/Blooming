@@ -38,6 +38,7 @@
           {#if vm.selectedFrame !== undefined}<PlantPreviewArea
               species={vm.selectedPlant.species}
               frameIndex={vm.selectedFrame}
+              scale={vm.selectedScale}
             />{/if}
           <PlantIdentity
             name={vm.selectedPlant.name}
