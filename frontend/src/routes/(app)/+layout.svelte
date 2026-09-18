@@ -28,17 +28,20 @@
 
   let variant = $derived('compact' as const);
   
-  let showSidebar = $derived(!$page.url.pathname.startsWith('/garden-selection'));
+  let isGardenSelection = $derived($page.url.pathname.startsWith('/garden-selection'));
+  let showSidebar = $derived(!isGardenSelection);
   let showGarden = $derived(
     $page.url.pathname.startsWith('/today') ||
     $page.url.pathname.startsWith('/goals')
   );
-  let canvasWidth = $derived($page.url.pathname.startsWith('/garden-selection') ? 'var(--bloom-garden-canvas-width)' : 'var(--bloom-app-canvas-width)');
-  let canvasHeight = $derived($page.url.pathname.startsWith('/garden-selection') ? 'var(--bloom-garden-canvas-height)' : 'var(--bloom-app-canvas-height)');
+  let canvasWidth = $derived(isGardenSelection ? 'var(--bloom-garden-canvas-width)' : 'var(--bloom-app-canvas-width)');
+  let canvasHeight = $derived(isGardenSelection ? 'var(--bloom-garden-canvas-height)' : 'var(--bloom-app-canvas-height)');
 </script>
 
 {#if $authStore.isInitialized && $authStore.isAuthenticated}
-  <DesktopAppShell {activeRoute} {variant} {showSidebar} {canvasWidth} {canvasHeight} overlay={$overlayStore}>
+  <DesktopAppShell {activeRoute} {variant} {showSidebar} {canvasWidth} {canvasHeight} overlay={$overlayStore}
+    showTitleBarSizeControls={!isGardenSelection}
+    onTitleBarClose={isGardenSelection ? () => { void goto('/today'); } : undefined}>
     <div class="page-layer" style="grid-area: layer;">
       {@render children()}
     </div>
@@ -69,7 +72,7 @@
     width: 100%;
   }
   
-  .garden-layer :global(.garden) {
+  .garden-layer :global(a.garden) {
     pointer-events: auto;
     height: 100%;
   }
@@ -82,7 +85,7 @@
     column-gap: 9px;
     padding: 9px 9px 10px 0;
   }
-  .garden-layer:not(.is-goals) :global(.garden) {
+  .garden-layer:not(.is-goals) :global(a.garden) {
     grid-column: 2;
     grid-row: 4;
   }
@@ -94,23 +97,14 @@
     column-gap: 10px;
     padding: 10px 10px 10px 12px;
   }
-  .garden-layer.is-goals :global(.garden) {
+  .garden-layer.is-goals :global(a.garden) {
     grid-column: 3;
     grid-row: 2;
     height: 270px;
     margin-bottom: 8px;
-  }
-  
-  /* Goals overrides */
-  .garden-layer.is-goals :global(.garden) {
     grid-template-rows: 39px 1fr 58px;
   }
   .garden-layer.is-goals :global(.garden .panel-strip) { height: 39px; }
   .garden-layer.is-goals :global(.garden .garden-footer) { font-size: 16px; }
-  .garden-layer.is-goals :global(.garden .flower) { bottom: 24px; height: 45px; }
-  .garden-layer.is-goals :global(.garden .flower::before) { width: 20px; height: 8px; top: 1px; }
-  .garden-layer.is-goals :global(.garden .flower::after) {
-    content: ''; position: absolute; left: 0; top: -6px; width: 7px; height: 20px; background: inherit;
-  }
   .garden-layer.is-goals :global(.garden .garden-footer span:last-child) { font-size: 18px; }
 </style>

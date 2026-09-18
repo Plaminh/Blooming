@@ -49,13 +49,19 @@
     try {
       // Backend does not accept display_name in /register, it's set via settings
       await authStore.register(data.email, data.password);
-      goto('/onboarding-preview'); // or just /today if onboarding isn't working yet
+      state.emailDeliveryFailed = false;
+      state.isAwaitingVerification = true;
     } catch (error) {
       if (error instanceof APIError) {
         if (error.status === 409) {
           state.setFieldError('email', 'Email already exists.');
         } else if (error.status === 502 || error.status === 503) {
-          state.setFieldError('general', 'Email service is currently unavailable.');
+          // Registration is committed before the verification email is sent.
+          state.emailDeliveryFailed = true;
+          state.isAwaitingVerification = true;
+          state.setFieldError('general', error.status === 503
+            ? 'Account created, but email service configuration is invalid. Please contact the administrator.'
+            : 'Account created, but the verification email could not be sent. Please try resending it.');
         } else {
           state.setFieldError('general', error.message || 'An error occurred during registration.');
         }
@@ -78,8 +84,9 @@
     state.setFieldError('general', null);
 
     try {
-      await api.post('/api/v1/auth/resend-verification', { email });
+      await api.post('/auth/resend-verification', { email });
       lastResend = Date.now();
+      state.emailDeliveryFailed = false;
       state.setFieldError('general', 'Verification email sent successfully.');
     } catch (error) {
        if (error instanceof APIError) {

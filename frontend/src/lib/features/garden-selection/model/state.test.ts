@@ -1,17 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { GardenSelectionViewModel } from './state.svelte';
-import type { PlantId, PlantPresentation, UserSessionState, GardenSelectionState } from '../types';
-
-const MONSTERA: PlantPresentation = {
-  id: 'monstera',
-  name: 'Monstera',
-  description: [
-    'A bold and beautiful plant with iconic leaves.',
-    'Brings a sense of calm and adventure to your space.'
-  ],
-  species: 'monstera',
-  unlockCost: 120
-};
 import { api } from '$lib/api';
 
 vi.mock('$lib/api', () => ({
@@ -131,8 +119,8 @@ describe('GardenSelectionViewModel', () => {
         ...mockGardenData,
         catalog: [
           mockGardenData.catalog[0],
-          { ...mockGardenData.catalog[0], id: 'sunflower', name: 'Sunflower', is_selected: false },
-          { ...mockGardenData.catalog[0], id: 'bonsai', name: 'Bonsai', is_selected: false }
+          { ...mockGardenData.catalog[0], id: 'sunflower', name: 'Sunflower', species: 'sunflower', is_selected: false },
+          { ...mockGardenData.catalog[0], id: 'bonsai', name: 'Bonsai', species: 'bonsai', is_selected: false }
         ]
       };
       (api.get as any).mockResolvedValue(multiData);
@@ -143,7 +131,7 @@ describe('GardenSelectionViewModel', () => {
     it('should navigate through plants', () => {
       expect(vm.currentIndex).toBe(0);
       expect(vm.selectedPlant?.id).toBe('monstera');
-      expect(vm.hasPrevious).toBe(false);
+      expect(vm.hasPrevious).toBe(true);
       expect(vm.hasNext).toBe(true);
 
       vm.next();
@@ -156,14 +144,15 @@ describe('GardenSelectionViewModel', () => {
       expect(vm.currentIndex).toBe(2);
       expect(vm.selectedPlant?.id).toBe('bonsai');
       expect(vm.hasPrevious).toBe(true);
-      expect(vm.hasNext).toBe(false);
+      expect(vm.hasNext).toBe(true);
       
-      // Should respect bounds
+      // Navigation wraps so both arrows remain usable.
       vm.next();
-      expect(vm.currentIndex).toBe(2);
+      expect(vm.currentIndex).toBe(0);
 
       vm.previous();
-      expect(vm.currentIndex).toBe(1);
+      expect(vm.currentIndex).toBe(2);
+
     });
   });
 

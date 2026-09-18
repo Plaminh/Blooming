@@ -8,6 +8,7 @@
   import { getPlantFrame } from "$lib/features/garden/utils/spriteMapper";
   import { onMount } from "svelte";
   import { desktop } from "$lib/platform/desktopWindow";
+  import { gardenUpdates } from "$lib/features/garden-selection/model/gardenUpdates";
 
   let { activeRoute = "TODAY" }: { activeRoute?: string } = $props();
 
@@ -18,6 +19,11 @@
   onMount(() => {
     let disposed = false;
     let off = () => {};
+    let first = true;
+    const offGarden = gardenUpdates.subscribe(() => {
+      if (first) { first = false; return; }
+      void vm.loadState();
+    });
     desktop
       .onScheduleUpdated(() => void vm.loadState())
       .then((cleanup) => {
@@ -30,6 +36,7 @@
     return () => {
       disposed = true;
       off();
+      offGarden();
     };
   });
 </script>

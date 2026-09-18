@@ -1,25 +1,15 @@
 <script lang="ts">
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
-  let { leaves, water }: { leaves: number, water: number } = $props();
+  let { leaves }: { leaves: number } = $props();
 </script>
 
-<div class="balances">
-  <div class="leaf-balance" aria-label="Leaf balance: {leaves}">
-    <AppIcon name="sprout" size="garden-balance" />
-    <span>{leaves}</span>
-  </div>
-  <div class="water-balance" aria-label="Water balance: {water}">
-    <AppIcon name="water" size="garden-balance" />
-    <span>{water}</span>
-  </div>
+<div class="leaf-balance" aria-label="Leaf balance: {leaves}">
+  <AppIcon name="sprout" size="garden-balance" />
+  <span>{leaves}</span>
 </div>
 
 <style>
-  .balances {
-    display: flex;
-    gap: 12px;
-  }
-  .leaf-balance, .water-balance {
+  .leaf-balance {
     display: flex;
     align-items: center;
     gap: 6px;

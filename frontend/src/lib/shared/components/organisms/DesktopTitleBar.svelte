@@ -12,16 +12,23 @@
     artworkVariant = variant,
     windowService = desktopWindowService,
     onAction = () => {},
+    showSizeControls = true,
+    draggable = true,
+    onClose,
   }: {
     variant?: 'standard' | 'compact';
     artworkVariant?: 'standard' | 'compact';
     windowService?: DesktopWindowService;
     onAction?: (action: TitleBarAction) => void;
+    showSizeControls?: boolean;
+    draggable?: boolean;
+    onClose?: () => void;
   } = $props();
 
   let maximized = $state(false);
 
   onMount(() => {
+    if (!showSizeControls) return;
     let active = true;
     void windowService.isCurrentMaximized().then((value) => {
       if (active) maximized = value;
@@ -43,12 +50,13 @@
 
   function hide() {
     onAction('close');
-    void windowService.hideCurrent();
+    if (onClose) onClose();
+    else void windowService.hideCurrent();
   }
 
   function draggableTitleBar(node: HTMLElement) {
     const startDragging = (event: MouseEvent) => {
-      if (event.button !== 0) return;
+      if (!draggable || event.button !== 0) return;
       const target = event.target;
       if (target instanceof Element && target.closest('.desktop-titlebar__controls')) return;
       void windowService.startDraggingCurrent();
@@ -75,6 +83,7 @@
     <span class="desktop-titlebar__title">BLOOMING</span>
   </div>
   <div class="desktop-titlebar__controls">
+    {#if showSizeControls}
     <button class="desktop-window-control" type="button" onclick={minimize} aria-label="Minimize window">
       <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
         <path d="M3 13.5h12" stroke="currentColor" stroke-width="2.5" />
@@ -96,6 +105,7 @@
         </svg>
       {/if}
     </button>
+    {/if}
     <button
       class="desktop-window-control desktop-window-control--close"
       type="button"

@@ -15,6 +15,8 @@
     canvasHeight = 'var(--bloom-app-canvas-height)',
     windowService = desktopWindowService,
     onTitleBarAction = () => {},
+    showTitleBarSizeControls = true,
+    onTitleBarClose,
     overlay,
     children
   }: {
@@ -26,6 +28,8 @@
     canvasHeight?: string;
     windowService?: DesktopWindowService;
     onTitleBarAction?: (action: 'minimize' | 'maximize' | 'close') => void;
+    showTitleBarSizeControls?: boolean;
+    onTitleBarClose?: () => void;
     overlay?: Snippet;
     children: Snippet;
   } = $props();
@@ -33,7 +37,7 @@
 
 <FixedCanvas width={canvasWidth} height={canvasHeight} label="Blooming desktop window">
   <div class="desktop-shell desktop-shell--{variant}" class:without-sidebar={!showSidebar}>
-    <DesktopTitleBar {variant} {artworkVariant} {windowService} onAction={onTitleBarAction} />
+    <DesktopTitleBar {variant} {artworkVariant} {windowService} onAction={onTitleBarAction} showSizeControls={showTitleBarSizeControls} onClose={onTitleBarClose} />
     <div class="desktop-shell__body">
       {#if showSidebar}
         <AppSidebar {activeRoute} />

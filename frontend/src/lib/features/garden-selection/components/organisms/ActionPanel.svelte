@@ -6,22 +6,18 @@
     cost, 
     isUnlocked,
     isSelected,
-    canUnlock, 
-    canWater,
-    vitality,
+    canUnlock,
+    leavesBalance,
     onUnlock,
     onSelect,
-    onWater
   }: { 
     cost: number; 
     isUnlocked: boolean; 
     isSelected: boolean;
     canUnlock: boolean; 
-    canWater: boolean;
-    vitality: number;
+    leavesBalance: number;
     onUnlock: () => void; 
     onSelect: () => void;
-    onWater: () => void;
   } = $props();
 </script>
 
@@ -32,7 +28,10 @@
       onclick={onUnlock} 
       text={'UNLOCK'}
     />
-    <UnlockCost {cost} {isUnlocked} />
+    <UnlockCost {cost} />
+    {#if !canUnlock}
+      <p class="missing-leaves" role="status">Need {cost - leavesBalance} more leaves to unlock</p>
+    {/if}
   {:else if !isSelected}
     <UnlockButton 
       disabled={false} 
@@ -40,12 +39,7 @@
       text={'SELECT'}
     />
   {:else}
-    <UnlockButton 
-      disabled={!canWater} 
-      onclick={onWater} 
-      text={'WATER'}
-    />
-    <div class="vitality">Vitality: {vitality}%</div>
+    <UnlockButton disabled={true} text={'SELECTED'} />
   {/if}
 </div>
 
@@ -56,10 +50,10 @@
     align-items: center;
     margin-top: 6px;
   }
-  .vitality {
-    margin-top: 4px;
+  .missing-leaves {
+    margin: 2px 0 0;
     font-family: var(--bloom-body-font);
-    font-size: 14px;
+    font-size: 13px;
     color: var(--bloom-text-dark-blue);
   }
 </style>

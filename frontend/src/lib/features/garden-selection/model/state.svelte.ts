@@ -1,17 +1,13 @@
-import type {
-  GardenState,
-  GrowthStage,
-  WaterPlantResponse,
-} from "$lib/api/types";
+import type { GardenState, GrowthStage } from "$lib/api/types";
 import {
-  getPlantFrame,
-  getPlantScale,
   isPlantSpecies,
 } from "$lib/features/garden/utils/spriteMapper";
+import { PLANT_SPECIES } from "$lib/features/companion-widget/model/plants";
 import { desktop } from "$lib/platform/desktopWindow";
 import { SvelteSet } from "svelte/reactivity";
 import type { PlantPresentation } from "../types";
 import { api, APIError } from "$lib/api";
+import { notifyGardenUpdated } from "./gardenUpdates";
 
 export class GardenSelectionViewModel {
   plants: PlantPresentation[] = $state([]);
@@ -21,7 +17,6 @@ export class GardenSelectionViewModel {
   leavesBalance: number = $state(0);
   unlockedPlants: SvelteSet<string> = $state(new SvelteSet<string>());
   vitality: number = $state(100);
-  lastWateredAt: string | null = $state(null);
 
   loading: boolean = $state(true);
   error: string | null = $state(null);
@@ -53,6 +48,7 @@ export class GardenSelectionViewModel {
   }
 
   updateFromData(data: GardenState) {
+    const viewedPlantId = this.selectedPlant?.id;
     this.waterBalance = data.water_balance;
     this.leavesBalance = data.leaves_balance;
     this.vitality = data.vitality;
@@ -64,8 +60,10 @@ export class GardenSelectionViewModel {
     this.unlockedPlants.clear();
 
     if (Array.isArray(data.catalog)) {
-      for (let i = 0; i < data.catalog.length; i++) {
-        const p = data.catalog[i];
+      const catalog = [...data.catalog].sort(
+        (a, b) => PLANT_SPECIES.indexOf(a.species as typeof PLANT_SPECIES[number]) - PLANT_SPECIES.indexOf(b.species as typeof PLANT_SPECIES[number]),
+      );
+      for (const p of catalog) {
         if (!isPlantSpecies(p.species)) continue;
         if (p.is_unlocked) {
           this.unlockedPlants.add(p.id);
@@ -84,47 +82,28 @@ export class GardenSelectionViewModel {
     }
 
     this.plants = newPlants;
-    if (this.activePlantId && newPlants.length > 0) {
-      this.currentIndex = activeIdx;
-    }
+    const viewedIndex = newPlants.findIndex((plant) => plant.id === viewedPlantId);
+    this.currentIndex = viewedIndex >= 0 ? viewedIndex : activeIdx;
   }
 
   get selectedPlant(): PlantPresentation | undefined {
     return this.plants[this.currentIndex];
   }
 
-  get selectedScale() {
-    return getPlantScale(this.growthStage, this.vitality);
-  }
-
-  get selectedFrame() {
-    return this.selectedPlant
-      ? getPlantFrame(
-          this.selectedPlant.species,
-          this.growthStage,
-          this.vitality,
-        )
-      : undefined;
-  }
-
   get hasPrevious(): boolean {
-    return this.currentIndex > 0;
+    return this.plants.length > 1;
   }
 
   get hasNext(): boolean {
-    return this.currentIndex < this.plants.length - 1;
+    return this.plants.length > 1;
   }
 
   previous() {
-    if (this.hasPrevious) {
-      this.currentIndex--;
-    }
+    if (this.hasPrevious) this.currentIndex = (this.currentIndex - 1 + this.plants.length) % this.plants.length;
   }
 
   next() {
-    if (this.hasNext) {
-      this.currentIndex++;
-    }
+    if (this.hasNext) this.currentIndex = (this.currentIndex + 1) % this.plants.length;
   }
 
   get isSelectedPlantUnlocked(): boolean {
@@ -149,6 +128,7 @@ export class GardenSelectionViewModel {
         );
         this.updateFromData(data);
         this.error = null;
+        notifyGardenUpdated();
         await this.syncWidget("Plant unlocked, but widget sync failed.");
       } catch (e: unknown) {
         if (e instanceof APIError && (e.status === 409 || e.status === 400)) {
@@ -175,38 +155,13 @@ export class GardenSelectionViewModel {
         );
         this.updateFromData(data);
         this.error = null;
+        notifyGardenUpdated();
         await this.syncWidget("Plant selected, but widget sync failed.");
       } catch (e: unknown) {
         if (e instanceof Error) {
           this.error = e.message || "Failed to select plant";
         } else {
           this.error = "Failed to select plant";
-        }
-      } finally {
-        this.isPending = false;
-      }
-    }
-  }
-
-  async waterSelectedPlant() {
-    if (this.isPending) return;
-    if (this.waterBalance >= 1) {
-      this.isPending = true;
-      this.syncWarning = null;
-      try {
-        const data: WaterPlantResponse = await api.post(`/garden/water`);
-        this.waterBalance = data.water_balance;
-        this.vitality = data.vitality;
-        this.lastWateredAt = data.last_watered_at;
-        this.error = null;
-        await this.syncWidget("Plant watered, but widget sync failed.");
-      } catch (e: unknown) {
-        if (e instanceof APIError && (e.status === 409 || e.status === 400)) {
-          this.error = e.message || "Not enough water or conflict";
-        } else if (e instanceof Error) {
-          this.error = e.message || "Failed to water plant";
-        } else {
-          this.error = "Failed to water plant";
         }
       } finally {
         this.isPending = false;

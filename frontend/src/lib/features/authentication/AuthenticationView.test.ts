@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DesktopWindowService } from '$lib/platform/desktopWindow';
 import AuthenticationView from './AuthenticationView.svelte';
 import { authStore } from '$lib/shared/stores/authStore';
+import { createAuthState } from './model/AuthState.svelte';
 
 vi.mock('$lib/shared/stores/authStore', () => ({
   authStore: {
@@ -44,6 +45,20 @@ async function switchToRegister(user = userEvent.setup()) {
 }
 
 describe('AuthenticationView', () => {
+  it('shows the resend action when verification email delivery failed', async () => {
+    const state = createAuthState();
+    state.email = 'test@example.com';
+    state.isAwaitingVerification = true;
+    state.emailDeliveryFailed = true;
+    const onResendVerification = vi.fn();
+
+    render(AuthenticationView, { callbacks: { state, onResendVerification } });
+
+    expect(screen.getByText(/A verification link could not be sent to/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'RESEND VERIFICATION' }));
+    expect(onResendVerification).toHaveBeenCalledWith('test@example.com');
+  });
+
   it('renders only the default Login form and both segmented mode buttons', () => {
     const { container } = render(AuthenticationView);
 

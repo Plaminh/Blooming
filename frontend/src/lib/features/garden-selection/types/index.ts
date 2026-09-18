@@ -9,14 +9,3 @@ export interface PlantPresentation {
   species: PlantSpecies;
   unlockCost: number;
 }
-
-export interface UserSessionState {
-  currencyBalance: number;
-  unlockedPlants: Set<PlantId>;
-}
-
-export interface GardenSelectionState {
-  plants: PlantPresentation[];
-  currentIndex: number;
-  session: UserSessionState;
-}

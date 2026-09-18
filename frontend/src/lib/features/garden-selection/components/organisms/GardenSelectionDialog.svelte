@@ -1,11 +1,9 @@
 <script lang="ts">
-  import type { DesktopWindowService } from '$lib/platform/desktopWindow';
   import DesktopTitleBar from '$lib/shared/components/organisms/DesktopTitleBar.svelte';
   import GardenSelectionContent from './GardenSelectionContent.svelte';
 
   let { open, onClose }: { open: boolean; onClose: () => void } = $props();
   let dialog = $state<HTMLDialogElement>();
-  let maximized = $state(false);
 
   function trapFocus(event: KeyboardEvent) {
     if (event.key !== 'Tab' || !dialog) return;
@@ -18,17 +16,6 @@
     }
   }
 
-  const closeWindow = async () => { dialog?.close(); };
-  const windowService: DesktopWindowService = {
-    openMainWindow: async () => {},
-    minimizeCurrent: closeWindow,
-    hideCurrent: closeWindow,
-    closeCurrent: closeWindow,
-    isCurrentMaximized: async () => maximized,
-    toggleMaximizeCurrent: async () => { maximized = !maximized; return maximized; },
-    startDraggingCurrent: async () => {},
-  };
-
   $effect(() => {
     if (!dialog) return;
     if (open && !dialog.open) dialog.showModal();
@@ -39,12 +26,11 @@
 <dialog
   bind:this={dialog}
   class="garden-selection-dialog"
-  class:maximized
   aria-label="Choose your plant"
   onkeydown={trapFocus}
   onclose={onClose}
 >
-  <DesktopTitleBar variant="compact" {windowService} />
+  <DesktopTitleBar variant="compact" showSizeControls={false} draggable={false} onClose={() => dialog?.close()} />
   <div class="garden-selection-dialog-content">
     <GardenSelectionContent />
   </div>
@@ -52,6 +38,7 @@
 
 <style>
   .garden-selection-dialog {
+    pointer-events: auto;
     width: min(var(--bloom-garden-canvas-width), calc(100vw - 24px));
     height: min(var(--bloom-garden-canvas-height), calc(100vh - 24px));
     max-width: none;
@@ -67,10 +54,6 @@
   .garden-selection-dialog[open] {
     display: flex;
     flex-direction: column;
-  }
-  .garden-selection-dialog.maximized {
-    width: calc(100vw - 24px);
-    height: calc(100vh - 24px);
   }
   .garden-selection-dialog::backdrop {
     background: #12303a40;

@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -97,12 +97,16 @@ async def register_user(db: AsyncSession, user_in: UserCreate, email_service: Em
         await email_service.send_verification_email(email, raw_token)
     except EmailConfigurationError as e:
         logger.error(f"Email configuration error for user {db_user.id}: {str(e)}")
+        await db.execute(delete(EmailVerificationToken).where(EmailVerificationToken.id == db_token.id))
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Email service is not configured. Please contact the administrator."
+            detail="Email service configuration is invalid. Please contact the administrator."
         )
     except EmailDeliveryError as e:
         logger.error(f"Failed to send verification email for user {db_user.id}: {str(e)}")
+        await db.execute(delete(EmailVerificationToken).where(EmailVerificationToken.id == db_token.id))
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Account created, but verification email failed to send. Please use resend verification."
@@ -185,7 +189,7 @@ async def resend_verification(db: AsyncSession, email: str, email_service: Email
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Email service is not configured. Please contact the administrator."
+            detail="Email service configuration is invalid. Please contact the administrator."
         )
     except EmailDeliveryError as e:
         logger.error(f"Failed to resend verification email for user {user.id}: {str(e)}")

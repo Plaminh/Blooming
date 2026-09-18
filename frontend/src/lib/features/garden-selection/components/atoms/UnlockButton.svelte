@@ -1,15 +1,15 @@
 <script lang="ts">
-  let { disabled, onclick, text = 'UNLOCK' }: { disabled?: boolean; onclick: () => void; text?: string } = $props();
+  let { disabled, onclick, text = 'UNLOCK' }: { disabled?: boolean; onclick?: () => void; text?: string } = $props();
 </script>
 
-<button {disabled} {onclick} class="unlock-button" aria-disabled={disabled}>
+<button {disabled} {onclick} class="unlock-button">
   {text}
 </button>
 
 <style>
   .unlock-button {
     width: 330px;
-    height: 56px;
+    height: 50px;
     padding: 0 24px;
     background: var(--bloom-primary-green);
     color: #ffffff;

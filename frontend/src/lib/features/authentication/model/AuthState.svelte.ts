@@ -18,6 +18,7 @@ export class AuthState {
     hasAttemptedSubmit = $state(false);
     isLoading = $state(false);
     isAwaitingVerification = $state(false);
+    emailDeliveryFailed = $state(false);
 
     switchMode(newMode: AuthMode) {
         this.mode = newMode;

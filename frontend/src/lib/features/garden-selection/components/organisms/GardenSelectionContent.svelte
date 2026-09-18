@@ -12,7 +12,7 @@
 
 <div class="garden-selection-content">
   <div class="top-bar">
-    <CurrencyBalance leaves={vm.leavesBalance} water={vm.waterBalance} />
+    <CurrencyBalance leaves={vm.leavesBalance} />
   </div>
 
   <div class="main-content">
@@ -22,11 +22,10 @@
     />
 
     {#if vm.syncWarning}<p role="status">{vm.syncWarning}</p>{/if}
+    {#if vm.error}<p class="error" role="alert">{vm.error}</p>{/if}
 
     {#if vm.loading}
       <div class="loading">Loading garden...</div>
-    {:else if vm.error}
-      <div class="error">{vm.error}</div>
     {:else if vm.selectedPlant}
       <CarouselControls
         hasPrevious={vm.hasPrevious}
@@ -35,11 +34,7 @@
         onNext={() => vm.next()}
       >
         <div class="carousel-center">
-          {#if vm.selectedFrame !== undefined}<PlantPreviewArea
-              species={vm.selectedPlant.species}
-              frameIndex={vm.selectedFrame}
-              scale={vm.selectedScale}
-            />{/if}
+          <PlantPreviewArea species={vm.selectedPlant.species} />
           <PlantIdentity
             name={vm.selectedPlant.name}
             description={vm.selectedPlant.description}
@@ -52,11 +47,9 @@
         isUnlocked={vm.isSelectedPlantUnlocked}
         isSelected={vm.selectedPlant.id === vm.activePlantId}
         canUnlock={vm.canUnlockSelectedPlant}
-        canWater={vm.waterBalance >= 1}
-        vitality={vm.vitality}
+        leavesBalance={vm.leavesBalance}
         onUnlock={() => vm.unlockSelectedPlant()}
         onSelect={() => vm.selectCurrentPlant()}
-        onWater={() => vm.waterSelectedPlant()}
       />
     {/if}
   </div>
@@ -77,7 +70,7 @@
     position: absolute;
     top: 7px;
     right: 10px;
-    z-index: 10;
+    z-index: 1;
   }
 
   .main-content {
@@ -86,7 +79,10 @@
     align-items: center;
     width: 100%;
     max-width: 720px;
-    margin-top: 17px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: 56px 16px 8px;
   }
 
   .carousel-center {

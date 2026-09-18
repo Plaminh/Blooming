@@ -46,5 +46,11 @@ class BrevoEmailService(EmailService):
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(url, headers=headers, json=payload)
                 response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                raise EmailConfigurationError("Brevo API key was rejected (HTTP 401).") from e
+            raise EmailDeliveryError(
+                f"Brevo API returned HTTP {e.response.status_code}."
+            ) from e
         except httpx.HTTPError as e:
-            raise EmailDeliveryError("Failed to send email via Brevo API") from e
+            raise EmailDeliveryError(f"Brevo connection failed: {type(e).__name__}.") from e

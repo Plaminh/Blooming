@@ -62,7 +62,7 @@
       <div class="verification-container" style="text-align: center; padding: 2rem 0;">
         <h2 style="font-size: 18px; color: var(--bloom-color-ink); margin-bottom: 1rem;">Check your email</h2>
         <p style="font-size: 14px; color: var(--bloom-color-ink-light); margin-bottom: 1.5rem;">
-          We've sent a verification link to <strong>{authState.email}</strong>.
+          {authState.emailDeliveryFailed ? 'A verification link could not be sent to' : 'We\'ve sent a verification link to'} <strong>{authState.email}</strong>.
         </p>
         <button 
           class="submit-button"
