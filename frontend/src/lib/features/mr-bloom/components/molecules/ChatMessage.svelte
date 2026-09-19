@@ -144,5 +144,6 @@
   .user-time {
     align-self: flex-end;
     margin-top: 4px;
+    color: #9b6076;
   }
 </style>

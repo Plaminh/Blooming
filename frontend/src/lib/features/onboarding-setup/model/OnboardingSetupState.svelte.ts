@@ -1,3 +1,5 @@
+import { deviceTimezone } from '$lib/shared/deviceLocation';
+
 export type FocusPreset = '25 / 5' | '50 / 10' | 'CUSTOM';
 
 export interface OnboardingSetupData {
@@ -11,7 +13,7 @@ export interface OnboardingSetupData {
 
 export class OnboardingSetupState {
   name = $state('Mr. Bloom');
-  timezone = $state('Asia/Ho_Chi_Minh');
+  timezone = $state(deviceTimezone());
   focusPreset = $state<FocusPreset>('25 / 5');
   startAtLogin = $state(true);
   keepWidgetOnTop = $state(true);

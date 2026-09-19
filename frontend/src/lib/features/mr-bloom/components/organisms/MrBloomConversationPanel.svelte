@@ -32,6 +32,10 @@
         </div>
       </div>
     {/if}
+
+    {#if $mrBloomStore.error}
+      <p class="chat-error" role="alert">{$mrBloomStore.error}</p>
+    {/if}
     
     {#if $mrBloomStore.chatHistory.length <= 1}
       <div class="suggestions">
@@ -46,7 +50,7 @@
           icon="goals"
           title="CREATE A LONG-TERM GOAL"
           description="Build a clear roadmap with milestones."
-          onclick={() => handleSuggestion("I want to complete the MVP by June 30")}
+          onclick={() => handleSuggestion("I want to create a long-term goal. Help me define the outcome and target date.")}
         />
       </div>
     {/if}

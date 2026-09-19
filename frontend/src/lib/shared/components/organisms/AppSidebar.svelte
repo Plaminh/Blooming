@@ -5,7 +5,6 @@
   import { goto } from "$app/navigation";
   import { GardenSelectionViewModel } from "$lib/features/garden-selection/model/state.svelte";
 
-  import { getPlantFrame } from "$lib/features/garden/utils/spriteMapper";
   import { onMount } from "svelte";
   import { desktop } from "$lib/platform/desktopWindow";
   import { gardenUpdates } from "$lib/features/garden-selection/model/gardenUpdates";
@@ -13,12 +12,10 @@
   let { activeRoute = "TODAY" }: { activeRoute?: string } = $props();
 
   let vm = new GardenSelectionViewModel();
-  const activePlant = $derived(
-    vm.plants.find((plant) => plant.id === vm.activePlantId),
-  );
   onMount(() => {
     let disposed = false;
     let off = () => {};
+    const refresh = setInterval(() => void vm.loadState(), 60000);
     let first = true;
     const offGarden = gardenUpdates.subscribe(() => {
       if (first) { first = false; return; }
@@ -37,6 +34,7 @@
       disposed = true;
       off();
       offGarden();
+      clearInterval(refresh);
     };
   });
 </script>
@@ -77,17 +75,8 @@
 
   <div class="sidebar-bottom">
     <div class="plant-container">
-      {#if activePlant}
-        <PlantSprite
-          plant={{
-            species: activePlant.species,
-            frameIndex: getPlantFrame(
-              activePlant.species,
-              vm.growthStage,
-              vm.vitality,
-            ),
-          }}
-        />
+      {#if vm.activePlantPresentation}
+        <PlantSprite plant={vm.activePlantPresentation} />
       {/if}
     </div>
     <div class="counters" aria-label="Garden currency">

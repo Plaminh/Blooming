@@ -24,6 +24,7 @@ describe('GardenSelectionViewModel', () => {
     water_balance: 0,
     leaves_balance: 124,
     vitality: 100,
+    growth_stage: 'SPROUTING',
     selected_plant_id: 'monstera',
     catalog: [
       {
@@ -57,6 +58,14 @@ describe('GardenSelectionViewModel', () => {
     expect(vm.leavesBalance).toBe(124);
     expect(vm.selectedPlant?.unlockCost).toBe(120);
     expect(vm.isSelectedPlantUnlocked).toBe(false);
+    expect(vm.activePlantPresentation).toEqual({ species: 'monstera', frameIndex: 0, scale: 1 });
+  });
+
+  it('keeps the starter Monstera pot on its first sprite even at zero vitality', async () => {
+    (api.get as any).mockResolvedValue({ ...mockGardenData, vitality: 0 });
+    vm = new GardenSelectionViewModel();
+    await vi.waitFor(() => expect(vm.loading).toBe(false));
+    expect(vm.activePlantPresentation).toEqual({ species: 'monstera', frameIndex: 0, scale: 1 });
   });
 
   it('should allow unlocking when balance is sufficient', async () => {

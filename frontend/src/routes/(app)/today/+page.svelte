@@ -7,6 +7,7 @@
 
   import type { TodayResponse, TodayTaskEdit } from "$lib/api/types";
   import { desktop } from "$lib/platform/desktopWindow";
+  import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   let rail: RightRail;
 
@@ -234,28 +235,6 @@
     }
   }
 
-  async function handleReplan() {
-    if (isPending) return;
-    isPending = true;
-    actionError = null;
-    syncWarning = null;
-    try {
-      const data: TodayResponse = await api.post("/today/replan");
-      ++currentRequestId;
-      isLoading = false;
-      loadError = null;
-      requestedDate = null;
-      applySchedule(data);
-      await syncWidget("Replanned, but widget sync failed.");
-    } catch (err: unknown) {
-      actionError =
-        err instanceof Error
-          ? err.message
-          : "Failed to replan. Please try again.";
-    } finally {
-      isPending = false;
-    }
-  }
 </script>
 
 <div class="today-content">
@@ -289,7 +268,7 @@
     />
     <BottomActions
       onEdit={() => rail?.startEditing()}
-      onReplan={handleReplan}
+      onReplan={() => { void goto('/mr-bloom'); }}
       disabled={isPending}
     />
   </main>

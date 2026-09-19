@@ -4,6 +4,7 @@ import { desktop, type NativeSettings } from "$lib/platform/desktopWindow";
 import type { UserSettingsResponse } from "$lib/api/types";
 import { get } from "svelte/store";
 import { authStore } from "$lib/shared/stores/authStore";
+import { deviceTimezone, requestDeviceLocation } from "$lib/shared/deviceLocation";
 
 const SETTINGS_KEY = "bloom_settings";
 
@@ -11,7 +12,7 @@ export class SettingsState {
   savedSettings = $state<SettingsProfile>({
     email: "",
     mrBloomName: "Mr. Bloom",
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    timezone: deviceTimezone(),
     focusDurationMinutes: 25,
     breakDurationMinutes: 5,
     startAtLogin: true,
@@ -31,6 +32,8 @@ export class SettingsState {
   saveSuccessMessage = $state<string | null>(null);
   saveErrorMessage = $state<string | null>(null);
   syncWarning = $state<string | null>(null);
+  locationPending = $state(false);
+  locationError = $state<string | null>(null);
 
   isDirty = $derived(
     JSON.stringify(this.savedSettings) !== JSON.stringify(this.draftSettings),
@@ -71,10 +74,7 @@ export class SettingsState {
         const mappedSettings = {
           email: get(authStore).user?.email || "",
           mrBloomName: stored.mr_bloom_display_name || "Mr. Bloom",
-          timezone:
-            stored.timezone ||
-            Intl.DateTimeFormat().resolvedOptions().timeZone ||
-            "UTC",
+          timezone: stored.timezone || deviceTimezone(),
           focusDurationMinutes: stored.default_focus_minutes || 25,
           breakDurationMinutes: stored.default_break_minutes || 5,
           startAtLogin: stored.launch_on_startup ?? true,
@@ -88,6 +88,7 @@ export class SettingsState {
         };
         this.savedSettings = { ...this.savedSettings, ...mappedSettings };
         this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
+        this.draftSettings.timezone = deviceTimezone();
         try {
           await desktop.reconcileSettings(stored);
         } catch {
@@ -150,10 +151,27 @@ export class SettingsState {
 
   cancel() {
     this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
+    this.draftSettings.timezone = deviceTimezone();
     this.validationErrors = {};
     this.saveSuccessMessage = null;
     this.saveErrorMessage = null;
     this.syncWarning = null;
+    this.locationError = null;
+  }
+
+  async useDeviceLocation() {
+    if (this.locationPending) return;
+    this.locationPending = true;
+    this.locationError = null;
+    try {
+      this.draftSettings.weatherLocation = await requestDeviceLocation();
+      this.draftSettings.weatherEnabled = true;
+      delete this.validationErrors.weatherLocation;
+    } catch (error) {
+      this.locationError = error instanceof Error ? error.message : 'Could not get device location.';
+    } finally {
+      this.locationPending = false;
+    }
   }
 
   async save() {
@@ -168,6 +186,7 @@ export class SettingsState {
 
     try {
       this.draftSettings.mrBloomName = this.draftSettings.mrBloomName.trim();
+      this.draftSettings.timezone = deviceTimezone();
 
       const { api } = await import("$lib/api");
 

@@ -38,6 +38,7 @@
   let rainEnabled = $state(true);
   const ENVIRONMENT_REFRESH_MS = 15 * 60 * 1000;
   let environmentRequestId = 0;
+  let plantRequestId = 0;
 
   async function refreshEnvironment() {
     const requestId = ++environmentRequestId;
@@ -79,30 +80,43 @@
             ? error.message
             : "Unable to load focus session.";
     }
+    fetching = false;
+  }
+
+  async function refreshPlant() {
+    const requestId = ++plantRequestId;
     try {
       const garden: GardenState = await api.get("/garden");
-      activePlant = selectedPlantPresentation(garden);
+      if (requestId === plantRequestId) activePlant = selectedPlantPresentation(garden);
     } catch {
-      activePlant = null;
-    } finally {
-      fetching = false;
+      // Keep the last known plant during a temporary connection failure.
     }
   }
 
   onMount(() => {
     void fetchSession();
+    void refreshPlant();
     void refreshEnvironment();
     const environmentRefresh = setInterval(() => void refreshEnvironment(), ENVIRONMENT_REFRESH_MS);
     const clock = setInterval(() => {
       now = new Date();
     }, 1000);
-    const refresh = setInterval(() => void fetchSession(), 60000);
+    const refresh = setInterval(() => {
+      void fetchSession();
+      void refreshPlant();
+    }, 60000);
     let disposed = false;
     let unlisten = () => {};
     let unlistenSettings = () => {};
     const refreshSettings = () => void refreshEnvironment();
+    const refreshVisiblePlant = () => {
+      if (!document.hidden) void refreshPlant();
+    };
     window.addEventListener("storage", refreshSettings);
+    window.addEventListener("storage", refreshPlant);
     window.addEventListener("focus", refreshSettings);
+    window.addEventListener("focus", refreshPlant);
+    document.addEventListener("visibilitychange", refreshVisiblePlant);
     desktop
       .onSettingsUpdated(refreshSettings)
       .then((off) => {
@@ -111,7 +125,10 @@
       })
       .catch(() => {});
     desktop
-      .onScheduleUpdated(() => void fetchSession())
+      .onScheduleUpdated(() => {
+        void fetchSession();
+        void refreshPlant();
+      })
       .then((off) => {
         if (disposed) off();
         else unlisten = off;
@@ -127,7 +144,10 @@
       unlisten();
       unlistenSettings();
       window.removeEventListener("storage", refreshSettings);
+      window.removeEventListener("storage", refreshPlant);
       window.removeEventListener("focus", refreshSettings);
+      window.removeEventListener("focus", refreshPlant);
+      document.removeEventListener("visibilitychange", refreshVisiblePlant);
       clearInterval(clock);
       clearInterval(refresh);
       clearInterval(environmentRefresh);

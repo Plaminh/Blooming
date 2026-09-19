@@ -48,13 +48,13 @@
   }
   
   .primary {
-    background: #e0f5ff;
-    border: 2px solid #83c4ed;
-    color: #6189a0;
+    background: var(--bloom-chat-msg-user-bg);
+    border: 2px solid var(--bloom-chat-msg-user-border);
+    color: #a64e76;
   }
   
   .primary:hover:not(:disabled) {
-    background: #8bd2f0;
+    background: #ffd0e1;
   }
 
   .secondary {

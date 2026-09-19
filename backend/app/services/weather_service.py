@@ -1,6 +1,7 @@
 """Current weather for the user's configured location, with bounded provider calls."""
 
 import asyncio
+import re
 import time
 import weakref
 
@@ -15,6 +16,17 @@ LOCATION_TTL_SECONDS = 86400
 _weather_cache: dict[str, tuple[float, str]] = {}
 _location_cache: dict[str, tuple[float, tuple[float, float]]] = {}
 _location_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
+_COORDINATES = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$")
+
+
+def parse_coordinates(location: str) -> tuple[float, float] | None:
+    match = _COORDINATES.fullmatch(location)
+    if not match:
+        return None
+    latitude, longitude = map(float, match.groups())
+    if -90 <= latitude <= 90 and -180 <= longitude <= 180:
+        return latitude, longitude
+    return None
 
 
 def normalize_weather(code: int) -> str:
@@ -45,7 +57,10 @@ async def current_weather(location: str) -> str:
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 coordinates = _location_cache.get(key)
-                if not coordinates or coordinates[0] <= now:
+                device_point = parse_coordinates(location)
+                if device_point is not None:
+                    point = device_point
+                elif not coordinates or coordinates[0] <= now:
                     response = await client.get(GEOCODING_URL, params={"name": location.strip(), "count": 1})
                     response.raise_for_status()
                     results = response.json().get("results") or []

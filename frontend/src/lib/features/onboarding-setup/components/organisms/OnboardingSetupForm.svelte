@@ -3,13 +3,13 @@
   import Button from '../atoms/Button.svelte';
   import Checkbox from '../atoms/Checkbox.svelte';
   import Input from '../atoms/Input.svelte';
-  import Select from '../atoms/Select.svelte';
+  import { requestDeviceLocation, isDeviceCoordinates } from '$lib/shared/deviceLocation';
   import FormField from '../molecules/FormField.svelte';
   import PresetSelector from '../molecules/PresetSelector.svelte';
   import StepProgress from '../molecules/StepProgress.svelte';
 
   let {
-    state,
+    state: setupState,
     pending = false,
     onFinish,
     onBack,
@@ -20,17 +20,25 @@
     onBack: () => void;
   } = $props();
 
-  const timezoneOptions = [
-    { value: 'Asia/Ho_Chi_Minh', label: 'Asia/Ho_Chi_Minh' },
-    { value: 'America/New_York', label: 'America/New_York' },
-    { value: 'Europe/London', label: 'Europe/London' },
-    { value: 'UTC', label: 'UTC' },
-  ];
+  let locationPending = $state(false);
+  let locationError = $state<string | null>(null);
+
+  async function useDeviceLocation() {
+    locationPending = true;
+    locationError = null;
+    try {
+      setupState.weatherLocation = await requestDeviceLocation();
+    } catch (error) {
+      locationError = error instanceof Error ? error.message : 'Could not get device location.';
+    } finally {
+      locationPending = false;
+    }
+  }
 
   let selectedPresetDescription = $derived(
-    state.focusPreset === '25 / 5'
+    setupState.focusPreset === '25 / 5'
       ? 'Work for 25 minutes, take a 5-minute break.'
-      : state.focusPreset === '50 / 10'
+      : setupState.focusPreset === '50 / 10'
         ? 'Work for 50 minutes, take a 10-minute break.'
         : 'Configure your own focus and break durations later.',
   );
@@ -55,13 +63,13 @@
     <div class="field-row name-row">
       <FormField
         id="name-input"
-        label="Mr. Bloom’s name"
-        description="This is what we’ll call your friend."
+        label="Mr. Bloom's name"
+        description="This is what we'll call your friend."
         descriptionId="name-description"
       >
         <Input
           id="name-input"
-          bind:value={state.name}
+          bind:value={setupState.name}
           ariaDescribedby="name-description"
           disabled={pending}
         />
@@ -70,18 +78,12 @@
 
     <div class="field-row timezone-row">
       <FormField
-        id="timezone-select"
+        id="timezone-value"
         label="Your timezone"
-        description="Used for reminders and daily planning."
+        description="Detected from this device for reminders and daily planning."
         descriptionId="timezone-description"
       >
-        <Select
-          id="timezone-select"
-          bind:value={state.timezone}
-          options={timezoneOptions}
-          ariaDescribedby="timezone-description"
-          disabled={pending}
-        />
+        <output id="timezone-value" class="device-timezone" aria-describedby="timezone-description">{setupState.timezone}</output>
       </FormField>
     </div>
 
@@ -89,17 +91,22 @@
       <FormField
         id="weather-location"
         label="Weather location (optional)"
-        description="City used for the widget's current weather."
+        description="Use device location, or enter a city for widget weather."
         descriptionId="weather-location-description"
       >
         <Input
           id="weather-location"
-          bind:value={state.weatherLocation}
+          bind:value={setupState.weatherLocation}
           placeholder="City, country"
           maxlength={100}
           ariaDescribedby="weather-location-description"
           disabled={pending}
         />
+        <button type="button" class="location-button" disabled={pending || locationPending} onclick={useDeviceLocation}>
+          {locationPending ? 'Finding location...' : 'Use device location'}
+        </button>
+        {#if isDeviceCoordinates(setupState.weatherLocation)}<span role="status">Device location selected</span>{/if}
+        {#if locationError}<span role="alert">{locationError}</span>{/if}
       </FormField>
     </div>
 
@@ -111,7 +118,7 @@
         descriptionId="preset-description"
       >
         <PresetSelector
-          bind:selected={state.focusPreset}
+          bind:selected={setupState.focusPreset}
           labelledby="preset-label"
           describedby="preset-description"
           disabled={pending}
@@ -124,14 +131,14 @@
         <div class="options-list" role="group" aria-labelledby="options-label">
           <Checkbox
             id="start-at-login"
-            bind:checked={state.startAtLogin}
+            bind:checked={setupState.startAtLogin}
             label="Start Blooming at login"
             description="Let Blooming greet you when you start your computer."
             disabled={pending}
           />
           <Checkbox
             id="keep-widget-on-top"
-            bind:checked={state.keepWidgetOnTop}
+            bind:checked={setupState.keepWidgetOnTop}
             label="Keep widget on top"
             description="Keep the Blooming widget above other windows."
             disabled={pending}
@@ -202,6 +209,29 @@
 
   .timezone-row {
     margin-top: 14px;
+  }
+
+  .device-timezone {
+    display: flex;
+    min-height: 42px;
+    align-items: center;
+    padding: 0 14px;
+    border: 1px solid var(--bloom-border-subtle);
+    border-radius: var(--bloom-radius);
+    background: var(--bloom-surface-cream-alt);
+    color: var(--bloom-text-control-blue);
+    font: 19px var(--bloom-body-font);
+  }
+
+  .location-button {
+    align-self: flex-start;
+    margin-top: 8px;
+    padding: 7px 12px;
+    border: 1px solid var(--bloom-border-subtle);
+    border-radius: var(--bloom-radius);
+    background: var(--bloom-surface-cream-alt);
+    color: var(--bloom-text-dark-blue);
+    cursor: pointer;
   }
 
   .preset-row {

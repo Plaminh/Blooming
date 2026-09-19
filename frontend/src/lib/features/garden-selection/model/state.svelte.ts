@@ -1,7 +1,9 @@
 import type { GardenState, GrowthStage } from "$lib/api/types";
 import {
   isPlantSpecies,
+  selectedPlantPresentation,
 } from "$lib/features/garden/utils/spriteMapper";
+import type { ActivePlantPresentation } from "$lib/features/companion-widget/types/presentation";
 import { PLANT_SPECIES } from "$lib/features/companion-widget/model/plants";
 import { desktop } from "$lib/platform/desktopWindow";
 import { SvelteSet } from "svelte/reactivity";
@@ -24,6 +26,7 @@ export class GardenSelectionViewModel {
   isPending = $state(false);
 
   activePlantId: string | null = $state(null);
+  activePlantPresentation: ActivePlantPresentation | null = $state(null);
   growthStage: GrowthStage = $state("SPROUTING");
 
   constructor() {
@@ -53,6 +56,7 @@ export class GardenSelectionViewModel {
     this.leavesBalance = data.leaves_balance;
     this.vitality = data.vitality;
     this.activePlantId = data.selected_plant_id;
+    this.activePlantPresentation = selectedPlantPresentation(data);
     this.growthStage = data.growth_stage;
 
     const newPlants: PlantPresentation[] = [];

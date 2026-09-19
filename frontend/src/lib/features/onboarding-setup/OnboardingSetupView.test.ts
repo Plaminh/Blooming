@@ -26,19 +26,18 @@ describe('OnboardingSetupView', () => {
       props: { onFinish, onBack, windowService: mockWindowService() },
     });
 
-    const name = screen.getByRole('textbox', { name: 'Mr. Bloom’s name' });
-    const timezone = screen.getByRole('combobox', { name: 'Your timezone' });
+    const name = screen.getByRole('textbox', { name: /Mr\. Bloom.s name/ });
+    const timezone = screen.getByText(Intl.DateTimeFormat().resolvedOptions().timeZone);
     const startAtLogin = screen.getByRole('checkbox', { name: 'Start Blooming at login' });
     const keepOnTop = screen.getByRole('checkbox', { name: 'Keep widget on top' });
 
     expect(name).toHaveValue('Mr. Bloom');
-    expect(timezone).toHaveValue('Asia/Ho_Chi_Minh');
+    expect(timezone).toBeInTheDocument();
     expect(startAtLogin).toBeChecked();
     expect(keepOnTop).toBeChecked();
 
     await user.clear(name);
     await user.type(name, 'Sprout');
-    await user.selectOptions(timezone, 'Europe/London');
     await user.click(screen.getByRole('button', { name: '50 / 10' }));
     await user.click(startAtLogin);
 
@@ -58,7 +57,7 @@ describe('OnboardingSetupView', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
     expect(onFinish).toHaveBeenCalledWith({
       name: 'Sprout',
-      timezone: 'Europe/London',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       weatherLocation: '',
       focusPreset: '50 / 10',
       startAtLogin: false,
@@ -77,7 +76,7 @@ describe('OnboardingSetupView', () => {
       props: { onFinish, windowService: mockWindowService() },
     });
 
-    const name = screen.getByRole('textbox', { name: 'Mr. Bloom’s name' });
+    const name = screen.getByRole('textbox', { name: /Mr\. Bloom.s name/ });
     const finishButton = screen.getByRole('button', { name: 'FINISH' });
 
     await user.click(finishButton);
@@ -86,7 +85,7 @@ describe('OnboardingSetupView', () => {
     expect(name).toBeDisabled();
     expect(finishButton).toBeDisabled();
     expect(screen.getByRole('button', { name: 'BACK' })).toBeDisabled();
-    expect(screen.getByRole('combobox', { name: 'Your timezone' })).toBeDisabled();
+    expect(screen.getByText(Intl.DateTimeFormat().resolvedOptions().timeZone)).toBeInTheDocument();
 
     // Resolve the promise
     resolveFinish!();

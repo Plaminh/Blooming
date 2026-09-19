@@ -16,6 +16,27 @@ def test_normalize_weather(code, condition):
 
 
 @pytest.mark.asyncio
+async def test_device_coordinates_skip_city_lookup(monkeypatch):
+    weather_service._weather_cache.clear()
+    calls = []
+
+    def handler(request):
+        calls.append((request.url.path, request.url.params))
+        return httpx.Response(200, json={"current": {"weather_code": 61}})
+
+    actual_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        weather_service.httpx,
+        "AsyncClient",
+        lambda **kwargs: actual_client(transport=httpx.MockTransport(handler)),
+    )
+    assert await weather_service.current_weather("10.8231,106.6297") == "RAIN"
+    assert len(calls) == 1
+    assert calls[0][0].endswith("/forecast")
+    assert calls[0][1]["latitude"] == "10.8231"
+
+
+@pytest.mark.asyncio
 async def test_weather_fetches_location_and_caches_result(monkeypatch):
     weather_service._weather_cache.clear()
     weather_service._location_cache.clear()

@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { api } from '$lib/api';
 import type { IconName } from '$lib/shared/components/atoms/AppIcon.svelte';
 
 export type MessageRole = 'user' | 'assistant';
@@ -61,6 +62,10 @@ export interface TimelineDraft {
   entries: TimelineEntry[];
 }
 
+type ApiDraft =
+  | (Omit<RoadmapDraft, 'milestones'> & { milestones: Omit<Milestone, 'id'>[] })
+  | (Omit<TodayDraft, 'tasks'> & { tasks: Omit<DraftTask, 'id'>[] });
+
 export type ActiveDraft = RoadmapDraft | TodayDraft | TimelineDraft | null;
 
 export type PreviewMode = 'placeholder' | 'roadmap' | 'today' | 'timeline';
@@ -70,6 +75,7 @@ export interface MrBloomState {
   isWaitingForResponse: boolean;
   activeDraft: ActiveDraft;
   previewMode: PreviewMode;
+  error?: string | null;
 }
 
 function createMrBloomStore() {
@@ -84,78 +90,59 @@ function createMrBloomStore() {
     ],
     isWaitingForResponse: false,
     activeDraft: null,
-    previewMode: 'placeholder'
+    previewMode: 'placeholder',
+    error: null
   });
 
   return {
     subscribe,
     set,
     update,
-    submitMessage: (content: string) => {
-      if (!content.trim()) return;
-      
-      const now = new Date();
-      const timeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
-      
-      update(state => ({
-        ...state,
-        chatHistory: [
-          ...state.chatHistory,
-          { id: crypto.randomUUID(), role: 'user', content, timestamp: timeStr }
-        ],
-        isWaitingForResponse: true
-      }));
-      
-      setTimeout(() => {
-        const isRoadmap = content.toLowerCase().includes('mvp') || content.toLowerCase().includes('goal');
-        const aiTimeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
-        
-        update(state => {
-          let nextDraft: ActiveDraft = null;
-          let nextMode: PreviewMode = 'placeholder';
-          let aiResponse: string;
-          
-          if (isRoadmap) {
-            nextMode = 'roadmap';
-            aiResponse = "I've broken that goal into four outcome-based milestones. Review the roadmap on the right.";
-            nextDraft = {
-              type: 'roadmap',
-              goalTitle: 'Complete Blooming MVP',
-              goalDescription: 'Build and launch a delightful desktop app.',
-              targetDate: 'Jun 30, 2024',
-              milestones: [
-                { id: 'm1', title: 'Freeze product concept', targetDate: 'Apr 30, 2024' },
-                { id: 'm2', title: 'Build planning core', targetDate: 'May 31, 2024' },
-                { id: 'm3', title: 'Implement desktop widget', targetDate: 'Jun 15, 2024' },
-                { id: 'm4', title: 'Validate MVP', targetDate: 'Jun 30, 2024' }
-              ]
-            } as RoadmapDraft;
-          } else {
-            nextMode = 'today';
-            aiResponse = "I've prepared a draft for you to review.";
-            nextDraft = {
-              type: 'today',
-              availability: { start: '09:00', end: '15:00', totalHours: 6 },
-              tasks: [
-                { id: 't1', title: 'Study databases', durationMin: 90, priority: 'Core', icon: 'book' },
-                { id: 't2', title: 'Finish proposal', durationMin: 120, priority: 'Core', icon: 'document' },
-                { id: 't3', title: 'Go for a walk', durationMin: 30, priority: 'Optional', icon: 'shoe' }
-              ]
-            } as TodayDraft;
-          }
-          
-          return {
-            ...state,
-            isWaitingForResponse: false,
-            activeDraft: nextDraft,
-            previewMode: nextMode,
-            chatHistory: [
-              ...state.chatHistory,
-              { id: crypto.randomUUID(), role: 'assistant', content: aiResponse, timestamp: aiTimeStr }
-            ]
-          };
-        });
-      }, 800);
+    submitMessage: async (content: string) => {
+      const message = content.trim();
+      if (!message) return;
+      let history: { role: MessageRole; content: string }[] = [];
+      let accepted = false;
+      update(state => {
+        if (state.isWaitingForResponse) return state;
+        accepted = true;
+        history = state.chatHistory.filter(turn => turn.id !== '1').slice(-12).map(({ role, content }) => ({ role, content }));
+        return {
+          ...state,
+          error: null,
+          isWaitingForResponse: true,
+          chatHistory: [...state.chatHistory, {
+            id: crypto.randomUUID(), role: 'user', content: message,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }]
+        };
+      });
+      if (!accepted) return;
+      try {
+        const result: { reply: string; draft: ApiDraft | null } = await api.post('/assistant/chat', { message, history });
+        let draft: ActiveDraft = null;
+        if (result.draft?.type === 'roadmap') {
+          draft = { ...result.draft, milestones: result.draft.milestones.map(m => ({ ...m, id: crypto.randomUUID() })) };
+        } else if (result.draft?.type === 'today') {
+          draft = { ...result.draft, tasks: result.draft.tasks.map(t => ({ ...t, id: crypto.randomUUID() })) };
+        }
+        update(state => ({
+          ...state,
+          isWaitingForResponse: false,
+          activeDraft: draft ?? state.activeDraft,
+          previewMode: draft?.type ?? state.previewMode,
+          chatHistory: [...state.chatHistory, {
+            id: crypto.randomUUID(), role: 'assistant', content: result.reply,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }]
+        }));
+      } catch (error) {
+        update(state => ({
+          ...state,
+          isWaitingForResponse: false,
+          error: error instanceof Error ? error.message : 'Unable to reach Mr. Bloom.'
+        }));
+      }
     },
     discardDraft: () => {
       update(state => ({ ...state, activeDraft: null, previewMode: 'placeholder' }));

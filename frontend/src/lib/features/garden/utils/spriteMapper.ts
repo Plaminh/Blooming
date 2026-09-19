@@ -11,13 +11,14 @@ export function isPlantSpecies(value: string): value is PlantSpecies {
 }
 
 // Inspected 2304x896 atlases, 8 columns x 2 rows, row-major indices.
-// Healthy: sprout 1, growing 4, bloom 7 (bonsai flowering 10), lush 10/11.
+// Monstera starts at frame 0 (the planted seed pot). Other species start at 1.
+// Healthy: growing 4, bloom 7 (bonsai flowering 10), lush 10/11.
 // Late cells depict decline, not additional growth. See spec 019 research.md.
 const healthyFrames: Record<
   PlantSpecies,
   Record<GrowthStage, PlantFrameIndex>
 > = {
-  monstera: { SPROUTING: 1, GROWING: 4, BLOOMING: 7, FLOURISHING: 10 },
+  monstera: { SPROUTING: 0, GROWING: 4, BLOOMING: 7, FLOURISHING: 10 },
   sunflower: { SPROUTING: 1, GROWING: 4, BLOOMING: 7, FLOURISHING: 11 },
   bonsai: { SPROUTING: 1, GROWING: 4, BLOOMING: 10, FLOURISHING: 11 },
   jasmine: { SPROUTING: 1, GROWING: 4, BLOOMING: 7, FLOURISHING: 11 },
@@ -28,6 +29,8 @@ export function getPlantFrame(
   stage: GrowthStage,
   vitality: number,
 ): PlantFrameIndex {
+  // A newly planted Monstera remains the seed pot until it has grown.
+  if (species === "monstera" && stage === "SPROUTING") return 0;
   // Atlases have no stressed juvenile variants; vitality uses the available decline cells.
   if (vitality <= 0) return 15;
   if (vitality < 25) return 14;
@@ -49,7 +52,9 @@ export function selectedPlantPresentation(
   if (!plant || !isPlantSpecies(plant.species)) return null;
   return {
     species: plant.species,
-    scale: getPlantScale(garden.growth_stage, garden.vitality),
+    scale: plant.species === "monstera" && garden.growth_stage === "SPROUTING"
+      ? 1
+      : getPlantScale(garden.growth_stage, garden.vitality),
     frameIndex: getPlantFrame(
       plant.species,
       garden.growth_stage,

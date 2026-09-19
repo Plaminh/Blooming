@@ -1,16 +1,12 @@
 <script lang="ts">
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
   import TextInput from '$lib/shared/components/atoms/TextInput.svelte';
-  import SelectField from '../atoms/SelectField.svelte';
   import ToggleSwitch from '../atoms/ToggleSwitch.svelte';
   import { getSettingsState } from '../../model/SettingsState.svelte';
+  import { deviceTimezone, isDeviceCoordinates } from '$lib/shared/deviceLocation';
 
   const settingsState = getSettingsState();
 
-  const timezoneOptions = Intl.supportedValuesOf('timeZone').map(tz => ({
-    value: tz,
-    label: tz
-  }));
 </script>
 
 <section class="panel general-panel" aria-labelledby="general-heading">
@@ -27,19 +23,28 @@
       error={settingsState.validationErrors.mrBloomName}
     />
 
-    <SelectField
-      id="timezone"
-      label="Timezone"
-      bind:value={settingsState.draftSettings.timezone}
-      options={timezoneOptions}
-    />
+    <div class="device-row">
+      <span>Timezone</span>
+      <output aria-label="Device timezone">{deviceTimezone()}</output>
+    </div>
 
     <TextInput
       id="weatherLocation"
-      label="Weather location (city)"
+      label="Weather location"
       bind:value={settingsState.draftSettings.weatherLocation}
       error={settingsState.validationErrors.weatherLocation}
     />
+    <div class="location-action">
+      <button type="button" disabled={settingsState.locationPending} onclick={() => settingsState.useDeviceLocation()}>
+        {settingsState.locationPending ? 'Finding location...' : 'Use device location'}
+      </button>
+      {#if isDeviceCoordinates(settingsState.draftSettings.weatherLocation)}
+        <span role="status">Device location selected</span>
+      {/if}
+      {#if settingsState.locationError}
+        <span class="location-error" role="alert">{settingsState.locationError}</span>
+      {/if}
+    </div>
 
     <ToggleSwitch
       id="weatherEnabled"
@@ -100,6 +105,46 @@
     display: flex;
     flex-direction: column;
   }
+
+  .device-row {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    color: var(--bloom-text-dark-blue);
+    font-family: var(--bloom-body-font);
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .device-row output {
+    padding: 10px 14px;
+    border: 1px solid var(--bloom-border-subtle);
+    border-radius: 4px;
+    background: var(--bloom-surface-cream-alt);
+    font-weight: 400;
+  }
+
+  .location-action {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: -6px 0 14px 232px;
+    font: 14px var(--bloom-body-font);
+  }
+
+  .location-action button {
+    padding: 7px 10px;
+    border: 1px solid var(--bloom-border-subtle);
+    border-radius: 4px;
+    background: var(--bloom-surface-cream-alt);
+    color: var(--bloom-text-dark-blue);
+    cursor: pointer;
+  }
+
+  .location-error { color: var(--bloom-error); }
 
   .toggles {
     margin-top: 8px;

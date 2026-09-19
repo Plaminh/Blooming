@@ -65,7 +65,7 @@
   let species = $state<PlantSpecies>(
     asSpecies(page.url.searchParams.get("plant")),
   );
-  let frame = $state(asNumber(page.url.searchParams.get("frame"), 7));
+  let frame = $state(asNumber(page.url.searchParams.get("frame"), 0));
   let presentation = $derived<CompanionWidgetPresentation>({
     ...fixtures[kind],
     activePlant: {
