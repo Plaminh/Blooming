@@ -7,6 +7,17 @@ see the [existing-database update instructions](../specs/019-cleanup-integration
 
 ## Run locally
 
+Start PostgreSQL from the repository root with the backend environment file:
+
+```cmd
+docker compose --env-file backend/.env up -d postgres
+```
+
+Compose does not automatically read `backend/.env`. If an existing PostgreSQL
+volume was initialized with another password, update that volume's database
+user password to match `POSTGRES_PASSWORD` in `backend/.env`; recreating the
+container alone does not change passwords stored in an existing volume.
+
 Use the existing repository virtual environment:
 
 ```cmd

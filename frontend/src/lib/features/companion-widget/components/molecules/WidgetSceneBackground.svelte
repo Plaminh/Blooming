@@ -86,6 +86,10 @@
     background: #f0d9ac;
   }
 
+  .scene--garden::after {
+    bottom: 0;
+  }
+
   .frame {
     position: absolute;
     left: 0;
@@ -100,20 +104,25 @@
   }
 
   .scene--garden .frame {
+    /* Cover either garden viewport with the same 680 x 235 visible crop
+       used by the widget. Wider or taller panels crop the excess. */
+    --garden-frame-width: max(100cqw, calc(680 / 235 * 100cqh));
     left: 50%;
-    /* Scale the widget's 680 x 303 scene and -40px bottom offset to its
-       235px visible area (289px widget minus 54px title bar). */
-    bottom: calc(-40 / 235 * 100cqh);
-    width: calc(680 / 235 * 100cqh);
-    height: calc(303 / 235 * 100cqh);
+    bottom: calc(-40 / 680 * var(--garden-frame-width));
+    width: var(--garden-frame-width);
+    height: calc(837 / 1880 * var(--garden-frame-width));
     transform: translateX(-50%);
   }
 
   .scene--garden .sky,
   .scene--garden .bushes,
   .scene--garden .weather-overlay {
-    width: auto;
+    width: 100%;
     height: 100%;
+  }
+
+  .scene--garden .bushes {
+    bottom: calc(-65 / 1880 * var(--garden-frame-width));
   }
 
   .sky,

@@ -97,10 +97,6 @@ async def award_resources(
 
 async def get_garden_state(db: AsyncSession, user_id: UUID) -> GardenStateResponse:
     garden, created = await _ensure_garden_state(db, user_id)
-    if created:
-        await db.commit()
-        await db.refresh(garden)
-
     plants = (await db.scalars(select(Plant).where(Plant.is_active == True))).all()
     ownerships = (
         await db.scalars(
@@ -108,6 +104,20 @@ async def get_garden_state(db: AsyncSession, user_id: UUID) -> GardenStateRespon
         )
     ).all()
     owned_ids = {o.plant_id for o in ownerships}
+
+    # Give a new garden its free starter plant, including accounts created
+    # before this default was introduced. Preserve every existing selection.
+    if garden.selected_plant_id is None and not owned_ids:
+        starter = next((p for p in plants if p.species == "monstera" and p.unlock_cost == 0), None)
+        if starter is not None:
+            db.add(PlantOwnership(user_id=user_id, plant_id=starter.id))
+            garden.selected_plant_id = starter.id
+            owned_ids.add(starter.id)
+            created = True
+
+    if created:
+        await db.commit()
+        await db.refresh(garden)
 
     catalog = []
     for p in plants:

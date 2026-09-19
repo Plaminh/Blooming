@@ -10,6 +10,8 @@ async def test_catalog_free_unlock_select_and_leaf_requirement(async_client, aut
     assert set(catalog) == {"monstera", "sunflower", "bonsai", "jasmine", "lavender"}
     assert catalog["monstera"]["unlock_cost"] == 0
     assert response.json()["leaves_balance"] == 0
+    assert response.json()["selected_plant_id"] == catalog["monstera"]["id"]
+    assert catalog["monstera"]["is_unlocked"]
 
     monstera_id = catalog["monstera"]["id"]
     response = await async_client.post(
