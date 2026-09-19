@@ -1,19 +1,20 @@
 """Shared FastAPI dependencies."""
 
-import uuid
 import logging
+import uuid
 from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import AsyncSessionLocal
-from app.db.models.users import User
 from app.core.security import decode_access_token
-from app.services.email_service import EmailService, BrevoEmailService
+from app.db.models.users import User
+from app.db.session import AsyncSessionLocal
+from app.services.email_service import BrevoEmailService, EmailService
+
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Yield one session per request, rolling back and closing on the way out."""

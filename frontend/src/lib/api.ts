@@ -139,3 +139,86 @@ export const api = {
     return this.fetch(endpoint, { ...options, method: 'DELETE' });
   }
 };
+
+
+
+
+
+
+export interface AvailabilityWindowDraft {
+  start: string;
+  end: string;
+}
+
+export interface TaskDraft {
+  id: string;
+  title: string;
+  durationMin: number;
+  priority: 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW';
+  deadline: string | null;
+  schedulingType: 'FLEXIBLE' | 'FIXED';
+  fixedStart: string | null;
+  fixedEnd: string | null;
+  dependencies: string[];
+  splittable: boolean;
+}
+
+export interface TodayDraft {
+  type: 'today';
+  planDate: string;
+  timezone: string;
+  windows: AvailabilityWindowDraft[];
+  tasks: TaskDraft[];
+}
+
+
+export interface TodayBlock {
+  id: string;
+  block_type: string;
+  task_id: string | null;
+  draft_task_id: string | null;
+  title: string | null;
+  description: string | null;
+  category: string | null;
+  estimated_duration_minutes: number | null;
+  planned_start_at: string;
+  planned_end_at: string;
+  position: number;
+  status: string;
+  is_locked: boolean;
+}
+
+export interface UnscheduledTask {
+  draft_task_id: string | null;
+  title: string;
+  reason: string;
+}
+
+export interface UnscheduledReason {
+  code: string;
+  task_id: string;
+  dependency_id?: string;
+}
+
+export interface TodayResponse {
+  plan_date: string;
+  status: string;
+  timezone: string;
+  unscheduled_tasks: UnscheduledTask[] | string[];
+  reasons: UnscheduledReason[];
+  reality_check: string | null;
+  blocks: TodayBlock[];
+}
+
+export interface TodayPreviewResponse extends TodayResponse {
+  preview_token: string;
+}
+
+export const previewTodayPlan = async (draft: TodayDraft): Promise<TodayPreviewResponse> => {
+  return await api.post('/today/preview', { draft });
+};
+
+export const saveTodayPlan = async (sessionId: string | null, previewToken: string, draft: TodayDraft): Promise<TodayResponse> => {
+  return await api.post('/today/save', { session_id: sessionId, preview_token: previewToken, draft });
+};
+

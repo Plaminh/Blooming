@@ -1,10 +1,11 @@
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.planning import TaskCategory
+from app.schemas.assistant import TodayDraft
 
 
 class TodayBlock(BaseModel):
@@ -20,6 +21,7 @@ class TodayBlock(BaseModel):
     position: int
     status: str
     is_locked: bool
+    draft_task_id: str | None = None
 
 
 class UnscheduledReason(BaseModel):
@@ -28,11 +30,16 @@ class UnscheduledReason(BaseModel):
     dependency_id: UUID | None = None
 
 
+class UnscheduledTaskInfo(BaseModel):
+    draft_task_id: str | None = None
+    title: str | None = None
+    reason: str | None = None
+
 class TodayResponse(BaseModel):
     plan_date: date
     status: str
     timezone: str = "UTC"
-    unscheduled_tasks: list[UUID] = Field(default_factory=list)
+    unscheduled_tasks: list[UUID] | list[UnscheduledTaskInfo] = Field(default_factory=list)
     reasons: list[UnscheduledReason] = Field(default_factory=list)
     reality_check: str | None = None
     blocks: list[TodayBlock] = Field(default_factory=list)
@@ -60,3 +67,23 @@ class TodayTaskEdit(BaseModel):
 
 class TodayTaskStatusUpdate(BaseModel):
     status: Literal["PENDING", "IN_PROGRESS", "COMPLETED", "SKIPPED", "CANCELLED"]
+
+class TodayPreviewRequest(BaseModel):
+    draft: TodayDraft
+
+
+
+class TodayPreviewResponse(BaseModel):
+    plan_date: date
+    status: Literal["PREVIEW"] = "PREVIEW"
+    timezone: str
+    preview_token: str
+    reality_check: str | None = None
+    blocks: list[TodayBlock] = Field(default_factory=list)
+    unscheduled_tasks: list[UnscheduledTaskInfo] = Field(default_factory=list)
+    reasons: list[dict[str, Any]] = Field(default_factory=list)
+
+class TodaySaveRequest(BaseModel):
+    preview_token: str
+    draft: TodayDraft
+    session_id: UUID | None = None

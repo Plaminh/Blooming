@@ -1,23 +1,32 @@
+import hashlib
+import hmac
 import logging
 from datetime import date, datetime, timezone
+from uuid import UUID, uuid4
 
 from fastapi.encoders import jsonable_encoder
-from uuid import UUID
-
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.errors import ResourceNotFoundError, UnauthorizedOwnershipError
 from app.core.scheduler import DeterministicScheduler, ScheduleTask, ScheduleWindow
 from app.core.time_utils import safe_timezone
 from app.crud.crud_daily_plan import daily_plan as crud_daily_plan
 from app.crud.crud_task import task as crud_task
 from app.db.models.daily_plans import PlanBlock, PlanRevision
+from app.db.models.planning import PlanningSession
 from app.db.models.tasks import Task
 from app.db.models.users import UserSettings
-from app.schemas.today import TodayTaskEdit, TodayTaskStatusUpdate
-
+from app.schemas.today import (
+    TodayBlock,
+    TodayPreviewRequest,
+    TodayPreviewResponse,
+    TodaySaveRequest,
+    TodayTaskEdit,
+    TodayTaskStatusUpdate,
+)
 
 logger = logging.getLogger(__name__)
 USABLE_PLAN_STATUSES = {"CONFIRMED", "ACTIVE", "COMPLETED"}
@@ -38,6 +47,7 @@ class TodayService:
 
         revision = await db.scalar(select(PlanRevision).where(PlanRevision.daily_plan_id == plan.id).order_by(PlanRevision.revision_number.desc()).limit(1))
         scheduling = revision.after_snapshot if revision else {}
+        task_draft_map = scheduling.get("task_draft_map", {})
         blocks = sorted(plan.plan_blocks, key=lambda b: b.planned_start_at)
 
         block_dicts = []
@@ -46,6 +56,7 @@ class TodayService:
                 "id": b.id,
                 "block_type": b.block_type,
                 "task_id": b.task_id,
+                "draft_task_id": task_draft_map.get(str(b.task_id)) if b.task_id else None,
                 "title": b.title,
                 "planned_start_at": b.planned_start_at,
                 "planned_end_at": b.planned_end_at,
@@ -308,6 +319,370 @@ class TodayService:
             await db.commit()
         logger.info("replan_result", extra={"unscheduled_count": len(result.unscheduled_tasks), "scheduled_count": len(result.blocks), "committed": commit})
         return await self.get_today(db, user_id, local_date)
+
+
+
+    
+    
+    def _generate_hmac_token(self, user_id: UUID, draft_json: str) -> str:
+        import base64
+        import json
+        import time
+        
+        secret = settings.SECRET_KEY.get_secret_value().encode()
+        expiry = int(time.time()) + 3600 * 24 # 24 hours
+        purpose = "today_preview"
+        
+        msg = f"{user_id}:{purpose}:{expiry}:{draft_json}".encode()
+        signature = hmac.new(secret, msg, hashlib.sha256).hexdigest()
+        
+        token_data = {"exp": expiry, "sig": signature}
+        return base64.urlsafe_b64encode(json.dumps(token_data).encode()).decode()
+
+    def _verify_hmac_token(self, user_id: UUID, draft_json: str, token: str) -> bool:
+        import base64
+        import json
+        import time
+        
+        try:
+            token_data = json.loads(base64.urlsafe_b64decode(token.encode()).decode())
+            expiry = token_data["exp"]
+            signature = token_data["sig"]
+        except Exception:
+            return False
+            
+        if time.time() > expiry:
+            return False
+            
+        secret = settings.SECRET_KEY.get_secret_value().encode()
+        purpose = "today_preview"
+        msg = f"{user_id}:{purpose}:{expiry}:{draft_json}".encode()
+        expected = hmac.new(secret, msg, hashlib.sha256).hexdigest()
+        
+        return hmac.compare_digest(expected, signature)
+
+    def _normalize_dt(self, dt, tz):
+        from datetime import date, datetime, time
+        if not isinstance(dt, date) and not isinstance(dt, datetime):
+            return dt
+        if not isinstance(dt, datetime):
+            # date-only, end-of-day rule
+            dt = datetime.combine(dt, time(23, 59, 59))
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=tz)
+        return dt.astimezone(tz)
+
+    def _normalize_and_schedule(self, draft, tz, local_date, user_id):
+        import uuid
+        from datetime import datetime, timedelta
+
+        from app.core.scheduler import (
+            DeterministicScheduler,
+            ScheduleTask,
+            ScheduleWindow,
+        )
+        
+        windows = []
+        for w in draft.windows:
+            start_dt = datetime.strptime(w.start, "%H:%M").replace(year=local_date.year, month=local_date.month, day=local_date.day, tzinfo=tz)
+            end_dt = datetime.strptime(w.end, "%H:%M").replace(year=local_date.year, month=local_date.month, day=local_date.day, tzinfo=tz)
+            windows.append(ScheduleWindow(start_at=start_dt, end_at=end_dt))
+        
+        tasks = []
+        # Generate deterministic UUIDs from user_id and draft task ID
+        draft_to_uuid = {t.id: uuid.uuid5(user_id, t.id) for t in draft.tasks}
+        
+        base_time = datetime(2000, 1, 1, tzinfo=tz)
+        for i, t in enumerate(draft.tasks):
+            sched_priority = t.priority
+            if sched_priority not in ("URGENT", "HIGH", "MEDIUM", "LOW"):
+                sched_priority = "MEDIUM"
+                
+            tasks.append(ScheduleTask(
+                id=draft_to_uuid[t.id],
+                title=t.title,
+                estimated_duration_minutes=t.durationMin,
+                priority=sched_priority,
+                scheduling_type=t.schedulingType,
+                created_at=base_time + timedelta(seconds=i),
+                is_splittable=t.splittable,
+                fixed_start_at=self._normalize_dt(t.fixedStart, tz) if t.fixedStart else None,
+                fixed_end_at=self._normalize_dt(t.fixedEnd, tz) if t.fixedEnd else None,
+                dependencies=[draft_to_uuid[d] for d in t.dependencies if d in draft_to_uuid]
+            ))
+            
+        result = DeterministicScheduler().schedule(tasks, windows)
+        if any(reason["code"] == "FIXED_TASK_OVERLAP" for reason in result.reasons):
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=422, detail="Fixed tasks overlap.")
+        reality_check = "OVERLOADED" if result.unscheduled_tasks else ("COMFORTABLE" if result.workload_minutes <= result.available_minutes * 0.8 else "TIGHT")
+        
+        return result, reality_check, draft_to_uuid
+
+    async def preview_today_draft(self, db: AsyncSession, user_id: UUID, request: TodayPreviewRequest) -> TodayPreviewResponse:
+        from fastapi import HTTPException
+
+        from app.db.models.users import UserSettings
+        
+        user_settings = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+        user_tz = safe_timezone(user_settings.timezone if user_settings else "UTC")
+        
+        if request.draft.timezone != str(user_tz):
+            raise HTTPException(status_code=422, detail="Draft timezone must match user timezone exactly.")
+            
+        tz = user_tz
+        current_local_date = datetime.now(tz).date()
+        local_date = request.draft.planDate
+        
+        if local_date < current_local_date:
+            raise HTTPException(status_code=422, detail="Cannot plan for a past date.")
+            
+        result, reality_check, draft_to_uuid = self._normalize_and_schedule(request.draft, tz, local_date, user_id)
+        uuid_to_draft = {v: k for k, v in draft_to_uuid.items()}
+        
+        blocks = []
+        for i, b in enumerate(result.blocks):
+            blocks.append(TodayBlock(
+                id=uuid4(),
+                block_type="TASK" if b.task_id and b.block_type == "FIXED_EVENT" else b.block_type,
+                task_id=b.task_id, 
+                title=b.title,
+                planned_start_at=b.start_at,
+                planned_end_at=b.end_at,
+                position=i,
+                status="PLANNED",
+                is_locked=False,
+                draft_task_id=uuid_to_draft.get(b.task_id) if b.task_id else None
+            ))
+            
+        unscheduled = []
+        for ut_id in result.unscheduled_tasks:
+            draft_tid = uuid_to_draft.get(ut_id) if ut_id else None
+            title = None
+            if draft_tid:
+                for t in request.draft.tasks:
+                    if t.id == draft_tid:
+                        title = t.title
+                        break
+            
+            reason_code = None
+            for r in result.reasons:
+                if r.get('task_id') == ut_id:
+                    reason_code = r.get('code')
+                    break
+                    
+            from app.schemas.today import UnscheduledTaskInfo
+            unscheduled.append(UnscheduledTaskInfo(
+                draft_task_id=draft_tid,
+                reason=reason_code,
+                title=title
+            ))
+            
+        draft_json = request.draft.model_dump_json()
+        token = self._generate_hmac_token(user_id, draft_json)
+            
+        return TodayPreviewResponse(
+            plan_date=local_date,
+            timezone=str(tz),
+            preview_token=token,
+            reality_check=reality_check,
+            blocks=blocks,
+            unscheduled_tasks=unscheduled,
+            reasons=result.reasons
+        )
+
+    async def save_today_draft(self, db: AsyncSession, user_id: UUID, request: TodaySaveRequest) -> dict:
+        import hashlib
+
+        from fastapi import HTTPException
+
+        from app.db.models.daily_plans import DailyPlan, PlanBlock, PlanRevision
+        from app.db.models.tasks import Task, TaskDependency
+        from app.db.models.users import UserSettings
+        
+        draft_json = request.draft.model_dump_json()
+        if not self._verify_hmac_token(user_id, draft_json, request.preview_token):
+            raise HTTPException(status_code=409, detail="Draft has changed since last preview. Please preview again.")
+            
+        draft_hash = hashlib.sha256(draft_json.encode()).hexdigest()
+        
+        if request.session_id:
+            session = await db.scalar(select(PlanningSession).where(PlanningSession.id == request.session_id))
+            if not session:
+                raise HTTPException(status_code=404, detail="Planning session not found")
+            if session.user_id != user_id:
+                raise HTTPException(status_code=403, detail="Unauthorized")
+            if session.status != "OPEN":
+                raise HTTPException(status_code=409, detail="Session is not open for saving")
+        
+        user_settings = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+        user_tz = safe_timezone(user_settings.timezone if user_settings else "UTC")
+        if request.draft.timezone != str(user_tz):
+            raise HTTPException(status_code=422, detail="Draft timezone must match user timezone exactly.")
+            
+        tz = user_tz
+        current_local_date = datetime.now(tz).date()
+        local_date = request.draft.planDate
+        if local_date < current_local_date:
+            raise HTTPException(status_code=422, detail="Cannot plan for a past date.")
+
+        result, reality_check, draft_to_uuid = self._normalize_and_schedule(request.draft, tz, local_date, user_id)
+        uuid_to_draft = {v: k for k, v in draft_to_uuid.items()}
+        
+        existing_plan = await crud_daily_plan.get_by_date(db, user_id, local_date)
+        
+        # Idempotency Check
+        if existing_plan:
+            revision = await db.scalar(select(PlanRevision).where(PlanRevision.daily_plan_id == existing_plan.id).order_by(PlanRevision.revision_number.desc()).limit(1))
+            if revision and revision.after_snapshot.get("draft_hash") == draft_hash:
+                return await self.get_today(db, user_id, local_date)
+                
+            # Delete old blocks explicitly
+            blocks_result = await db.execute(select(PlanBlock).where(PlanBlock.daily_plan_id == existing_plan.id))
+            for block in blocks_result.scalars():
+                await db.delete(block)
+
+            # Delete AI tasks from previous save if not completed
+            if revision and "created_task_ids" in revision.after_snapshot:
+                prev_task_ids_str = revision.after_snapshot["created_task_ids"]
+                if prev_task_ids_str:
+                    from uuid import UUID
+                    prev_task_ids = [UUID(pid) if isinstance(pid, str) else pid for pid in prev_task_ids_str]
+                    tasks_res = await db.execute(select(Task).where(Task.id.in_(prev_task_ids)))
+                    for t in tasks_res.scalars():
+                        if t.status != "COMPLETED":
+                            deps_res = await db.execute(select(TaskDependency).where(
+                                (TaskDependency.task_id == t.id) | 
+                                (TaskDependency.depends_on_task_id == t.id)
+                            ))
+                            for dep in deps_res.scalars():
+                                await db.delete(dep)
+                            await db.delete(t)
+            
+            existing_plan.reality_check = reality_check
+            existing_plan.timezone_snapshot = str(tz)
+            if request.session_id:
+                existing_plan.planning_session_id = request.session_id
+            plan = existing_plan
+        else:
+            revision = None
+            plan = DailyPlan(
+                user_id=user_id,
+                plan_date=local_date,
+                status="ACTIVE",
+                confirmed_at=datetime.now(timezone.utc),
+                planning_session_id=request.session_id,
+                reality_check=reality_check,
+                timezone_snapshot=str(tz)
+            )
+            db.add(plan)
+            
+        await db.flush()
+            
+        task_id_map = {}
+        new_tasks = []
+        for t_draft in request.draft.tasks:
+            new_task = Task(
+                user_id=user_id,
+                title=t_draft.title,
+                estimated_duration_minutes=t_draft.durationMin,
+                priority=t_draft.priority,
+                scheduling_type=t_draft.schedulingType,
+                importance="CORE" if t_draft.priority in ("URGENT", "HIGH") else "OPTIONAL",
+                deadline_at=self._normalize_dt(t_draft.deadline, tz) if t_draft.deadline else None,
+                fixed_start_at=self._normalize_dt(t_draft.fixedStart, tz) if t_draft.fixedStart else None,
+                fixed_end_at=self._normalize_dt(t_draft.fixedEnd, tz) if t_draft.fixedEnd else None,
+                is_splittable=t_draft.splittable,
+                source="AI"
+            )
+            db.add(new_task)
+            new_tasks.append((t_draft, new_task))
+            
+        await db.flush()
+        
+        for t_draft, new_task in new_tasks:
+            task_id_map[t_draft.id] = new_task.id
+            
+        for t_draft, new_task in new_tasks:
+            for dep_draft_id in t_draft.dependencies:
+                if dep_draft_id in task_id_map:
+                    db.add(TaskDependency(task_id=new_task.id, depends_on_task_id=task_id_map[dep_draft_id]))
+
+        await db.flush()
+        
+        unscheduled = []
+        for ut_id in result.unscheduled_tasks:
+            draft_tid = uuid_to_draft.get(ut_id) if ut_id else None
+            title = None
+            if draft_tid:
+                for t in request.draft.tasks:
+                    if t.id == draft_tid:
+                        title = t.title
+                        break
+            
+            reason_code = None
+            for r in result.reasons:
+                if r.get('task_id') == ut_id:
+                    reason_code = r.get('code')
+                    break
+                    
+            from app.schemas.today import UnscheduledTaskInfo
+            unscheduled.append(UnscheduledTaskInfo(
+                draft_task_id=draft_tid,
+                reason=reason_code,
+                title=title
+            ))
+            
+        blocks_created = []
+        for idx, block_item in enumerate(result.blocks):
+            t_id = None
+            if block_item.task_id:
+                draft_task_id = uuid_to_draft.get(block_item.task_id)
+                t_id = task_id_map.get(draft_task_id)
+            
+            block = PlanBlock(
+                daily_plan_id=plan.id,
+                block_type="TASK" if t_id and block_item.block_type == "FIXED_EVENT" else block_item.block_type,
+                planned_start_at=block_item.start_at,
+                planned_end_at=block_item.end_at,
+                task_id=t_id,
+                title=block_item.title,
+                position=idx,
+                is_locked=False
+            )
+            db.add(block)
+            blocks_created.append(block)
+            
+        last_rev = await db.scalar(select(func.max(PlanRevision.revision_number)).where(PlanRevision.daily_plan_id == plan.id))
+        rev_num = (last_rev or 0) + 1
+        
+        created_task_ids = [str(new_task.id) for _, new_task in new_tasks]
+        task_draft_map = {str(new_task.id): t_draft.id for t_draft, new_task in new_tasks}
+        
+        rev = PlanRevision(
+            daily_plan_id=plan.id,
+            revision_number=rev_num,
+            reason="AI_DRAFT_APPLIED",
+            trigger_type="MANUAL_EDIT",
+            generated_by="AI",
+            before_snapshot={},
+            after_snapshot={
+                "blocks": len(blocks_created),
+                "draft_hash": draft_hash,
+                "created_task_ids": created_task_ids,
+                "task_draft_map": task_draft_map,
+                "unscheduled_tasks": [u.model_dump(mode="json") for u in unscheduled],
+                "reasons": jsonable_encoder(result.reasons)
+            }
+        )
+        db.add(rev)
+        
+        await db.commit()
+
+        db.expire(plan, ["plan_blocks"])
+        return await self.get_today(db, user_id, local_date)
+
 
 
 today_service = TodayService()

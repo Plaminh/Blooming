@@ -8,13 +8,26 @@ from app.api.deps import CurrentUser, SessionDep
 from app.schemas.planning import TaskResponse
 from app.schemas.today import (
     TodayNoPlanResponse,
+    TodayPreviewRequest,
+    TodayPreviewResponse,
     TodayResponse,
+    TodaySaveRequest,
     TodayTaskEdit,
     TodayTaskStatusUpdate,
 )
 from app.services.today_service import today_service
 
 router = APIRouter(prefix="/today", tags=["today"])
+
+
+@router.post("/preview", response_model=TodayPreviewResponse)
+async def preview_today_draft(*, db: SessionDep, current_user: CurrentUser, obj_in: TodayPreviewRequest):
+    return await today_service.preview_today_draft(db, current_user.id, obj_in)
+
+
+@router.post("/save", response_model=TodayResponse)
+async def save_today_draft(*, db: SessionDep, current_user: CurrentUser, obj_in: TodaySaveRequest):
+    return await today_service.save_today_draft(db, current_user.id, obj_in)
 
 
 @router.get("", response_model=TodayResponse | TodayNoPlanResponse)
