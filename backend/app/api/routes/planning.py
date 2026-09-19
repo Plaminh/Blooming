@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, status, Depends
 
 from app.api.deps import CurrentUser, SessionDep
 from app.schemas.planning import (
@@ -102,3 +102,95 @@ async def save_daily_plan(
         "timezone_snapshot": plan.timezone_snapshot,
         "blocks": blocks
     }
+
+from app.models.ai_schemas import AIRequestContext
+from app.models.api_schemas import PlanningDraftRequest
+from app.services.ai_router import AIRouter
+
+def get_ai_router() -> AIRouter:
+    return AIRouter()
+
+@router.post("/draft")
+async def generate_planning_draft(
+    *,
+    request: PlanningDraftRequest,
+    current_user: CurrentUser,
+    db: SessionDep,
+    ai_router: AIRouter = Depends(get_ai_router)
+):
+    from fastapi.responses import JSONResponse
+    from app.services.ai_router import AIRouterException
+
+    try:
+        from datetime import datetime
+        import zoneinfo
+        from sqlalchemy import select
+        from app.db.models.users import UserSettings
+
+        # Extract basic info
+        user_input = request.user_input
+        context_type = request.context_type
+
+        # Real server-side timezone resolution
+        stmt = select(UserSettings).where(UserSettings.user_id == current_user.id)
+        result = await db.execute(stmt)
+        settings = result.scalars().first()
+        
+        if not settings or not settings.timezone:
+            return JSONResponse(status_code=422, content={
+                "status": "error",
+                "meta": {},
+                "error": {
+                    "code": "TIMEZONE_NOT_CONFIGURED",
+                    "message": "User timezone is not configured."
+                }
+            })
+            
+        user_tz_str = settings.timezone
+        try:
+            user_tz = zoneinfo.ZoneInfo(user_tz_str)
+        except Exception:
+            return JSONResponse(status_code=422, content={
+                "status": "error",
+                "meta": {},
+                "error": {
+                    "code": "INVALID_TIMEZONE",
+                    "message": "The configured timezone is invalid."
+                }
+            })
+            
+        current_time = datetime.now(user_tz)
+
+        req_context = AIRequestContext(
+            user_input=user_input,
+            context_type=context_type,
+            current_time=current_time,
+            timezone=user_tz_str
+        )
+
+        draft = await ai_router.generate_draft(req_context)
+        return draft
+    except AIRouterException as e:
+        return JSONResponse(status_code=e.status_code, content={
+            "status": "error",
+            "meta": {
+                "provider_used": e.provider_used,
+                "fallback_triggered": e.fallback,
+                "latency_ms": e.latency,
+                "result_category": e.code
+            },
+            "error": {
+                "code": e.code,
+                "message": e.message
+            }
+        })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={
+            "status": "error",
+            "meta": {},
+            "error": {
+                "code": "INTERNAL_SERVER_ERROR",
+                "message": "An unexpected internal error occurred."
+            }
+        })
+

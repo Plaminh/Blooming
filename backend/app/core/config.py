@@ -44,6 +44,14 @@ class Settings(BaseSettings):
     EMAIL_VERIFICATION_EXPIRE_MINUTES: int = 30
     EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: int = 60
 
+    # AI Integration
+    AI_GATEWAY_URL: str | None = None
+    CF_AIG_TOKEN: SecretStr | None = None
+    GROQ_API_KEY: SecretStr | None = None
+    GROQ_MODEL: str = "openai/gpt-oss-20b"
+    GEMINI_API_KEY: SecretStr | None = None
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+
     @property
     def database_url(self) -> URL:
         """Async SQLAlchemy URL. ``str()`` on it masks the password."""

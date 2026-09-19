@@ -1,0 +1,39 @@
+{
+  "workflow": "speckit",
+  "featureDir": "E:\\Blooming\\specs\\022-mvp-ai-system",
+  "branch": "022-mvp-ai-system",
+  "specName": "Blooming MVP AI System",
+  "currentStep": "implement",
+  "status": "live provider smoke test pending",
+  "history": [
+    {
+      "step": "specify",
+      "substep": null,
+      "kind": "start",
+      "by": "extension",
+      "at": "2026-09-18T23:48:32.356Z"
+    },
+    {
+      "step": "plan",
+      "substep": null,
+      "kind": "start",
+      "by": "extension",
+      "at": "2026-09-18T23:52:41.460Z"
+    },
+    {
+      "step": "tasks",
+      "substep": null,
+      "kind": "start",
+      "by": "extension",
+      "at": "2026-09-18T23:59:39.837Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "kind": "start",
+      "by": "extension",
+      "at": "2026-09-19T00:02:03.419Z"
+    }
+  ],
+  "telemetryInstanceId": "69adb2dc-c4be-45aa-b199-ae784bce1b18"
+}
