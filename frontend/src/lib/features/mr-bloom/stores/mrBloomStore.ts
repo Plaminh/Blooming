@@ -9,6 +9,7 @@ export interface ChatMessage {
   role: MessageRole;
   content: string;
   timestamp: string;
+  status?: 'failed';
 }
 
 export type Priority = 'Core' | 'Optional';
@@ -78,14 +79,59 @@ export interface MrBloomState {
   error?: string | null;
 }
 
+function getGreeting(date: Date) {
+  const hour = date.getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+async function _sendMessage(
+  message: string, 
+  history: { role: MessageRole; content: string }[], 
+  msgId: string, 
+  update: (updater: (state: MrBloomState) => MrBloomState) => void
+) {
+  try {
+    const result: { reply: string; draft: ApiDraft | null } = await api.post('/assistant/chat', { message, history });
+    let draft: ActiveDraft = null;
+    if (result.draft?.type === 'roadmap') {
+      draft = { ...result.draft, milestones: result.draft.milestones.map(m => ({ ...m, id: crypto.randomUUID() })) };
+    } else if (result.draft?.type === 'today') {
+      draft = { ...result.draft, tasks: result.draft.tasks.map(t => ({ ...t, id: crypto.randomUUID() })) };
+    }
+    update(state => ({
+      ...state,
+      isWaitingForResponse: false,
+      activeDraft: draft ?? state.activeDraft,
+      previewMode: draft?.type ?? state.previewMode,
+      chatHistory: [...state.chatHistory, {
+        id: crypto.randomUUID(), role: 'assistant', content: result.reply,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]
+    }));
+  } catch (error) {
+    update(state => ({
+      ...state,
+      isWaitingForResponse: false,
+      error: error instanceof Error ? error.message : 'Unable to reach Mr. Bloom.',
+      chatHistory: state.chatHistory.map(msg => msg.id === msgId ? { ...msg, status: 'failed' } : msg)
+    }));
+  }
+}
+
 function createMrBloomStore() {
+  const now = new Date();
+  const greeting = getGreeting(now);
+  const timestamp = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
   const { subscribe, set, update } = writable<MrBloomState>({
     chatHistory: [
       {
         id: '1',
         role: 'assistant',
-        content: 'Good morning.\nWhat would you like to work on today?',
-        timestamp: '09:00'
+        content: `${greeting}.\nWhat would you like to work on today?`,
+        timestamp
       }
     ],
     isWaitingForResponse: false,
@@ -103,46 +149,44 @@ function createMrBloomStore() {
       if (!message) return;
       let history: { role: MessageRole; content: string }[] = [];
       let accepted = false;
+      const msgId = crypto.randomUUID();
       update(state => {
         if (state.isWaitingForResponse) return state;
         accepted = true;
-        history = state.chatHistory.filter(turn => turn.id !== '1').slice(-12).map(({ role, content }) => ({ role, content }));
+        history = state.chatHistory.filter(turn => turn.id !== '1' && turn.status !== 'failed').slice(-12).map(({ role, content }) => ({ role, content }));
         return {
           ...state,
           error: null,
           isWaitingForResponse: true,
           chatHistory: [...state.chatHistory, {
-            id: crypto.randomUUID(), role: 'user', content: message,
+            id: msgId, role: 'user', content: message,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }]
         };
       });
       if (!accepted) return;
-      try {
-        const result: { reply: string; draft: ApiDraft | null } = await api.post('/assistant/chat', { message, history });
-        let draft: ActiveDraft = null;
-        if (result.draft?.type === 'roadmap') {
-          draft = { ...result.draft, milestones: result.draft.milestones.map(m => ({ ...m, id: crypto.randomUUID() })) };
-        } else if (result.draft?.type === 'today') {
-          draft = { ...result.draft, tasks: result.draft.tasks.map(t => ({ ...t, id: crypto.randomUUID() })) };
-        }
-        update(state => ({
+      await _sendMessage(message, history, msgId, update);
+    },
+    retryMessage: async (id: string) => {
+      let messageToRetry = '';
+      let history: { role: MessageRole; content: string }[] = [];
+      let accepted = false;
+      update(state => {
+        if (state.isWaitingForResponse) return state;
+        const msg = state.chatHistory.find(m => m.id === id);
+        if (!msg || msg.status !== 'failed') return state;
+        accepted = true;
+        messageToRetry = msg.content;
+        history = state.chatHistory.filter(turn => turn.id !== '1' && turn.status !== 'failed').slice(-12).map(({ role, content }) => ({ role, content }));
+        return {
           ...state,
-          isWaitingForResponse: false,
-          activeDraft: draft ?? state.activeDraft,
-          previewMode: draft?.type ?? state.previewMode,
-          chatHistory: [...state.chatHistory, {
-            id: crypto.randomUUID(), role: 'assistant', content: result.reply,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }]
-        }));
-      } catch (error) {
-        update(state => ({
-          ...state,
-          isWaitingForResponse: false,
-          error: error instanceof Error ? error.message : 'Unable to reach Mr. Bloom.'
-        }));
-      }
+          error: null,
+          isWaitingForResponse: true,
+          chatHistory: state.chatHistory.map(m => m.id === id ? { ...m, status: undefined } : m)
+        };
+      });
+      if (!accepted) return;
+      await _sendMessage(messageToRetry, history, id, update);
     },
     discardDraft: () => {
       update(state => ({ ...state, activeDraft: null, previewMode: 'placeholder' }));

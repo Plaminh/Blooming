@@ -20,8 +20,7 @@
     saveError = null;
     
     try {
-      const d = new Date(draft.targetDate);
-      const targetDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const targetDate = draft.targetDate;
       
       const newGoal = await goalsStore.createGoal({
         title: draft.goalTitle,
@@ -30,7 +29,7 @@
       });
       
       for (const m of draft.milestones) {
-        const dueAt = new Date(m.targetDate).toISOString();
+        const dueAt = m.targetDate.includes('T') ? m.targetDate : `${m.targetDate}T00:00:00Z`;
         await goalsStore.addMilestone(newGoal.id, {
           title: m.title,
           due_at: dueAt
@@ -86,7 +85,7 @@
           {/each}
         </div>
 
-        <DraftAddButton label="ADD MILESTONE" variant="milestone" />
+        <DraftAddButton label="ADD MILESTONE" variant="milestone" disabled={true} />
       </div>
     </div>
 

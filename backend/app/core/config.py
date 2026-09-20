@@ -45,7 +45,13 @@ class Settings(BaseSettings):
     EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: int = 60
 
     GROQ_API_KEY: SecretStr | None = None
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
     GROQ_MODEL: str = "openai/gpt-oss-20b"
+    GROQ_MODEL_PLANNER: str = "llama3-70b-8192"
+    GROQ_MODEL_ROUTER: str = "llama3-8b-8192"
+    GROQ_MODEL_CHITCHAT: str = "llama3-8b-8192"
+    AI_TIMEOUT_SECONDS: float = 30.0
+    AI_CHAT_RATE_LIMIT_PER_MIN: int = 15
 
     @property
     def database_url(self) -> URL:

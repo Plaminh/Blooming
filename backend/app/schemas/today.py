@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.planning import TaskCategory
-from app.schemas.assistant import TodayDraft
+from app.schemas.drafts import TodayDraft
 
 
 class TodayBlock(BaseModel):

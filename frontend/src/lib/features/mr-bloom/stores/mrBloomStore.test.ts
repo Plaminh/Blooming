@@ -1,4 +1,4 @@
-﻿import { beforeEach, expect, test, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { get } from 'svelte/store';
 import { api } from '$lib/api';
 import { mrBloomStore } from './mrBloomStore';
@@ -35,4 +35,46 @@ test('shows a service error and keeps the composer available', async () => {
   expect(state.error).toBe('Service unavailable');
   expect(state.isWaitingForResponse).toBe(false);
   expect(state.activeDraft).toBeNull();
+});
+
+test('failed message is marked as failed and excluded from outgoing history on retry', async () => {
+  // 1. Initial success
+  vi.mocked(api.post).mockResolvedValueOnce({
+    reply: 'First reply', draft: null
+  });
+  await mrBloomStore.submitMessage('First message');
+
+  // 2. Failure
+  vi.mocked(api.post).mockRejectedValueOnce(new Error('Network error'));
+  await mrBloomStore.submitMessage('Failing message');
+
+  let state = get(mrBloomStore);
+  expect(state.error).toBe('Network error');
+  const failedMsg = state.chatHistory.at(-1)!;
+  expect(failedMsg.content).toBe('Failing message');
+  expect(failedMsg.status).toBe('failed');
+
+  // 3. Retry success
+  vi.mocked(api.post).mockResolvedValueOnce({
+    reply: 'Recovered reply', draft: null
+  });
+  await mrBloomStore.retryMessage(failedMsg.id);
+
+  state = get(mrBloomStore);
+  expect(state.error).toBeNull();
+  
+  expect(api.post).toHaveBeenLastCalledWith(
+    '/assistant/chat',
+    expect.objectContaining({
+      message: 'Failing message',
+      history: [
+        { role: 'user', content: 'First message' },
+        { role: 'assistant', content: 'First reply' }
+      ]
+    })
+  );
+
+  const userMessages = state.chatHistory.filter(m => m.role === 'user');
+  expect(userMessages.length).toBe(2);
+  expect(userMessages[1].status).toBeUndefined(); // Status cleared
 });

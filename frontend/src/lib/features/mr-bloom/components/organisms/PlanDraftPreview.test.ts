@@ -28,9 +28,9 @@ describe('PlanDraftPreview save to goals', () => {
         type: 'roadmap',
         goalTitle: 'Test Goal',
         goalDescription: 'Test Desc',
-        targetDate: 'Jun 30, 2024',
+        targetDate: '2024-06-30',
         milestones: [
-          { id: 'm1', title: 'M1', targetDate: 'Apr 30, 2024' }
+          { id: 'm1', title: 'M1', targetDate: '2024-04-30' }
         ]
       }
     });

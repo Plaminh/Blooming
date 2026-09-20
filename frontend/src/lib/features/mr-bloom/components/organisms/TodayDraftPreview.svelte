@@ -28,7 +28,7 @@
         {/each}
       </div>
 
-      <DraftAddButton label="ADD TASK" variant="task" />
+      <DraftAddButton label="ADD TASK" variant="task" disabled={true} />
       <div class="content-divider" aria-hidden="true"></div>
     </div>
 
