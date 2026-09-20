@@ -10,10 +10,24 @@ from app.schemas.goals import (
     MilestoneCreate,
     MilestoneResponse,
     MilestoneUpdate,
+    RoadmapSave,
 )
 from app.services.goals_service import goals_service
 
 router = APIRouter(prefix="/goals", tags=["goals"])
+
+
+@router.post(
+    "/from-roadmap", response_model=GoalResponse, status_code=status.HTTP_201_CREATED
+)
+async def create_goal_from_roadmap(
+    roadmap: RoadmapSave,
+    db: SessionDep,
+    current_user: CurrentUser,
+):
+    goal = await goals_service.create_from_roadmap(db, roadmap, current_user.id)
+    await db.commit()
+    return goal
 
 
 @router.get("/", response_model=list[GoalResponse])

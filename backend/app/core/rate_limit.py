@@ -16,7 +16,7 @@ class SlidingWindowRateLimiter:
             if len(self.store) >= self.max_users and user_id not in self.store:
                 self._evict_stale(now)
                 if len(self.store) >= self.max_users:
-                    self.store.clear()
+                    return False
 
             if user_id not in self.store:
                 self.store[user_id] = deque()

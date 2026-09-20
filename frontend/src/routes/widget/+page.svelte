@@ -223,6 +223,15 @@
       finishWarning = result.replan?.unscheduled_tasks?.length
         ? `Focus saved. ${result.replan.unscheduled_tasks.length} task(s) need manual scheduling. Open Today for details.`
         : null;
+      if (outcome === "NEED_MORE_TIME" || outcome === "SKIP") {
+        const eventResult: { nudge?: { id: string; message: string; action: string } | null } = await api.post("/assistant/events", {
+          event_id: `focus-${session.id}`, event_name: outcome
+        });
+        if (eventResult.nudge) {
+          finishWarning = eventResult.nudge.message;
+          await desktop.proactiveNudge(eventResult.nudge);
+        }
+      }
       completedSessionId = session.id;
       activeSession = null;
       isEndingLocal = false;

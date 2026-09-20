@@ -29,6 +29,8 @@ if TYPE_CHECKING:
 
 
 class FocusRun(Base):
+    __allow_unmapped__ = True
+    replan: Any | None = None
     __tablename__ = "focus_runs"
     __table_args__ = (
         CheckConstraint(

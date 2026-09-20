@@ -104,6 +104,10 @@ async def run_async_migrations() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
+    supplied_connection = config.attributes.get("connection")
+    if supplied_connection is not None:
+        do_run_migrations(supplied_connection)
+        return
 
     use_selector_event_loop_policy()
     asyncio.run(run_async_migrations())

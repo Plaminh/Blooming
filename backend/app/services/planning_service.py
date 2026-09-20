@@ -72,8 +72,8 @@ class PlanningService:
                 path.remove(node)
                 return False
 
-            visited = set()
-            path = set()
+            visited: set[UUID] = set()
+            path: set[UUID] = set()
             if dfs(task_id, visited, path):
                 raise CyclicDependencyError("Cyclic dependency detected")
 
@@ -163,18 +163,18 @@ class PlanningService:
         windows = [ScheduleWindow(start_at=w.start_at, end_at=w.end_at) for w in request.availability_windows]
 
         scheduler = DeterministicScheduler()
-        result = scheduler.schedule(schedule_tasks, windows)
+        schedule_result = scheduler.schedule(schedule_tasks, windows)
 
         from app.db.models.daily_plans import PlanBlock, AvailabilityWindow as DbAvailabilityWindow
         from app.crud.crud_daily_plan import daily_plan as crud_daily_plan
 
         # Determine reality check
-        if result.unscheduled_tasks or any(r["code"] == "FIXED_TASK_OVERLAP" for r in result.reasons):
+        if schedule_result.unscheduled_tasks or any(r["code"] == "FIXED_TASK_OVERLAP" for r in schedule_result.reasons):
             reality_check = "OVERLOADED"
         else:
             buffer_ratio = 1.0
-            if result.available_minutes > 0:
-                buffer_ratio = (result.available_minutes - result.workload_minutes) / result.available_minutes
+            if schedule_result.available_minutes > 0:
+                buffer_ratio = (schedule_result.available_minutes - schedule_result.workload_minutes) / schedule_result.available_minutes
             if buffer_ratio >= 0.2:
                 reality_check = "COMFORTABLE"
             else:
@@ -198,7 +198,7 @@ class PlanningService:
             db.add(db_w)
 
         draft_blocks = []
-        for i, b in enumerate(result.blocks):
+        for i, b in enumerate(schedule_result.blocks):
             db_b = PlanBlock(
                 daily_plan_id=draft_plan.id,
                 task_id=b.task_id,
@@ -229,13 +229,13 @@ class PlanningService:
                 } for b in draft_blocks
             ],
             "reality_check": reality_check,
-            "reality_check_reasons": result.reasons,
-            "unscheduled_tasks": result.unscheduled_tasks
+            "reality_check_reasons": schedule_result.reasons,
+            "unscheduled_tasks": schedule_result.unscheduled_tasks
         }
 
     async def save_daily_plan(self, db: AsyncSession, request: Any, user_id: UUID) -> Any:
         from app.crud.crud_daily_plan import daily_plan as crud_daily_plan
-        from app.core.errors import PlanAlreadyExistsError, ValidationError
+        from app.core.errors import PlanAlreadyExistsError
         from datetime import datetime, timezone
 
         draft = await crud_daily_plan.get(db, request.draft_id, user_id)

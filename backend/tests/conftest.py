@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
+from alembic import command
+from alembic.config import Config
 from app.core.config import settings
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event, text
@@ -174,6 +176,12 @@ async def engine_and_template():
                     # to use simple query protocol for multiple statements
                     raw_conn = await conn.get_raw_connection()
                     await raw_conn.driver_connection.execute(sql)
+                alembic_config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+                def upgrade_schema(sync_connection):
+                    alembic_config.attributes["connection"] = sync_connection
+                    command.stamp(alembic_config, "6ebc3e7e2e0e")
+                    command.upgrade(alembic_config, "head")
+                await conn.run_sync(upgrade_schema)
         finally:
             await template_engine.dispose()
 

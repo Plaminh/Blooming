@@ -1,30 +1,50 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { api } from '$lib/api';
+import { api, type TodayDraft } from '$lib/api';
 import { mrBloomStore } from './mrBloomStore';
 
-vi.mock('$lib/api', () => ({ api: { post: vi.fn() } }));
+vi.mock('$lib/api', () => ({
+  api: { post: vi.fn(), get: vi.fn() },
+  previewTodayPlan: vi.fn(),
+  saveTodayPlan: vi.fn(),
+  saveRoadmap: vi.fn()
+}));
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mrBloomStore.set({ chatHistory: [], isWaitingForResponse: false, activeDraft: null, previewMode: 'placeholder', error: null });
+  mrBloomStore.set({ chatHistory: [], isWaitingForResponse: false, activeDraft: null, preview: null, previewMode: 'placeholder', sessionId: null, degraded: null, suggestions: [], assumptions: [], needsReplace: false, error: null });
 });
 
 test('sends the message to the backend and shows its draft', async () => {
   vi.mocked(api.post).mockResolvedValue({
     reply: 'Review these tasks.',
-    draft: { type: 'today', availability: { start: '09:00', end: '12:00', totalHours: 3 }, tasks: [
-      { title: 'Write report', durationMin: 90, priority: 'Core' }
+    draft: { type: 'today', planDate: '2026-09-20', timezone: 'UTC', windows: [{ start: '09:00', end: '12:00' }], tasks: [
+      { id: 'task-1', title: 'Write report', durationMin: 90, priority: 'MEDIUM', importance: 'CORE',
+        category: null, estimateSource: 'USER', breakAfterMin: null, deadline: null,
+        schedulingType: 'FLEXIBLE', fixedStart: null, fixedEnd: null, dependencies: [], splittable: false }
     ] }
   });
 
   await mrBloomStore.submitMessage('Plan my report');
 
-  expect(api.post).toHaveBeenCalledWith('/assistant/chat', { message: 'Plan my report', history: [] });
+  expect(api.post).toHaveBeenCalledWith('/assistant/chat', { message: 'Plan my report', session_id: null, current_draft: null });
   const state = get(mrBloomStore);
   expect(state.chatHistory.at(-1)?.content).toBe('Review these tasks.');
   expect(state.activeDraft?.type).toBe('today');
-  if (state.activeDraft?.type === 'today') expect(state.activeDraft.tasks[0].title).toBe('Write report');
+  if (state.activeDraft?.type === 'today') {
+    expect(state.activeDraft.tasks[0].id).toBe('task-1');
+    expect(state.activeDraft.tasks[0].title).toBe('Write report');
+    vi.mocked(api.post).mockResolvedValueOnce({
+      draft: { ...state.activeDraft, tasks: state.activeDraft.tasks.map(task => ({ ...task, importance: 'OPTIONAL' })) },
+      preview: { preview_token: 'fresh' }
+    });
+    await mrBloomStore.updateTaskImportance('task-1', 'OPTIONAL');
+    const edited = get(mrBloomStore).activeDraft;
+    if (edited?.type === 'today') {
+      expect(edited.tasks[0].importance).toBe('OPTIONAL');
+      expect(edited.tasks[0].priority).toBe('MEDIUM');
+    }
+  }
   expect(state.isWaitingForResponse).toBe(false);
 });
 
@@ -63,18 +83,82 @@ test('failed message is marked as failed and excluded from outgoing history on r
   state = get(mrBloomStore);
   expect(state.error).toBeNull();
   
-  expect(api.post).toHaveBeenLastCalledWith(
-    '/assistant/chat',
-    expect.objectContaining({
-      message: 'Failing message',
-      history: [
-        { role: 'user', content: 'First message' },
-        { role: 'assistant', content: 'First reply' }
-      ]
-    })
-  );
+  expect(api.post).toHaveBeenLastCalledWith('/assistant/chat', expect.objectContaining({ message: 'Failing message' }));
 
   const userMessages = state.chatHistory.filter(m => m.role === 'user');
   expect(userMessages.length).toBe(2);
   expect(userMessages[1].status).toBeUndefined(); // Status cleared
+});
+
+test('restores the latest server-owned session including draft metadata', async () => {
+  vi.mocked(api.get).mockResolvedValue({
+    session_id: 'session-1',
+    status: 'OPEN',
+    messages: [
+      { role: 'user', content: 'Plan study', created_at: '2026-09-20T08:00:00Z', structured_payload: null },
+      {
+        role: 'assistant', content: 'Review it', created_at: '2026-09-20T08:00:01Z',
+        structured_payload: {
+          draft: { type: 'today', planDate: '2026-09-20', timezone: 'UTC', windows: [], tasks: [] },
+          suggestions: [{ label: 'Save plan', action: 'SAVE_TODAY' }],
+          assumptions: [{ id: 'a1', kind: 'WINDOW', text: 'Assumed 09:00-17:00', task_id: null }],
+          degraded: 'LEAN'
+        }
+      }
+    ]
+  });
+  await mrBloomStore.restoreLatestSession();
+  const state = get(mrBloomStore);
+  expect(state.sessionId).toBe('session-1');
+  expect(state.chatHistory).toHaveLength(2);
+  expect(state.activeDraft?.type).toBe('today');
+  expect(state.suggestions[0].action).toBe('SAVE_TODAY');
+  expect(state.assumptions[0].id).toBe('a1');
+  expect(state.degraded).toBe('LEAN');
+});
+
+test('executes an allowlisted quick reply action explicitly', async () => {
+  vi.mocked(api.post).mockResolvedValue({ status: 'ACTIVE', blocks: [] });
+  const suggestion = { label: 'Skip optional tasks', action: 'SKIP_OPTIONAL_TODAY' };
+  mrBloomStore.update(state => ({ ...state, suggestions: [suggestion] }));
+  await mrBloomStore.handleSuggestion(suggestion);
+  expect(api.post).toHaveBeenCalledWith('/assistant/actions/SKIP_OPTIONAL_TODAY', {});
+  expect(get(mrBloomStore).suggestions).toEqual([]);
+});
+
+test('send-text and patch quick replies use their explicit payloads', async () => {
+  vi.mocked(api.post).mockResolvedValueOnce({ reply: 'Ready', draft: null });
+  await mrBloomStore.handleSuggestion({ label: 'Plan', send_text: 'Plan my day' });
+  expect(api.post).toHaveBeenCalledWith('/assistant/chat', expect.objectContaining({ message: 'Plan my day' }));
+
+  const draft: TodayDraft = { type: 'today', planDate: '2026-09-20', timezone: 'UTC',
+    windows: [{ start: '09:00', end: '12:00' }], tasks: [] };
+  mrBloomStore.update(state => ({ ...state, activeDraft: draft }));
+  vi.mocked(api.post).mockResolvedValueOnce({ draft, preview: null });
+  const patch = [{ op: 'set_windows', windows: [{ start: '10:00', end: '12:00' }] }];
+  await mrBloomStore.handleSuggestion({ label: 'Start later', patch });
+  expect(api.post).toHaveBeenLastCalledWith('/assistant/apply-patch', { draft, ops: patch });
+});
+
+test('duration edits debounce into one preview request', async () => {
+  vi.useFakeTimers();
+  try {
+    const draft: TodayDraft = { type: 'today', planDate: '2026-09-20', timezone: 'UTC',
+      windows: [{ start: '09:00', end: '12:00' }], tasks: [{ id: 'd1', title: 'Read',
+        durationMin: 30, priority: 'MEDIUM', importance: 'CORE', category: null,
+        estimateSource: 'USER', breakAfterMin: null, deadline: null,
+        schedulingType: 'FLEXIBLE', fixedStart: null, fixedEnd: null,
+        dependencies: [], splittable: false }] };
+    mrBloomStore.update(state => ({ ...state, activeDraft: draft }));
+    vi.mocked(api.post).mockResolvedValue({ draft, preview: null });
+    mrBloomStore.updateTaskDuration('d1', 35);
+    mrBloomStore.updateTaskDuration('d1', 40);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledWith('/assistant/apply-patch', {
+      draft, ops: [{ op: 'update_task', task_id: 'd1', duration_min: 40 }]
+    });
+  } finally {
+    vi.useRealTimers();
+  }
 });

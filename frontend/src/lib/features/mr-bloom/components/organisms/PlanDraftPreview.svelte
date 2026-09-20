@@ -6,7 +6,6 @@
   import DraftAddButton from '../molecules/DraftAddButton.svelte';
   import RoadmapNode from '$lib/features/goals/components/atoms/RoadmapNode.svelte';
   import TargetDateLabel from '$lib/features/goals/components/atoms/TargetDateLabel.svelte';
-  import { goalsStore } from '$lib/features/goals/stores/goalsStore';
   import { goto } from '$app/navigation';
 
   const draft = $derived($mrBloomStore.activeDraft as RoadmapDraft);
@@ -20,28 +19,12 @@
     saveError = null;
     
     try {
-      const targetDate = draft.targetDate;
-      
-      const newGoal = await goalsStore.createGoal({
-        title: draft.goalTitle,
-        description: draft.goalDescription,
-        target_date: targetDate
-      });
-      
-      for (const m of draft.milestones) {
-        const dueAt = m.targetDate.includes('T') ? m.targetDate : `${m.targetDate}T00:00:00Z`;
-        await goalsStore.addMilestone(newGoal.id, {
-          title: m.title,
-          due_at: dueAt
-        });
+      if (await mrBloomStore.saveRoadmap()) {
+        goto('/goals');
+      } else {
+        saveError = $mrBloomStore.error ?? 'Failed to save goal.';
       }
-      
-      mrBloomStore.acceptDraft("Great! I've saved that roadmap to your Goals.");
-      goto('/goals');
     } catch (err) {
-      // NOTE: The Goals API does not support atomic Goal+Milestone creation.
-      // If a milestone fails, the Goal (and prior milestones) will still exist,
-      // but the UI will show this error and preserve the draft.
       saveError = err instanceof Error ? err.message : 'Failed to save goal.';
     } finally {
       saving = false;
@@ -70,7 +53,7 @@
 
       <div class="milestones-section">
         <div class="roadmap-timeline">
-          {#each draft.milestones as milestone, index (milestone.id)}
+          {#each draft.milestones as milestone, index (`${milestone.title}-${milestone.targetDate}-${index}`)}
             <div class="timeline-row">
               <div class="node-column">
                 <RoadmapNode

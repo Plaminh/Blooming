@@ -1,10 +1,18 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { desktop } from '$lib/platform/desktopWindow';
   import { mrBloomStore } from '../../stores/mrBloomStore';
   import MrBloomConversationPanel from './MrBloomConversationPanel.svelte';
   import LiveDraftPlaceholder from './LiveDraftPlaceholder.svelte';
   import PlanDraftPreview from './PlanDraftPreview.svelte';
   import TodayDraftPreview from './TodayDraftPreview.svelte';
   import TimelineDraftPreview from './TimelineDraftPreview.svelte';
+  onMount(() => {
+    let unlisten = () => {};
+    void mrBloomStore.restoreLatestSession();
+    desktop.onProactiveNudge(nudge => mrBloomStore.receiveNudge(nudge)).then(value => unlisten = value);
+    return () => unlisten();
+  });
 </script>
 
 <div class="planning-workspace" class:has-draft={$mrBloomStore.previewMode !== 'placeholder'}>

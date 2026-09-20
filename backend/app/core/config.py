@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: int = 60
 
     GROQ_API_KEY: SecretStr | None = None
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
     OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
     AI_ROUTE_ROUTER: str = "groq:llama-3.1-8b-instant"
     AI_ROUTE_CHITCHAT: str = "groq:llama-3.1-8b-instant"
@@ -57,6 +58,9 @@ class Settings(BaseSettings):
     AI_USER_CALLS_PER_DAY: dict[str, int] = {"PLANNER": 10, "EDITOR": 10, "CHITCHAT": 15, "ROUTER": 40}
     AI_TIMEOUT_SECONDS: float = 20.0
     AI_CHAT_RATE_LIMIT_PER_MIN: int = 12
+    AI_BUDGET_LEAN_THRESHOLD: float = 0.70
+    AI_BUDGET_RULES_ONLY_THRESHOLD: float = 0.85
+    AI_NUDGE_COOLDOWN_MINUTES: int = 30
 
     @property
     def database_url(self) -> URL:
@@ -85,4 +89,4 @@ class Settings(BaseSettings):
 
         return self
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]  # Required fields come from the environment.

@@ -20,7 +20,7 @@
 
 - [x] T001 Run and record the existing backend test baseline using `pytest`
 - [x] T002 Run and record the existing frontend test baseline using `npm run test` in `frontend/`
-- [x] T003 [P] Run configured lint, type-check, and format-check commands (`npm run check` and `flake8`)
+- [x] T003 [P] Run configured lint, type-check, and format-check commands (`npm run check`, `ruff check .`, `mypy app`, frontend lint)
 - [x] T004 [P] Verify the current database migration head using `alembic current`
 - [x] T005 [P] Verify the feature specification checklists are complete in `specs/025-blooming-chatbot/`
 - [x] T006 [P] Verify `.env.example` contains placeholders only and no production keys
@@ -79,16 +79,16 @@
 ### Implementation for User Story 2 (PR 4 & PR 5)
 
 - [x] T021 [US2] Update `assistant.ChatRequest` to include standard fields (`history`, `draft`, `garden`, `tz`)
-- [x] T022 [US2] Create unified router pipeline entry point in `backend/app/services/assistant/pipeline.py`
-- [ ] T023 [US2] Implement deterministic rule handlers in `backend/app/services/assistant/rules.py`
-- [ ] T024 [P] [US2] Implement router prompt assembly and invocation in `backend/app/services/assistant/router.py`
-- [ ] T025 [P] [US2] Migrate basic chitchat logic to `backend/app/services/assistant/chitchat.py`
-- [ ] T026 [P] [US2] Connect `chat` in `backend/app/services/assistant_service.py` to `pipeline.py`
-- [ ] T027 [US2] Update frontend `AssistantApi.chat` types to reflect new request contract
-- [ ] T026 [P] [US2] Implement validation, fixes, and repair logic in `backend/app/ai/validators.py`
-- [ ] T027 [US2] Remove fake timeline generation in `frontend/src/lib/features/mr-bloom/model/mrBloomStore.ts`
-- [ ] T028 [US2] Integrate real `/today/preview` state into `frontend/src/lib/features/mr-bloom/components/organisms/TimelineDraftPreview.svelte`
-- [ ] T029 [US2] Write tests for deterministic parser in `backend/tests/unit/test_parser.py`
+- [x] T022 [US2] Create the unified router pipeline entry point in `backend/app/services/assistant_service.py`
+- [x] T023 [US2] Implement deterministic rule handlers in `backend/app/ai/handlers/rules.py`
+- [x] T024 [P] [US2] Implement deterministic routing in `backend/app/ai/router.py`
+- [x] T025 [P] [US2] Migrate basic chitchat logic to `backend/app/ai/handlers/chitchat.py`
+- [x] T026 [P] [US2] Connect `chat` in `backend/app/services/assistant_service.py` to the AI handlers
+- [x] T027 [US2] Update frontend `AssistantApi.chat` types to reflect new request contract
+- [x] T026A [P] [US2] Implement validation, fixes, and repair logic in `backend/app/ai/validators.py`
+- [x] T027A [US2] Remove fake timeline generation in `frontend/src/lib/features/mr-bloom/stores/mrBloomStore.ts`
+- [x] T028 [US2] Integrate real `/today/preview` state into `frontend/src/lib/features/mr-bloom/components/organisms/TimelineDraftPreview.svelte`
+- [x] T029 [US2] Write tests for deterministic parser in `backend/tests/unit/test_parser.py`
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently.
 
@@ -102,13 +102,13 @@
 
 ### Implementation for User Story 3 (PR 7 - 9)
 
-- [ ] T031 [US3] Implement LLM task and day plan output schemas in `backend/app/ai/handlers/planner.py`
-- [ ] T032 [US3] Implement parser-to-LLM cascade and retry loop in `backend/app/ai/handlers/planner.py`
-- [ ] T033 [US3] Implement dynamic token usage querying and mode switching (NORMAL/LEAN/RULES_ONLY) in `backend/app/ai/budget.py`
-- [ ] T034 [P] [US3] Add degraded mode banner component in `frontend/src/lib/features/mr-bloom/components/molecules/DegradedBanner.svelte`
-- [ ] T035 [US3] Implement clarification question generation for missing data in `backend/app/ai/handlers/clarify.py`
-- [ ] T036 [US3] Implement atomic goal and milestone creation in `backend/app/services/goals_service.py`
-- [ ] T037 [US3] Write cascade tests in `backend/tests/unit/test_cascade.py`
+- [x] T031 [US3] Implement LLM task and day plan output schemas in `backend/app/ai/handlers/planner.py`
+- [x] T032 [US3] Implement parser-to-LLM cascade and retry loop in `backend/app/ai/handlers/planner.py`
+- [x] T033 [US3] Implement dynamic token usage querying and mode switching (NORMAL/LEAN/RULES_ONLY) in `backend/app/ai/budget.py`
+- [x] T034 [P] [US3] Add degraded mode banner component in `frontend/src/lib/features/mr-bloom/components/molecules/DegradedBanner.svelte`
+- [x] T035 [US3] Implement clarification question generation for missing data in `backend/app/ai/handlers/clarify.py`
+- [x] T036 [US3] Implement atomic goal and milestone creation in `backend/app/services/goals_service.py`
+- [x] T037 [US3] Write cascade tests in `backend/tests/unit/test_cascade.py`
 
 **Checkpoint**: All core planning user stories should now be independently functional.
 
@@ -122,13 +122,13 @@
 
 ### Implementation for User Story 4 (PR 10 - 12)
 
-- [ ] T038 [US4] Implement `PatchOp` schemas and `apply_patch` endpoint in `backend/app/ai/patches.py`
-- [ ] T039 [US4] Implement deterministic editor rules in `backend/app/ai/editor_rules.py`
-- [ ] T040 [US4] Implement LLM editor fallback in `backend/app/ai/handlers/editor.py`
-- [ ] T041 [US4] Modify `backend/app/api/routes/assistant.py` to persist interactions to `planning_sessions` and `planning_messages`
-- [ ] T042 [P] [US4] Implement mood handlers and crisis detection in `backend/app/ai/handlers/mood.py`
-- [ ] T043 [US4] Implement whitelist actions endpoint `POST /assistant/actions/{name}` in `backend/app/api/routes/assistant.py`
-- [ ] T044 [US4] Write patch application tests in `backend/tests/unit/test_patches.py`
+- [x] T038 [US4] Implement `PatchOp` schemas and `apply_patch` endpoint in `backend/app/ai/patches.py`
+- [x] T039 [US4] Implement deterministic editor rules in `backend/app/ai/editor_rules.py`
+- [x] T040 [US4] Implement LLM editor fallback in `backend/app/ai/handlers/editor.py`
+- [x] T041 [US4] Modify `backend/app/api/routes/assistant.py` to persist interactions to `planning_sessions` and `planning_messages`
+- [x] T042 [P] [US4] Implement mood handlers and crisis detection in `backend/app/ai/handlers/mood.py`
+- [x] T043 [US4] Implement whitelist actions endpoint `POST /assistant/actions/{name}` in `backend/app/api/routes/assistant.py`
+- [x] T044 [US4] Write patch application tests in `backend/tests/unit/test_patches.py`
 
 ---
 
@@ -140,11 +140,11 @@
 
 ### Implementation for User Story 5 (PR 13 - 14)
 
-- [ ] T045 [US5] Implement historical calibration query logic in `backend/app/ai/calibration.py`
-- [ ] T046 [US5] Apply calibration multipliers to AI-estimated task durations in `backend/app/ai/drafts.py`
-- [ ] T047 [P] [US5] Implement proactive event nudges (e.g., Pomodoro triggers) in `backend/app/ai/proactive.py`
-- [ ] T048 [P] [US5] Update Tauri `emitTo` handlers for cross-window deduplication in `frontend/src/lib/platform/desktopWindow.ts`
-- [ ] T049 [US5] Write calibration logic tests in `backend/tests/unit/test_calibration.py`
+- [x] T045 [US5] Implement historical calibration query logic in `backend/app/ai/calibration.py`
+- [x] T046 [US5] Apply calibration multipliers to AI-estimated task durations in `backend/app/ai/drafts.py`
+- [x] T047 [P] [US5] Implement proactive event nudges (e.g., Pomodoro triggers) in `backend/app/ai/proactive.py`
+- [x] T048 [P] [US5] Update Tauri `emitTo` handlers for cross-window deduplication in `frontend/src/lib/platform/desktopWindow.ts`
+- [x] T049 [US5] Write calibration logic tests in `backend/tests/unit/test_calibration.py`
 
 ---
 
@@ -152,9 +152,9 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T050 [P] Write `scripts/eval_chat.py` for explicitly opted-in Groq evaluation against 30 test prompts
+- [x] T050 [P] Write `scripts/eval_chat.py` for explicitly opted-in Groq evaluation against 30 test prompts
 - [ ] T051 Run complete quickstart.md manual validation (Ollama, RULES_ONLY)
-- [ ] T052 Verify database usage logs contain no private text data
+- [x] T052 Verify database usage logs contain no private text data
 
 ---
 

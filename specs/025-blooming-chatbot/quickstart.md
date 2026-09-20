@@ -47,9 +47,8 @@ pytest tests/test_roadmap.py           # Phase 5: Goal Creation
 
 ### Backend Quality Checks
 ```bash
-# Format and Lint
-black app tests
-flake8 app tests
+# Lint and type check
+ruff check .
 mypy app
 ```
 
@@ -66,6 +65,7 @@ npm run test -- src/lib/features/mr-bloom/components/molecules/ChatMessage.test.
 ```bash
 # Type check and lint
 npm run check
+npm run lint
 
 # Build check
 npm run build
@@ -84,7 +84,7 @@ Send a chat payload requesting a plan. Ensure the backend doesn't crash and gene
 ### 2. Groq LLM Evaluation (WARNING: CONSUMES QUOTA)
 To measure model capability, run the custom eval script. **Warning: This consumes real provider quota. Monitor your organization's limits.**
 ```bash
-python scripts/eval_chat.py --provider groq
+python scripts/eval_chat.py --provider groq --allow-groq
 ```
 
 ### 3. RULES_ONLY Behavior

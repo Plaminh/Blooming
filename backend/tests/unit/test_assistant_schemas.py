@@ -44,6 +44,27 @@ def test_existing_chat_and_today_response_shapes_remain_valid():
     response = TodayResponse(plan_date="2026-09-19", status="ACTIVE", unscheduled_tasks=[task_id])
     assert response.unscheduled_tasks == [task_id]
 
+
+def test_chat_contract_keeps_current_draft_and_response_metadata():
+    request = assistant.ChatRequest.model_validate(
+        {
+            "message": "change task 1 to 45 min",
+            "current_draft": {
+                "type": "today",
+                "planDate": "2026-09-20",
+                "windows": [{"start": "09:00", "end": "12:00"}],
+                "tasks": [{"id": "d1", "title": "Read", "durationMin": 30}],
+            },
+        }
+    )
+    assert request.current_draft is not None
+    response = assistant.ChatResponse(
+        reply="Updated", intent="EDIT_DRAFT", tier="RULES", degraded="LEAN"
+    )
+    assert response.model_dump()["intent"] == "EDIT_DRAFT"
+    assert response.model_dump()["tier"] == "RULES"
+    assert response.model_dump()["degraded"] == "LEAN"
+
 def test_availability_window_draft_validation():
     with pytest.raises(ValidationError):
         drafts.AvailabilityWindowDraft(start="10:00", end="09:00")

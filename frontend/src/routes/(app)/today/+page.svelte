@@ -43,6 +43,17 @@
       if (reqId !== currentRequestId) return;
 
       applySchedule(data);
+      if (!requestedDate && data.status === "NO_PLAN") {
+        try {
+          const eventResult: { nudge?: { id: string; message: string; action: string } | null } =
+            await api.post('/assistant/events', {
+              event_id: `morning-no-plan-${data.plan_date}`, event_name: 'MORNING_NO_PLAN'
+            });
+          if (eventResult.nudge) await desktop.proactiveNudge(eventResult.nudge);
+        } catch {
+          // Plan loading remains usable if the optional suggestion fails.
+        }
+      }
     } catch (err) {
       if (reqId !== currentRequestId) return;
       loadError = "Failed to load today plan.";

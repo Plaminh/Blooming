@@ -34,3 +34,11 @@ def test_rate_limiter_isolates_users(monkeypatch):
     
     assert limiter.is_allowed(user2) is True
     assert limiter.is_allowed(user2) is False
+
+
+def test_capacity_does_not_reset_existing_user_limits(monkeypatch):
+    limiter = SlidingWindowRateLimiter(limit=1, window_seconds=60, max_users=1)
+    monkeypatch.setattr(time, "monotonic", lambda: 100.0)
+    assert limiter.is_allowed("first") is True
+    assert limiter.is_allowed("second") is False
+    assert limiter.is_allowed("first") is False

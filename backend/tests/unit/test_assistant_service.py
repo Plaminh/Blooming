@@ -1,213 +1,67 @@
-import json as jsonlib
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
-import httpx
-from pydantic import SecretStr
-from fastapi import HTTPException
-
-from app.schemas.assistant import ChatRequest, ChatTurn
+from app.schemas.assistant import ChatRequest, ChatResponse
+from app.schemas.drafts import AvailabilityWindowDraft, TaskDraft, TodayDraft
 from app.services import assistant_service
 
 
 @pytest.mark.asyncio
-async def test_chat_sends_history_and_returns_model_draft(monkeypatch):
-    sent = {}
-
-    class Client:
-        async def post(self, url, *, headers, json):
-            sent.update(url=url, headers=headers, body=json)
-            response = Mock()
-            response.raise_for_status = Mock()
-            response.json.return_value = {"choices": [{"message": {"content": jsonlib.dumps({
-                "reply": "Here is your plan.",
-                "draft": {"type": "today", "planDate": "2026-09-20", "windows": [{"start": "09:00", "end": "12:00"}],
-                          "tasks": [{"title": "Write report", "durationMin": 90, "id": "t1", "priority": "MEDIUM"}]},
-            })}}]}
-            return response
-
-    monkeypatch.setattr(assistant_service, "ai_client", Client())
-    monkeypatch.setattr(assistant_service.settings, "GROQ_API_KEY", SecretStr("test-key"))
-    result = await assistant_service.chat(ChatRequest(
-        message="Plan my report", history=[ChatTurn(role="user", content="I have three hours")]
-    ))
-
-    assert sent["url"].endswith("/chat/completions")
-    assert sent["body"]["messages"][-2:] == [
-        {"role": "user", "content": "I have three hours"},
-        {"role": "user", "content": "Plan my report"},
-    ]
-    assert result.draft.type == "today"
-    assert result.draft.tasks[0].title == "Write report"
+async def test_rule_intent_never_requires_database_or_provider():
+    result = await assistant_service.chat(ChatRequest(message="Hello"))
+    assert result.intent == "GREETING"
+    assert result.tier == "RULES"
 
 
 @pytest.mark.asyncio
-async def test_chat_error_mapping(monkeypatch):
-    class ErrorClient:
-        def __init__(self, exc):
-            self.exc = exc
-
-        async def post(self, url, *, headers, json):
-            raise self.exc
-
-    # Test 429 Rate Limit
-    response_429 = Mock()
-    response_429.status_code = 429
-    monkeypatch.setattr(assistant_service, "ai_client", ErrorClient(httpx.HTTPStatusError("rate limited", request=Mock(), response=response_429)))
-    monkeypatch.setattr(assistant_service.settings, "GROQ_API_KEY", SecretStr("test-key"))
-    
-    with pytest.raises(HTTPException) as excinfo:
-        await assistant_service.chat(ChatRequest(message="Hello"))
-    assert excinfo.value.status_code == 429
-    assert excinfo.value.detail == "rate_limit"
-
-    # Test Timeout
-import json as jsonlib
-from unittest.mock import Mock, AsyncMock
-
-import pytest
-import httpx
-from pydantic import SecretStr
-from fastapi import HTTPException
-
-from app.schemas.assistant import ChatRequest, ChatTurn
-from app.services import assistant_service
-
-
-@pytest.mark.asyncio
-async def test_chat_sends_history_and_returns_model_draft(monkeypatch):
-    sent = {}
-
-    class Client:
-        async def post(self, url, *, headers, json):
-            sent.update(url=url, headers=headers, body=json)
-            response = Mock()
-            response.raise_for_status = Mock()
-            response.json.return_value = {"choices": [{"message": {"content": jsonlib.dumps({
-                "reply": "Here is your plan.",
-                "draft": {"type": "today", "planDate": "2026-09-20", "windows": [{"start": "09:00", "end": "12:00"}],
-                          "tasks": [{"title": "Write report", "durationMin": 90, "id": "t1", "priority": "MEDIUM"}]},
-            })}}]}
-            return response
-
-    monkeypatch.setattr(assistant_service, "ai_client", Client())
-    monkeypatch.setattr(assistant_service.settings, "GROQ_API_KEY", SecretStr("test-key"))
-    result = await assistant_service.chat(ChatRequest(
-        message="Plan my report", history=[ChatTurn(role="user", content="I have three hours")]
-    ))
-
-    assert sent["url"].endswith("/chat/completions")
-    assert sent["body"]["messages"][-2:] == [
-        {"role": "user", "content": "I have three hours"},
-        {"role": "user", "content": "Plan my report"},
-    ]
-    assert result.draft.type == "today"
-    assert result.draft.tasks[0].title == "Write report"
-
-
-@pytest.mark.asyncio
-async def test_chat_error_mapping(monkeypatch):
-    class ErrorClient:
-        def __init__(self, exc):
-            self.exc = exc
-
-        async def post(self, url, *, headers, json):
-            raise self.exc
-
-    # Test 429 Rate Limit
-    response_429 = Mock()
-    response_429.status_code = 429
-    monkeypatch.setattr(assistant_service, "ai_client", ErrorClient(httpx.HTTPStatusError("rate limited", request=Mock(), response=response_429)))
-    monkeypatch.setattr(assistant_service.settings, "GROQ_API_KEY", SecretStr("test-key"))
-    
-    with pytest.raises(HTTPException) as excinfo:
-        await assistant_service.chat(ChatRequest(message="Hello"))
-    assert excinfo.value.status_code == 429
-    assert excinfo.value.detail == "rate_limit"
-
-    # Test Timeout
-    monkeypatch.setattr(assistant_service, "ai_client", ErrorClient(httpx.TimeoutException("timeout")))
-    with pytest.raises(HTTPException) as excinfo:
-        await assistant_service.chat(ChatRequest(message="Hello"))
-    assert excinfo.value.status_code == 504
-    assert excinfo.value.detail == "timeout"
-
-    # Test Missing Config
-    monkeypatch.setattr(assistant_service.settings, "GROQ_API_KEY", None)
-    with pytest.raises(HTTPException) as excinfo:
-        await assistant_service.chat(ChatRequest(message="Hello"))
-    assert excinfo.value.status_code == 503
-    assert excinfo.value.detail == "config"
-
-
-@pytest.mark.asyncio
-async def test_chat_draft_repair_success(monkeypatch):
-    responses = [
-        {"choices": [{"message": {"content": jsonlib.dumps({
-            "reply": "Here is your plan.",
-            "draft": {"type": "today", "planDate": "2026-09-20", "windows": [{"start": "09:00", "end": "12:00"}],
-                      "tasks": [{"id": "t1", "title": "Invalid task", "durationMin": 0, "priority": "MEDIUM"}]}, # invalid duration
-        })}}]},
-        {"choices": [{"message": {"content": jsonlib.dumps({
-            "reply": "Here is your plan.",
-            "draft": {"type": "today", "planDate": "2026-09-20", "windows": [{"start": "09:00", "end": "12:00"}],
-                      "tasks": [{"id": "t1", "title": "Invalid task", "durationMin": 30, "priority": "MEDIUM"}]}, # valid duration
-        })}}]}
-    ]
-
-    class RepairClient:
-        def __init__(self):
-            self.calls = 0
-
-        async def post(self, url, *, headers, json):
-            res = responses[self.calls]
-            self.calls += 1
-            response = Mock()
-            response.raise_for_status = Mock()
-            response.json.return_value = res
-            return response
-
-    monkeypatch.setattr(assistant_service, "ai_client", RepairClient())
-    monkeypatch.setattr(assistant_service.settings, "GROQ_API_KEY", SecretStr("test-key"))
-    
-    result = await assistant_service.chat(ChatRequest(message="Plan something"))
-    assert result.reply == "Here is your plan."
-    assert result.draft is not None
-    assert result.draft.tasks[0].durationMin == 30
-
-
-@pytest.mark.asyncio
-async def test_chat_draft_repair_failure_preserves_reply(monkeypatch):
-    responses = [
-        {"choices": [{"message": {"content": jsonlib.dumps({
-            "reply": "Here is your plan.",
-            "draft": {"type": "today", "planDate": "2026-09-20", "windows": [{"start": "09:00", "end": "12:00"}],
-                      "tasks": [{"title": "Invalid task", "durationMin": 0, "id": "t1", "priority": "MEDIUM"}]}, # invalid duration
-        })}}]},
-        {"choices": [{"message": {"content": jsonlib.dumps({
-            "reply": "Here is your plan.",
-            "draft": {"type": "today", "planDate": "2026-09-20", "windows": [{"start": "09:00", "end": "12:00"}],
-                      "tasks": [{"title": "Invalid task", "durationMin": -10, "id": "t1", "priority": "MEDIUM"}]}, # still invalid duration
-        })}}]}
-    ]
-
-    class RepairFailClient:
-        def __init__(self):
-            self.calls = 0
-
-        async def post(self, url, *, headers, json):
-            res = responses[self.calls]
-            self.calls += 1
-            response = Mock()
-            response.raise_for_status = Mock()
-            response.json.return_value = res
-            return response
-
-    monkeypatch.setattr(assistant_service, "ai_client", RepairFailClient())
-    monkeypatch.setattr(assistant_service.settings, "GROQ_API_KEY", SecretStr("test-key"))
-    
-    result = await assistant_service.chat(ChatRequest(message="Plan something"))
-    assert "Here is your plan." in result.reply
-    assert "(I had some trouble" in result.reply
+async def test_goal_without_date_asks_one_question():
+    result = await assistant_service.chat(
+        ChatRequest(message="Create a goal to learn Python")
+    )
+    assert result.intent == "CREATE_GOAL"
+    assert result.question
     assert result.draft is None
 
+
+@pytest.mark.asyncio
+async def test_plan_delegates_with_trusted_context(monkeypatch):
+    db = AsyncMock()
+    user_id = uuid4()
+    context = object()
+    build = AsyncMock(return_value=context)
+    planner = AsyncMock(return_value=ChatResponse(reply="draft", intent="PLAN_DAY"))
+    monkeypatch.setattr(assistant_service, "build_context", build)
+    monkeypatch.setattr(assistant_service, "plan_day", planner)
+    result = await assistant_service.chat(
+        ChatRequest(message="Plan my day: study 30 min"),
+        db=db,
+        user_id=user_id,
+        timezone="Asia/Ho_Chi_Minh",
+    )
+    assert result.intent == "PLAN_DAY"
+    build.assert_awaited_once()
+    planner.assert_awaited_once_with("Plan my day: study 30 min", context, "en", history=None, light=False)
+
+
+@pytest.mark.asyncio
+async def test_edit_delegates_current_draft(monkeypatch):
+    draft = TodayDraft(
+        planDate="2026-09-21",
+        windows=[AvailabilityWindowDraft(start="09:00", end="12:00")],
+        tasks=[TaskDraft(id="d1", title="Study", durationMin=30)],
+    )
+    context = object()
+    monkeypatch.setattr(
+        assistant_service, "build_context", AsyncMock(return_value=context)
+    )
+    editor = AsyncMock(
+        return_value=ChatResponse(reply="updated", intent="EDIT_DRAFT", draft=draft)
+    )
+    monkeypatch.setattr(assistant_service, "edit", editor)
+    await assistant_service.chat(
+        ChatRequest(message="change task 1 to 45 min", current_draft=draft),
+        db=AsyncMock(),
+        user_id=uuid4(),
+    )
+    editor.assert_awaited_once_with("change task 1 to 45 min", draft, context, history=None)

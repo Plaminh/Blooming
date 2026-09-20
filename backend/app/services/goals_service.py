@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -6,12 +6,77 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.errors import ResourceNotFoundError, UnauthorizedOwnershipError
+from app.core.time_utils import safe_timezone
 from app.db.models.goals import Goal, Milestone
-from app.db.models.users import User
-from app.schemas.goals import GoalCreate, GoalUpdate, MilestoneCreate, MilestoneUpdate
+from app.db.models.planning import PlanningSession
+from app.db.models.users import User, UserSettings
+from app.schemas.goals import (
+    GoalCreate,
+    GoalUpdate,
+    MilestoneCreate,
+    MilestoneUpdate,
+    RoadmapSave,
+)
 
 
 class GoalsService:
+    async def create_from_roadmap(
+        self, db: AsyncSession, obj_in: RoadmapSave, user_id: UUID
+    ) -> Goal:
+        """Create the full hierarchy in the caller's single transaction."""
+        draft = obj_in.draft
+        goal = Goal(
+            user_id=user_id,
+            title=draft.goalTitle,
+            description=draft.goalDescription or None,
+            roadmap_summary=draft.goalDescription or None,
+            target_date=draft.targetDate,
+            status="ACTIVE",
+        )
+        db.add(goal)
+        await db.flush()
+        from app.services.reminders_service import reminders_service
+
+        user_settings = await db.scalar(
+            select(UserSettings).where(UserSettings.user_id == user_id)
+        )
+        user_timezone = safe_timezone(user_settings.timezone if user_settings else "UTC")
+
+        for position, item in enumerate(draft.milestones):
+            due_at = datetime.combine(item.targetDate, time.max, tzinfo=user_timezone)
+            due_at = due_at.astimezone(timezone.utc)
+            milestone = Milestone(
+                goal_id=goal.id,
+                title=item.title,
+                expected_outcome=item.expectedOutcome,
+                due_at=due_at,
+                status="PENDING",
+                position=position,
+            )
+            db.add(milestone)
+            await db.flush()
+            await reminders_service.sync_milestone_reminder(
+                db,
+                user_id,
+                milestone.id,
+                milestone.title,
+                milestone.due_at,
+                milestone.status,
+            )
+        if obj_in.session_id:
+            session = await db.scalar(
+                select(PlanningSession).where(
+                    PlanningSession.id == obj_in.session_id,
+                    PlanningSession.user_id == user_id,
+                )
+            )
+            if session is None:
+                raise ResourceNotFoundError("Planning session not found")
+            session.status = "COMPLETED"
+            session.closed_at = datetime.now(timezone.utc)
+        await db.flush()
+        return await self.get_goal(db, goal.id, user_id)
+
     async def get_goal(self, db: AsyncSession, goal_id: UUID, user_id: UUID) -> Goal:
         result = await db.execute(
             select(Goal)
@@ -34,28 +99,32 @@ class GoalsService:
         )
         return list(result.scalars().all())
 
-    async def create_goal(self, db: AsyncSession, obj_in: GoalCreate, user_id: UUID) -> Goal:
+    async def create_goal(
+        self, db: AsyncSession, obj_in: GoalCreate, user_id: UUID
+    ) -> Goal:
         goal = Goal(
             user_id=user_id,
             title=obj_in.title,
             description=obj_in.description,
             roadmap_summary=obj_in.roadmap_summary,
             target_date=obj_in.target_date,
-            status=obj_in.status
+            status=obj_in.status,
         )
         db.add(goal)
         await db.flush()
-        
+
         # Need to return with loaded milestones
         return await self.get_goal(db, goal.id, user_id)
 
-    async def update_goal(self, db: AsyncSession, goal_id: UUID, obj_in: GoalUpdate, user_id: UUID) -> Goal:
+    async def update_goal(
+        self, db: AsyncSession, goal_id: UUID, obj_in: GoalUpdate, user_id: UUID
+    ) -> Goal:
         goal = await self.get_goal(db, goal_id, user_id)
-        
+
         update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(goal, field, value)
-            
+
         await db.flush()
         return goal
 
@@ -164,7 +233,9 @@ class GoalsService:
         await db.flush()
         return milestone
 
-    async def delete_milestone(self, db: AsyncSession, goal_id: UUID, milestone_id: UUID, user_id: UUID) -> None:
+    async def delete_milestone(
+        self, db: AsyncSession, goal_id: UUID, milestone_id: UUID, user_id: UUID
+    ) -> None:
         milestone = await self.get_milestone(db, goal_id, milestone_id, user_id)
         await db.delete(milestone)
         await db.flush()

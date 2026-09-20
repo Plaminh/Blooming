@@ -193,6 +193,23 @@ export const desktop = {
     const { listen } = await import("@tauri-apps/api/event");
     return listen<null>("blooming:schedule-updated", callback);
   },
+  async proactiveNudge(nudge: { id: string; message: string; action: string }) {
+    if (!isTauriRuntime()) return;
+    const module = await loadTauriWindowModule();
+    const target = module?.getCurrentWindow().label === "companion-widget" ? "main" : "companion-widget";
+    const { emitTo } = await import("@tauri-apps/api/event");
+    await emitTo(target, "blooming:proactive-nudge", nudge);
+  },
+  async onProactiveNudge(callback: (nudge: { id: string; message: string; action: string }) => void): Promise<() => void> {
+    if (!isTauriRuntime()) return () => {};
+    const { listen } = await import("@tauri-apps/api/event");
+    const seen = new Set<string>();
+    return listen<{ id: string; message: string; action: string }>("blooming:proactive-nudge", event => {
+      if (seen.has(event.payload.id)) return;
+      seen.add(event.payload.id);
+      callback(event.payload);
+    });
+  },
   async settingsUpdated(): Promise<void> {
     if (!isTauriRuntime()) return;
     const { emitTo } = await import("@tauri-apps/api/event");

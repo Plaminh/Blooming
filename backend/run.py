@@ -1,5 +1,3 @@
-import sys
-import asyncio
 
 from app.core.runtime import use_selector_event_loop_policy
 use_selector_event_loop_policy()

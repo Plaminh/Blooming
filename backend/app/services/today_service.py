@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import logging
 from datetime import date, datetime, timezone
+from typing import cast
 from uuid import UUID, uuid4
 
 from fastapi.encoders import jsonable_encoder
@@ -27,6 +28,7 @@ from app.schemas.today import (
     TodayTaskEdit,
     TodayTaskStatusUpdate,
 )
+from app.schemas.planning import TaskCategory
 
 logger = logging.getLogger(__name__)
 USABLE_PLAN_STATUSES = {"CONFIRMED", "ACTIVE", "COMPLETED"}
@@ -68,6 +70,11 @@ class TodayService:
                 "estimated_duration_minutes": b.task.estimated_duration_minutes
                 if b.task
                 else None,
+                "importance": b.task.importance if b.task else None,
+                "preferred_break_duration_minutes": (
+                    b.task.preferred_break_duration_minutes if b.task else None
+                ),
+                "source": b.task.source if b.task else None,
             }
             block_dicts.append(b_dict)
 
@@ -211,7 +218,7 @@ class TodayService:
         active_task_ids = set((await db.scalars(select(FocusRun.task_id).where(FocusRun.user_id == user_id, FocusRun.status.in_(("READY", "FOCUSING", "PAUSED"))))).all())
         preserved, eligible = [], []
         for block in blocks:
-            task = tasks.get(block.task_id)
+            task = tasks.get(block.task_id) if block.task_id is not None else None
             terminal = block.status in ("COMPLETED", "SKIPPED", "CANCELLED") or (task and task.status in ("COMPLETED", "SKIPPED", "CANCELLED"))
             fixed_remaining = block.planned_end_at > now and (block.is_locked or block.status == "ACTIVE" or block.task_id in active_task_ids or block.block_type == "FIXED_EVENT" or (task and task.scheduling_type == "FIXED"))
             if terminal or fixed_remaining:
@@ -226,7 +233,8 @@ class TodayService:
             if w.available_end_at > now
         ]
         for block in preserved:
-            if block.status in ("COMPLETED", "SKIPPED", "CANCELLED") or (tasks.get(block.task_id) and tasks[block.task_id].status in ("COMPLETED", "SKIPPED", "CANCELLED")):
+            task = tasks.get(block.task_id) if block.task_id is not None else None
+            if block.status in ("COMPLETED", "SKIPPED", "CANCELLED") or (task is not None and task.status in ("COMPLETED", "SKIPPED", "CANCELLED")):
                 continue
             gaps = []
             for window in windows:
@@ -287,7 +295,7 @@ class TodayService:
                     ],
                 )
             )
-        reserved_ends = {}
+        reserved_ends: dict[UUID, datetime] = {}
         for block in preserved:
             if block.task_id and block.task_id not in completed_ids and block.planned_end_at > now and block.status not in ("SKIPPED", "CANCELLED"):
                 reserved_ends[block.task_id] = max(reserved_ends.get(block.task_id, now), block.planned_end_at)
@@ -297,15 +305,15 @@ class TodayService:
         await db.flush()
         # Preserve historical rows, including their positions; new rows receive unused positions.
         position = max((b.position for b in preserved), default=-1) + 1
-        for offset, block in enumerate(result.blocks):
+        for offset, scheduled_block in enumerate(result.blocks):
             db.add(
                 PlanBlock(
                     daily_plan_id=plan.id,
-                    task_id=block.task_id,
-                    block_type=block.block_type,
-                    title=block.title,
-                    planned_start_at=block.start_at,
-                    planned_end_at=block.end_at,
+                    task_id=scheduled_block.task_id,
+                    block_type=scheduled_block.block_type,
+                    title=scheduled_block.title,
+                    planned_start_at=scheduled_block.start_at,
+                    planned_end_at=scheduled_block.end_at,
                     position=position + offset,
                     status="PLANNED",
                     created_by="SCHEDULER",
@@ -443,7 +451,10 @@ class TodayService:
         uuid_to_draft = {v: k for k, v in draft_to_uuid.items()}
         
         blocks = []
+        draft_tasks = {task.id: task for task in request.draft.tasks}
         for i, b in enumerate(result.blocks):
+            draft_task_id = uuid_to_draft.get(b.task_id) if b.task_id else None
+            draft_task = draft_tasks.get(draft_task_id) if draft_task_id else None
             blocks.append(TodayBlock(
                 id=uuid4(),
                 block_type="TASK" if b.task_id and b.block_type == "FIXED_EVENT" else b.block_type,
@@ -454,7 +465,20 @@ class TodayService:
                 position=i,
                 status="PLANNED",
                 is_locked=False,
-                draft_task_id=uuid_to_draft.get(b.task_id) if b.task_id else None
+                draft_task_id=draft_task_id,
+                category=cast(TaskCategory | None, draft_task.category if draft_task else None),
+                estimated_duration_minutes=(
+                    draft_task.durationMin if draft_task else None
+                ),
+                importance=draft_task.importance if draft_task else None,
+                preferred_break_duration_minutes=(
+                    draft_task.breakAfterMin if draft_task else None
+                ),
+                source=(
+                    "MANUAL"
+                    if draft_task and draft_task.estimateSource == "USER"
+                    else "AI" if draft_task else None
+                ),
             ))
             
         unscheduled = []
@@ -508,8 +532,10 @@ class TodayService:
             
         draft_hash = hashlib.sha256(draft_json.encode()).hexdigest()
         
+        session: PlanningSession | None = None
         if request.session_id:
-            session = await db.scalar(select(PlanningSession).where(PlanningSession.id == request.session_id))
+            session = await db.scalar(select(PlanningSession).where(
+                PlanningSession.id == request.session_id, PlanningSession.user_id == user_id))
             if not session:
                 raise HTTPException(status_code=404, detail="Planning session not found")
             if session.user_id != user_id:
@@ -537,7 +563,19 @@ class TodayService:
         if existing_plan:
             revision = await db.scalar(select(PlanRevision).where(PlanRevision.daily_plan_id == existing_plan.id).order_by(PlanRevision.revision_number.desc()).limit(1))
             if revision and revision.after_snapshot.get("draft_hash") == draft_hash:
+                if session is not None:
+                    session.status = "COMPLETED"
+                    session.closed_at = datetime.now(timezone.utc)
+                    await db.commit()
                 return await self.get_today(db, user_id, local_date)
+            if not request.replace_existing:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "PLAN_EXISTS",
+                        "message": "A plan already exists for this date. Confirm replacement before saving.",
+                    },
+                )
                 
             # Delete old blocks explicitly
             blocks_result = await db.execute(select(PlanBlock).where(PlanBlock.daily_plan_id == existing_plan.id))
@@ -596,7 +634,8 @@ class TodayService:
                 fixed_start_at=self._normalize_dt(t_draft.fixedStart, tz) if t_draft.fixedStart else None,
                 fixed_end_at=self._normalize_dt(t_draft.fixedEnd, tz) if t_draft.fixedEnd else None,
                 is_splittable=t_draft.splittable,
-                source="AI"
+                preferred_break_duration_minutes=t_draft.breakAfterMin,
+                source="MANUAL" if t_draft.estimateSource == "USER" else "AI"
             )
             db.add(new_task)
             new_tasks.append((t_draft, new_task))
@@ -618,9 +657,9 @@ class TodayService:
             draft_tid = uuid_to_draft.get(ut_id) if ut_id else None
             title = None
             if draft_tid:
-                for t in request.draft.tasks:
-                    if t.id == draft_tid:
-                        title = t.title
+                for candidate_draft_task in request.draft.tasks:
+                    if candidate_draft_task.id == draft_tid:
+                        title = candidate_draft_task.title
                         break
             
             reason_code = None
@@ -641,7 +680,7 @@ class TodayService:
             t_id = None
             if block_item.task_id:
                 draft_task_id = uuid_to_draft.get(block_item.task_id)
-                t_id = task_id_map.get(draft_task_id)
+                t_id = task_id_map.get(draft_task_id) if draft_task_id is not None else None
             
             block = PlanBlock(
                 daily_plan_id=plan.id,
@@ -679,6 +718,10 @@ class TodayService:
             }
         )
         db.add(rev)
+
+        if session is not None:
+            session.status = "COMPLETED"
+            session.closed_at = datetime.now(timezone.utc)
         
         await db.commit()
 

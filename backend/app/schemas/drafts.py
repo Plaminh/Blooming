@@ -5,8 +5,10 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class MilestoneDraft(BaseModel):
+    id: str | None = None
     title: str = Field(min_length=1)
     targetDate: date
+    expectedOutcome: str | None = None
 
 
 class RoadmapDraft(BaseModel):
@@ -22,23 +24,18 @@ class RoadmapDraft(BaseModel):
             raise ValueError("Roadmap must have at least 1 milestone")
         if len(self.milestones) > 12:
             raise ValueError("Roadmap must have at most 12 milestones")
-        
+
         self.milestones.sort(key=lambda m: m.targetDate)
 
         if self.milestones[-1].targetDate > self.targetDate:
-            raise ValueError("Milestone target date cannot be after roadmap target date")
-            
+            raise ValueError(
+                "Milestone target date cannot be after roadmap target date"
+            )
+
         if self.targetDate < date.today():
             raise ValueError("Roadmap target date cannot be in the past")
 
         return self
-
-
-class AvailabilityDraft(BaseModel):
-    start: str
-    end: str
-    totalHours: float
-
 
 
 class AvailabilityWindowDraft(BaseModel):
@@ -50,6 +47,7 @@ class AvailabilityWindowDraft(BaseModel):
         if self.start >= self.end:
             raise ValueError("Window start time must be before end time")
         return self
+
 
 class TaskDraft(BaseModel):
     id: str = Field(min_length=1)
@@ -67,6 +65,7 @@ class TaskDraft(BaseModel):
     dependencies: list[str] = Field(default_factory=list)
     splittable: bool = False
 
+
 class TodayDraft(BaseModel):
     type: Literal["today"] = "today"
     planDate: date
@@ -74,7 +73,10 @@ class TodayDraft(BaseModel):
     windows: list[AvailabilityWindowDraft] = Field(default_factory=list)
     tasks: list[TaskDraft] = Field(default_factory=list)
 
-def clean_availability_windows(windows: list[AvailabilityWindowDraft], current_time: datetime) -> list[AvailabilityWindowDraft]:
+
+def clean_availability_windows(
+    windows: list[AvailabilityWindowDraft], current_time: datetime
+) -> list[AvailabilityWindowDraft]:
     current_hm = current_time.strftime("%H:%M")
     cleaned = []
     for w in windows:

@@ -1,12 +1,13 @@
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 from app.db.models.users import User, UserSettings
 from app.schemas.user_settings import UserSettingsUpdate
 
 
-async def get_user_settings(db: AsyncSession, user_id: str) -> UserSettings:
+async def get_user_settings(db: AsyncSession, user_id: UUID) -> UserSettings:
     result = await db.execute(select(UserSettings).where(UserSettings.user_id == user_id))
     settings = result.scalars().first()
     if not settings:
@@ -15,7 +16,7 @@ async def get_user_settings(db: AsyncSession, user_id: str) -> UserSettings:
 
 
 async def update_user_settings(
-    db: AsyncSession, user_id: str, settings_in: UserSettingsUpdate
+    db: AsyncSession, user_id: UUID, settings_in: UserSettingsUpdate
 ) -> UserSettings:
     await db.execute(select(User.id).where(User.id == user_id).with_for_update())
     settings = await get_user_settings(db, user_id)

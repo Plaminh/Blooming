@@ -1,11 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
-from fastapi import HTTPException, status
 
-from app.db.models.users import User, UserSettings
-from app.schemas.user import UserCreate, UserUpdate
-from app.core.security import get_password_hash
+from app.db.models.users import User
+from app.schemas.user import UserUpdate
 
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
     result = await db.execute(select(User).where(User.email == email))

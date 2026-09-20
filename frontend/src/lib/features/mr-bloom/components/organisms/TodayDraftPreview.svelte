@@ -7,6 +7,19 @@
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
 
   let draft = $derived($mrBloomStore.activeDraft as TodayDraft);
+  let addingTask = $state(false);
+  let newTitle = $state('');
+  let newDuration = $state(25);
+  function addTask() {
+    if (!newTitle.trim()) return;
+    mrBloomStore.addTask(newTitle, newDuration);
+    newTitle = '';
+    newDuration = 25;
+    addingTask = false;
+  }
+  let availabilityText = $derived(
+    draft?.windows.map(window => `${window.start}–${window.end}`).join(', ') || 'No availability set'
+  );
 </script>
 
 <div class="today-draft-preview">
@@ -19,7 +32,7 @@
     <div class="content">
       <div class="availability-bar">
         <span class="availability-icon"><AppIcon name="calendar" size="detail" /></span>
-        <span>Available · {draft.availability.start} – {draft.availability.end} · {draft.availability.totalHours} hours</span>
+        <span>Available · {availabilityText}</span>
       </div>
 
       <div class="tasks-list">
@@ -28,7 +41,27 @@
         {/each}
       </div>
 
-      <DraftAddButton label="ADD TASK" variant="task" disabled={true} />
+      {#if $mrBloomStore.assumptions.length}
+        <section class="assumptions" aria-label="Planning assumptions">
+          <strong>Assumptions</strong>
+          <ul>
+            {#each $mrBloomStore.assumptions as assumption (assumption.id)}
+              <li>{assumption.text}</li>
+            {/each}
+          </ul>
+        </section>
+      {/if}
+
+      {#if addingTask}
+        <form class="add-task-form" onsubmit={(event) => { event.preventDefault(); addTask(); }}>
+          <input aria-label="New task title" placeholder="Task name" bind:value={newTitle} maxlength="200" required />
+          <input aria-label="New task duration in minutes" type="number" min="5" max="480" step="5" bind:value={newDuration} required />
+          <button type="submit">ADD</button>
+          <button type="button" onclick={() => addingTask = false}>CANCEL</button>
+        </form>
+      {:else}
+        <DraftAddButton label="ADD TASK" variant="task" onclick={() => addingTask = true} />
+      {/if}
       <div class="content-divider" aria-hidden="true"></div>
     </div>
 
@@ -95,4 +128,20 @@
     margin-top: -6px;
     border-top: 2px solid #c8cfca;
   }
+
+  .assumptions {
+    padding: 9px 12px;
+    border: 1px solid #e1c56d;
+    border-radius: 5px;
+    background: #fff9df;
+    color: #684f0b;
+    font-family: var(--bloom-body-font);
+    font-size: 14px;
+  }
+
+  .assumptions ul { margin: 5px 0 0; padding-left: 20px; }
+  .add-task-form { display: flex; flex-wrap: wrap; gap: 6px; }
+  .add-task-form input { min-width: 0; padding: 6px; }
+  .add-task-form input:first-child { flex: 1; }
+  .add-task-form input[type='number'] { width: 72px; }
 </style>

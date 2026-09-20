@@ -1,6 +1,6 @@
 from datetime import date
 from typing import Optional, List
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException
 
 from app.api.deps import SessionDep, CurrentUser
 from app.schemas.statistics import SummaryMetrics, DailyStudyEntry, PlanHistoryResponse

@@ -155,6 +155,10 @@ export interface TaskDraft {
   title: string;
   durationMin: number;
   priority: 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW';
+  importance: 'CORE' | 'OPTIONAL';
+  category: string | null;
+  estimateSource: 'USER' | 'RULE' | 'AI' | 'HISTORY';
+  breakAfterMin: number | null;
   deadline: string | null;
   schedulingType: 'FLEXIBLE' | 'FIXED';
   fixedStart: string | null;
@@ -171,6 +175,50 @@ export interface TodayDraft {
   tasks: TaskDraft[];
 }
 
+export interface MilestoneDraft {
+  id?: string | null;
+  title: string;
+  targetDate: string;
+  expectedOutcome?: string | null;
+}
+
+export interface RoadmapDraft {
+  type: 'roadmap';
+  goalTitle: string;
+  goalDescription: string;
+  targetDate: string;
+  milestones: MilestoneDraft[];
+}
+
+export type AssistantDraft = TodayDraft | RoadmapDraft;
+
+export interface AssistantSuggestion {
+  label: string;
+  action?: string | null;
+  send_text?: string | null;
+  patch?: Record<string, unknown>[] | null;
+}
+
+export interface AssistantAssumption {
+  id: string;
+  kind: string;
+  text: string;
+  task_id: string | null;
+}
+
+export interface AssistantSessionMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  structured_payload: Record<string, any> | null;
+  created_at: string;
+}
+
+export interface AssistantSession {
+  session_id: string;
+  status: string;
+  messages: AssistantSessionMessage[];
+}
+
 
 export interface TodayBlock {
   id: string;
@@ -181,6 +229,9 @@ export interface TodayBlock {
   description: string | null;
   category: string | null;
   estimated_duration_minutes: number | null;
+  importance: 'CORE' | 'OPTIONAL' | null;
+  preferred_break_duration_minutes: number | null;
+  source: string | null;
   planned_start_at: string;
   planned_end_at: string;
   position: number;
@@ -218,7 +269,15 @@ export const previewTodayPlan = async (draft: TodayDraft): Promise<TodayPreviewR
   return await api.post('/today/preview', { draft });
 };
 
-export const saveTodayPlan = async (sessionId: string | null, previewToken: string, draft: TodayDraft): Promise<TodayResponse> => {
-  return await api.post('/today/save', { session_id: sessionId, preview_token: previewToken, draft });
+export const saveTodayPlan = async (
+  sessionId: string | null, previewToken: string, draft: TodayDraft, replaceExisting = false
+): Promise<TodayResponse> => {
+  return await api.post('/today/save', {
+    session_id: sessionId, preview_token: previewToken, draft, replace_existing: replaceExisting
+  });
+};
+
+export const saveRoadmap = async (sessionId: string | null, draft: RoadmapDraft): Promise<any> => {
+  return await api.post('/goals/from-roadmap', { session_id: sessionId, draft });
 };
 

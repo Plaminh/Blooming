@@ -134,7 +134,8 @@ async def get_garden_state(db: AsyncSession, user_id: UUID) -> GardenStateRespon
         )
 
     points = garden.growth_points or 0
-    stage = "SPROUTING"
+    from typing import Literal
+    stage: Literal["SPROUTING", "GROWING", "BLOOMING", "FLOURISHING"] = "SPROUTING"
     if points >= GROWTH_THRESHOLDS["FLOURISHING"]:
         stage = "FLOURISHING"
     elif points >= GROWTH_THRESHOLDS["BLOOMING"]:

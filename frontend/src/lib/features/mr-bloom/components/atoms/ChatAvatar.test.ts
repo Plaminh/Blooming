@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import ChatAvatar from './ChatAvatar.svelte';
 import MrBloomConversationPanel from '../organisms/MrBloomConversationPanel.svelte';
 import { mrBloomStore } from '../../stores/mrBloomStore';
+import { api } from '$lib/api';
 
 const initialState = get(mrBloomStore);
 
@@ -65,11 +66,14 @@ test('keeps the avatar still when reduced motion is requested', async () => {
 });
 
 test('shows thinking animation only for a pending response', async () => {
+  let resolveReply!: (value: { reply: string; draft: null }) => void;
+  vi.spyOn(api, 'post').mockReturnValue(new Promise(resolve => { resolveReply = resolve; }));
   const { container, getByRole, unmount } = render(MrBloomConversationPanel);
   expect(container.querySelector('[data-animation="thinking"]')).toBeNull();
   await fireEvent.click(getByRole('button', { name: /PLAN MY DAY/ }));
   expect(container.querySelector('.loading-container [data-animation="thinking"]')).toBeInTheDocument();
   expect(container.querySelector('.chat-message [data-animation="idle"]')).toBeInTheDocument();
+  resolveReply({ reply: 'Here is your plan.', draft: null });
   await vi.advanceTimersByTimeAsync(800);
   expect(container.querySelector('.loading-container')).toBeNull();
   expect(container.querySelector('[data-animation="thinking"]')).toBeNull();
