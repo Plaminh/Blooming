@@ -7,7 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from app.core.scheduler import DeterministicScheduler
 from app.db.models.daily_plans import DailyPlan, PlanBlock, PlanRevision
 from app.db.models.tasks import Task, TaskDependency
-from app.schemas.assistant import AvailabilityWindowDraft, TaskDraft, TodayDraft
+from app.schemas.drafts import AvailabilityWindowDraft, TaskDraft, TodayDraft
 from app.services.today_service import today_service
 from httpx import AsyncClient
 from sqlalchemy import select

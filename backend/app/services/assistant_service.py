@@ -58,7 +58,7 @@ async def _call_llm(messages: list[dict], model: str) -> dict:
 
     try:
         response = await ai_client.post(
-            f"{settings.GROQ_BASE_URL.rstrip('/')}/chat/completions",
+            "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {settings.GROQ_API_KEY.get_secret_value()}"},
             json=payload,
         )
@@ -106,7 +106,7 @@ async def chat(request: ChatRequest, timezone: str = "UTC") -> ChatResponse:
         *[turn.model_dump() for turn in request.history[-12:]],
         {"role": "user", "content": request.message.strip()},
     ]
-    model = settings.GROQ_MODEL_PLANNER
+    model = "llama3-70b-8192"
 
     parsed = await _call_llm(messages, model)
     reply = parsed.get("reply", "").strip()

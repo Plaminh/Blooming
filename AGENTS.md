@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/024-chatbot-foundation-fixes/plan.md
+at specs/025-blooming-chatbot/plan.md
 <!-- SPECKIT END -->

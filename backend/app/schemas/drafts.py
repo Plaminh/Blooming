@@ -40,17 +40,6 @@ class AvailabilityDraft(BaseModel):
     totalHours: float
 
 
-class ChatTaskDraft(BaseModel):
-    title: str = Field(min_length=1)
-    durationMin: int = Field(ge=1, le=1440)
-    priority: Literal["Core", "Optional"] = "Core"
-
-
-class ChatTodayDraft(BaseModel):
-    type: Literal["today"]
-    availability: AvailabilityDraft
-    tasks: list[ChatTaskDraft] = Field(default_factory=list)
-
 
 class AvailabilityWindowDraft(BaseModel):
     start: str = Field(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
@@ -67,6 +56,10 @@ class TaskDraft(BaseModel):
     title: str = Field(min_length=1)
     durationMin: int = Field(ge=1, le=1440)
     priority: Literal["URGENT", "HIGH", "MEDIUM", "LOW"] = "MEDIUM"
+    importance: Literal["CORE", "OPTIONAL"] = "CORE"
+    category: str | None = None
+    estimateSource: Literal["USER", "RULE", "AI", "HISTORY"] = "USER"
+    breakAfterMin: int | None = Field(None, ge=0, le=60)
     deadline: datetime | None = None
     schedulingType: Literal["FLEXIBLE", "FIXED"] = "FLEXIBLE"
     fixedStart: datetime | None = None

@@ -45,13 +45,18 @@ class Settings(BaseSettings):
     EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS: int = 60
 
     GROQ_API_KEY: SecretStr | None = None
-    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
-    GROQ_MODEL: str = "openai/gpt-oss-20b"
-    GROQ_MODEL_PLANNER: str = "llama3-70b-8192"
-    GROQ_MODEL_ROUTER: str = "llama3-8b-8192"
-    GROQ_MODEL_CHITCHAT: str = "llama3-8b-8192"
-    AI_TIMEOUT_SECONDS: float = 30.0
-    AI_CHAT_RATE_LIMIT_PER_MIN: int = 15
+    OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
+    AI_ROUTE_ROUTER: str = "groq:llama-3.1-8b-instant"
+    AI_ROUTE_CHITCHAT: str = "groq:llama-3.1-8b-instant"
+    AI_ROUTE_PLANNER_LITE: str = "groq:llama-3.1-8b-instant"
+    AI_ROUTE_PLANNER: str = "groq:openai/gpt-oss-20b,groq:openai/gpt-oss-120b"
+    AI_ROUTE_EDITOR: str = "groq:openai/gpt-oss-20b,groq:openai/gpt-oss-120b"
+    AI_STRICT_MODELS: list[str] = ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]
+    AI_TOKEN_BUDGET_24H: dict[str, int] = {
+        "openai/gpt-oss-20b": 160_000, "openai/gpt-oss-120b": 160_000, "llama-3.1-8b-instant": 400_000}
+    AI_USER_CALLS_PER_DAY: dict[str, int] = {"PLANNER": 10, "EDITOR": 10, "CHITCHAT": 15, "ROUTER": 40}
+    AI_TIMEOUT_SECONDS: float = 20.0
+    AI_CHAT_RATE_LIMIT_PER_MIN: int = 12
 
     @property
     def database_url(self) -> URL:

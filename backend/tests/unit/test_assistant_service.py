@@ -21,8 +21,8 @@ async def test_chat_sends_history_and_returns_model_draft(monkeypatch):
             response.raise_for_status = Mock()
             response.json.return_value = {"choices": [{"message": {"content": jsonlib.dumps({
                 "reply": "Here is your plan.",
-                "draft": {"type": "today", "availability": {"start": "09:00", "end": "12:00", "totalHours": 3},
-                          "tasks": [{"title": "Write report", "durationMin": 90, "priority": "Core"}]},
+                "draft": {"type": "today", "planDate": "2026-09-20", "windows": [{"start": "09:00", "end": "12:00"}],
+                          "tasks": [{"title": "Write report", "durationMin": 90, "id": "t1", "priority": "MEDIUM"}]},
             })}}]}
             return response
 
@@ -85,8 +85,8 @@ async def test_chat_sends_history_and_returns_model_draft(monkeypatch):
             response.raise_for_status = Mock()
             response.json.return_value = {"choices": [{"message": {"content": jsonlib.dumps({
                 "reply": "Here is your plan.",
-                "draft": {"type": "today", "availability": {"start": "09:00", "end": "12:00", "totalHours": 3},
-                          "tasks": [{"title": "Write report", "durationMin": 90, "priority": "Core"}]},
+                "draft": {"type": "today", "planDate": "2026-09-20", "windows": [{"start": "09:00", "end": "12:00"}],
+                          "tasks": [{"title": "Write report", "durationMin": 90, "id": "t1", "priority": "MEDIUM"}]},
             })}}]}
             return response
 
@@ -145,13 +145,13 @@ async def test_chat_draft_repair_success(monkeypatch):
     responses = [
         {"choices": [{"message": {"content": jsonlib.dumps({
             "reply": "Here is your plan.",
-            "draft": {"type": "today", "availability": {"start": "09:00", "end": "12:00", "totalHours": 3},
-                      "tasks": [{"title": "Invalid task", "durationMin": 0, "priority": "Core"}]}, # invalid duration
+            "draft": {"type": "today", "planDate": "2026-09-20", "windows": [{"start": "09:00", "end": "12:00"}],
+                      "tasks": [{"id": "t1", "title": "Invalid task", "durationMin": 0, "priority": "MEDIUM"}]}, # invalid duration
         })}}]},
         {"choices": [{"message": {"content": jsonlib.dumps({
             "reply": "Here is your plan.",
-            "draft": {"type": "today", "availability": {"start": "09:00", "end": "12:00", "totalHours": 3},
-                      "tasks": [{"title": "Invalid task", "durationMin": 30, "priority": "Core"}]}, # valid duration
+            "draft": {"type": "today", "planDate": "2026-09-20", "windows": [{"start": "09:00", "end": "12:00"}],
+                      "tasks": [{"id": "t1", "title": "Invalid task", "durationMin": 30, "priority": "MEDIUM"}]}, # valid duration
         })}}]}
     ]
 
@@ -181,13 +181,13 @@ async def test_chat_draft_repair_failure_preserves_reply(monkeypatch):
     responses = [
         {"choices": [{"message": {"content": jsonlib.dumps({
             "reply": "Here is your plan.",
-            "draft": {"type": "today", "availability": {"start": "09:00", "end": "12:00", "totalHours": 3},
-                      "tasks": [{"title": "Invalid task", "durationMin": 0, "priority": "Core"}]}, # invalid duration
+            "draft": {"type": "today", "planDate": "2026-09-20", "windows": [{"start": "09:00", "end": "12:00"}],
+                      "tasks": [{"title": "Invalid task", "durationMin": 0, "id": "t1", "priority": "MEDIUM"}]}, # invalid duration
         })}}]},
         {"choices": [{"message": {"content": jsonlib.dumps({
             "reply": "Here is your plan.",
-            "draft": {"type": "today", "availability": {"start": "09:00", "end": "12:00", "totalHours": 3},
-                      "tasks": [{"title": "Invalid task", "durationMin": -10, "priority": "Core"}]}, # still invalid duration
+            "draft": {"type": "today", "planDate": "2026-09-20", "windows": [{"start": "09:00", "end": "12:00"}],
+                      "tasks": [{"title": "Invalid task", "durationMin": -10, "id": "t1", "priority": "MEDIUM"}]}, # still invalid duration
         })}}]}
     ]
 

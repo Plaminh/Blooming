@@ -406,6 +406,7 @@ class TodayService:
                 scheduling_type=t.schedulingType,
                 created_at=base_time + timedelta(seconds=i),
                 is_splittable=t.splittable,
+                preferred_break_duration_minutes=t.breakAfterMin,
                 fixed_start_at=self._normalize_dt(t.fixedStart, tz) if t.fixedStart else None,
                 fixed_end_at=self._normalize_dt(t.fixedEnd, tz) if t.fixedEnd else None,
                 dependencies=[draft_to_uuid[d] for d in t.dependencies if d in draft_to_uuid]
@@ -589,7 +590,8 @@ class TodayService:
                 estimated_duration_minutes=t_draft.durationMin,
                 priority=t_draft.priority,
                 scheduling_type=t_draft.schedulingType,
-                importance="CORE" if t_draft.priority in ("URGENT", "HIGH") else "OPTIONAL",
+                importance=t_draft.importance,
+                category=t_draft.category,
                 deadline_at=self._normalize_dt(t_draft.deadline, tz) if t_draft.deadline else None,
                 fixed_start_at=self._normalize_dt(t_draft.fixedStart, tz) if t_draft.fixedStart else None,
                 fixed_end_at=self._normalize_dt(t_draft.fixedEnd, tz) if t_draft.fixedEnd else None,

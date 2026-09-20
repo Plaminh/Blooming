@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { mrBloomStore } from '../../stores/mrBloomStore';
   import ChatMessage from '../molecules/ChatMessage.svelte';
   import PromptSuggestion from '../molecules/PromptSuggestion.svelte';
@@ -7,6 +8,20 @@
   import ChatAvatar from '../atoms/ChatAvatar.svelte';
   import PanelHeading from '../atoms/PanelHeading.svelte';
   
+  let messagesContainer: HTMLDivElement | undefined = $state();
+
+  $effect(() => {
+    // Read properties to create dependencies
+    const len = $mrBloomStore.chatHistory.length;
+    const waiting = $mrBloomStore.isWaitingForResponse;
+    
+    tick().then(() => {
+      if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+    });
+  });
+
   function handleSuggestion(content: string) {
     mrBloomStore.submitMessage(content);
   }
@@ -17,9 +32,9 @@
     <PanelHeading>CHAT WITH MR. BLOOM</PanelHeading>
   </header>
 
-  <div class="messages-container">
+  <div class="messages-container" bind:this={messagesContainer}>
     {#each $mrBloomStore.chatHistory as message (message.id)}
-      <ChatMessage {message} />
+      <ChatMessage {message} onretry={() => mrBloomStore.retryMessage(message.id)} />
     {/each}
     
     {#if $mrBloomStore.isWaitingForResponse}

@@ -33,8 +33,9 @@ def test_existing_chat_and_today_response_shapes_remain_valid():
         "reply": "Here is your plan.",
         "draft": {
             "type": "today",
-            "availability": {"start": "09:00", "end": "12:00", "totalHours": 3},
-            "tasks": [{"title": "Write report", "durationMin": 90, "priority": "Core"}],
+            "planDate": "2026-09-20",
+            "windows": [{"start": "09:00", "end": "12:00"}],
+            "tasks": [{"title": "Write report", "durationMin": 90, "id": "t1", "priority": "MEDIUM"}],
         },
     })
     assert chat.draft.tasks[0].title == "Write report"

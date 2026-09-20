@@ -9,13 +9,13 @@ from app.core.config import settings
 from app.db.session import engine
 
 
-from app.services.assistant_service import init_ai_client, close_ai_client
+from app.ai.providers import llm_provider
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    init_ai_client()
+    llm_provider.init_client()
     yield
-    await close_ai_client()
+    await llm_provider.close_client()
     await engine.dispose()
 
 
