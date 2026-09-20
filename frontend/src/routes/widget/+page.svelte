@@ -5,12 +5,12 @@
     ActivePlantPresentation,
   } from "$lib/features/companion-widget/types/presentation";
   import { onMount } from "svelte";
+  import { environmentStore } from "$lib/shared/stores/environmentStore";
+  import { authStore } from "$lib/shared/stores/authStore";
   import { api, APIError } from "$lib/api";
   import type { GardenState, TodayResponse } from "$lib/api/types";
   import { selectedPlantPresentation } from "$lib/features/garden/utils/spriteMapper";
   import { desktop } from "$lib/platform/desktopWindow";
-  import type { UserSettingsResponse } from "$lib/api/types";
-  import type { Weather } from "$lib/features/companion-widget/model/environment";
 
   interface FocusSession {
     id: string;
@@ -33,30 +33,7 @@
   let fetching = false;
   let finishWarning = $state<string | null>(null);
   let finishError = $state<string | null>(null);
-  let timezone = $state("UTC");
-  let weather = $state<Weather>("CLEAR");
-  let rainEnabled = $state(true);
-  const ENVIRONMENT_REFRESH_MS = 15 * 60 * 1000;
-  let environmentRequestId = 0;
   let plantRequestId = 0;
-
-  async function refreshEnvironment() {
-    const requestId = ++environmentRequestId;
-    try {
-      const settings: UserSettingsResponse = await api.get("/me/settings");
-      if (requestId !== environmentRequestId) return;
-      timezone = settings.timezone;
-      rainEnabled = settings.weather_animation_enabled !== false;
-      if (settings.weather_enabled && settings.weather_location?.trim()) {
-        const response: { condition: Weather } = await api.get("/me/weather");
-        if (requestId === environmentRequestId) weather = response.condition;
-      } else {
-        weather = "CLEAR";
-      }
-    } catch {
-      if (requestId === environmentRequestId) weather = "CLEAR";
-    }
-  }
 
   async function fetchSession() {
     if (fetching) return;
@@ -94,10 +71,13 @@
   }
 
   onMount(() => {
+    let disposed = false;
+    let releaseEnvironment = () => {};
+    void authStore.initialize().then(() => {
+      if (!disposed && $authStore.isAuthenticated) releaseEnvironment = environmentStore.init();
+    });
     void fetchSession();
     void refreshPlant();
-    void refreshEnvironment();
-    const environmentRefresh = setInterval(() => void refreshEnvironment(), ENVIRONMENT_REFRESH_MS);
     const clock = setInterval(() => {
       now = new Date();
     }, 1000);
@@ -105,25 +85,13 @@
       void fetchSession();
       void refreshPlant();
     }, 60000);
-    let disposed = false;
     let unlisten = () => {};
-    let unlistenSettings = () => {};
-    const refreshSettings = () => void refreshEnvironment();
     const refreshVisiblePlant = () => {
       if (!document.hidden) void refreshPlant();
     };
-    window.addEventListener("storage", refreshSettings);
     window.addEventListener("storage", refreshPlant);
-    window.addEventListener("focus", refreshSettings);
     window.addEventListener("focus", refreshPlant);
     document.addEventListener("visibilitychange", refreshVisiblePlant);
-    desktop
-      .onSettingsUpdated(refreshSettings)
-      .then((off) => {
-        if (disposed) off();
-        else unlistenSettings = off;
-      })
-      .catch(() => {});
     desktop
       .onScheduleUpdated(() => {
         void fetchSession();
@@ -142,15 +110,12 @@
     return () => {
       disposed = true;
       unlisten();
-      unlistenSettings();
-      window.removeEventListener("storage", refreshSettings);
       window.removeEventListener("storage", refreshPlant);
-      window.removeEventListener("focus", refreshSettings);
       window.removeEventListener("focus", refreshPlant);
       document.removeEventListener("visibilitychange", refreshVisiblePlant);
       clearInterval(clock);
       clearInterval(refresh);
-      clearInterval(environmentRefresh);
+      releaseEnvironment();
     };
   });
 
@@ -292,4 +257,4 @@
 </script>
 
 {#if finishError}<p role="alert">{finishError}</p>{/if}
-<CompanionWidget {presentation} {weather} {timezone} {rainEnabled} />
+<CompanionWidget {presentation} />

@@ -4,14 +4,24 @@
   import GardenPanel from '$lib/shared/components/organisms/GardenPanel.svelte';
   import { overlayStore } from '$lib/shared/stores/overlayStore';
   import { authStore } from '$lib/shared/stores/authStore';
+  import { environmentStore } from '$lib/shared/stores/environmentStore';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  
-  onMount(async () => {
-    await authStore.initialize();
-    if (!$authStore.isAuthenticated) {
-      goto('/auth');
-    }
+  onMount(() => {
+    let disposed = false;
+    let release = () => {};
+    void authStore.initialize().then(() => {
+      if (disposed) return;
+      if (!$authStore.isAuthenticated) {
+        goto('/auth');
+      } else {
+        release = environmentStore.init();
+      }
+    });
+    return () => {
+      disposed = true;
+      release();
+    };
   });
   
   let { children } = $props();

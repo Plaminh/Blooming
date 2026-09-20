@@ -1,12 +1,31 @@
 <script lang="ts">
   import { RAIN_CONFIGS, type Weather } from "../../model/environment";
+  import { onMount } from 'svelte';
 
   type Props = {
     weather: Weather;
     enabled?: boolean;
+    widgetHidden?: boolean;
   };
 
-  let { weather, enabled = true }: Props = $props();
+  let { weather, enabled = true, widgetHidden = false }: Props = $props();
+  let reducedMotion = $state(false);
+  let documentHidden = $state(false);
+
+  onMount(() => {
+    const media = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    const updateMotion = () => { reducedMotion = media?.matches ?? false; };
+    const updateVisibility = () => { documentHidden = document.hidden; };
+    updateMotion();
+    updateVisibility();
+    media?.addEventListener('change', updateMotion);
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => {
+      media?.removeEventListener('change', updateMotion);
+      document.removeEventListener('visibilitychange', updateVisibility);
+    };
+  });
 
   type Streak = {
     x: number;
@@ -42,7 +61,7 @@
   let streaks = $derived(mode ? generateStreaks(mode) : []);
 </script>
 
-{#if mode && enabled}
+{#if mode && enabled && !reducedMotion && !documentHidden && !widgetHidden}
   <div class="rain-layer" aria-hidden="true">
     {#each streaks as streak}
       <div

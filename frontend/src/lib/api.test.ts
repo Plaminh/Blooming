@@ -100,4 +100,19 @@ describe('api client', () => {
 
     expect(handler).not.toHaveBeenCalled();
   });
+
+  it('passes AbortSignal to the underlying fetch', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ success: true })
+    });
+
+    const controller = new AbortController();
+    await api.get('/test', { signal: controller.signal });
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
 });

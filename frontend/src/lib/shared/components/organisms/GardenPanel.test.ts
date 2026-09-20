@@ -4,6 +4,7 @@ import GardenPanel from './GardenPanel.svelte';
 import { api } from '$lib/api';
 import { notifyGardenUpdated } from '$lib/features/garden-selection/model/gardenUpdates';
 import { DAYTIME_ASSETS, SEASON_ASSETS, getDaytimeFromHour, getSeasonFromMonth } from '$lib/features/companion-widget/model/environment';
+import { environmentStore } from '$lib/shared/stores/environmentStore';
 
 
 vi.mock('$lib/api', () => ({
@@ -12,6 +13,25 @@ vi.mock('$lib/api', () => ({
 }));
 
 describe('GardenPanel', () => {
+  it('updates its scene when the shared environment changes', async () => {
+    environmentStore.resetForTests();
+    vi.mocked(api.get).mockImplementation(async (path: string) => {
+      if (path === '/me/settings') return {
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        weather_enabled: true, weather_lat: 10, scene_season: 'AUTO',
+        weather_animation_enabled: false, widget_visibility: true,
+      };
+      if (path === '/weather/current') return {
+        condition: 'THUNDERSTORM', status: 'OK', updated_at: '2026-09-19T00:00:00Z',
+      };
+      return { water_balance: 0, leaves_balance: 0, vitality: 100, catalog: [] };
+    });
+    const { container } = render(GardenPanel);
+    await environmentStore.refresh();
+    await waitFor(() => expect(container.querySelector('.garden-scene')?.getAttribute('data-weather')).toBe('THUNDERSTORM'));
+    expect((container.querySelector('.weather-overlay') as HTMLImageElement).src).toContain('storm-overlay');
+    environmentStore.resetForTests();
+  });
   it('links to plant selection and shows the unlocked count', () => {
     const { container } = render(GardenPanel);
     const link = container.querySelector('a.garden');

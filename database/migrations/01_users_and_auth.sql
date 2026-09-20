@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS user_settings (
     launch_on_startup               BOOLEAN NOT NULL DEFAULT FALSE,
     weather_enabled                 BOOLEAN NOT NULL DEFAULT FALSE,
     weather_location                VARCHAR(100),
+    weather_location_name           VARCHAR(255),
+    weather_lat                     NUMERIC(5, 2),
+    weather_lon                     NUMERIC(6, 2),
+    scene_season                    VARCHAR(20) NOT NULL DEFAULT 'AUTO',
     weather_animation_enabled       BOOLEAN NOT NULL DEFAULT TRUE,
     created_at                      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at                      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -52,7 +56,21 @@ CREATE TABLE IF NOT EXISTS user_settings (
             (quiet_hours_start IS NOT NULL AND quiet_hours_end IS NOT NULL)
         ),
     CONSTRAINT user_settings_mr_bloom_name_not_blank
-        CHECK (BTRIM(mr_bloom_display_name) <> '')
+        CHECK (BTRIM(mr_bloom_display_name) <> ''),
+    CONSTRAINT user_settings_weather_lat_valid
+        CHECK (weather_lat IS NULL OR weather_lat BETWEEN -90.00 AND 90.00),
+    CONSTRAINT user_settings_weather_lon_valid
+        CHECK (weather_lon IS NULL OR weather_lon BETWEEN -180.00 AND 180.00),
+    CONSTRAINT user_settings_scene_season_valid
+        CHECK (scene_season IN ('AUTO', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER')),
+    CONSTRAINT user_settings_weather_coordinate_pair
+        CHECK ((weather_lat IS NULL AND weather_lon IS NULL)
+            OR (weather_lat IS NOT NULL AND weather_lon IS NOT NULL)),
+    CONSTRAINT user_settings_weather_name_not_blank
+        CHECK (weather_location_name IS NULL OR BTRIM(weather_location_name) <> ''),
+    CONSTRAINT user_settings_weather_coordinates_named
+        CHECK ((weather_lat IS NULL AND weather_lon IS NULL)
+            OR (weather_location_name IS NOT NULL AND BTRIM(weather_location_name) <> ''))
 );
 
 CREATE TABLE IF NOT EXISTS auth_sessions (

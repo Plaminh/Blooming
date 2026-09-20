@@ -1,4 +1,5 @@
 import { api } from '$lib/api';
+import { deviceTimezone } from '$lib/shared/deviceLocation';
 import type { 
   SummaryMetrics, 
   DailyStudyEntry, 
@@ -57,7 +58,7 @@ export const statisticsApi = {
     const params = new URLSearchParams({
       start_date: formatLocalDate(startDate),
       end_date: formatLocalDate(endDate),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      timezone: deviceTimezone()
     });
     
     const response = (await api.get(`/statistics/summary?${params.toString()}`)) as RawSummaryMetrics;
@@ -74,7 +75,7 @@ export const statisticsApi = {
     const params = new URLSearchParams({
       start_date: formatLocalDate(startDate),
       end_date: formatLocalDate(endDate),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      timezone: deviceTimezone()
     });
     
     const response = (await api.get(`/statistics/daily?${params.toString()}`)) as RawDailyStudyEntry[];

@@ -5,7 +5,6 @@
     type Season,
     type Weather,
     getDaytimeFromHour,
-    getSeasonFromMonth,
     datePartsInTimezone,
     DAYTIME_ASSETS,
     SEASON_ASSETS,
@@ -13,20 +12,41 @@
   } from "../../model/environment";
   import RainLayer from "../atoms/RainLayer.svelte";
   import { clockStore } from "$lib/shared/stores/clockStore";
+  import { environmentStore } from "$lib/shared/stores/environmentStore";
+  import { deviceTimezone } from '$lib/shared/deviceLocation';
+  import { resolveSeason } from '$lib/shared/utils/season';
 
   type Props = {
     class?: string;
     variant?: "widget" | "garden";
-    weather?: Weather;
-    rainEnabled?: boolean;
-    timezone?: string;
+    weatherOverride?: Weather;
+    seasonOverride?: Season;
+    daytimeOverride?: Daytime;
+    timezoneOverride?: string;
+    animationOverride?: boolean;
   };
 
-  let { class: className = "", variant = "widget", weather = 'CLEAR', rainEnabled = true, timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' }: Props = $props();
+  let { 
+    class: className = "", 
+    variant = "widget",
+    weatherOverride,
+    seasonOverride,
+    daytimeOverride,
+    timezoneOverride,
+    animationOverride
+  }: Props = $props();
+  
+  let timezone = $derived(timezoneOverride || $environmentStore.effectiveTimezone || deviceTimezone());
+  let rainEnabled = $derived(animationOverride ?? ($environmentStore.animationEnabled !== false));
+  
+  // Use overrides if provided, else use environment store
+  let weather = $derived(weatherOverride || ($environmentStore.weatherCondition as Weather));
 
   let zonedTime = $derived(datePartsInTimezone($clockStore, timezone));
-  let currentDaytime: Daytime = $derived(getDaytimeFromHour(zonedTime.hour));
-  let currentSeason: Season = $derived(getSeasonFromMonth(zonedTime.month));
+  let currentDaytime: Daytime = $derived(daytimeOverride || getDaytimeFromHour(zonedTime.hour));
+  let currentSeason: Season = $derived(seasonOverride || ($environmentStore.sceneSeason === 'AUTO'
+    ? resolveSeason('AUTO', zonedTime.month, null) as Season
+    : ($environmentStore.sceneSeason as Season)));
 </script>
 
 <div
@@ -63,11 +83,23 @@
     {/if}
 
     <!-- 4. Rain Animation -->
-    <RainLayer {weather} enabled={rainEnabled} />
+    <RainLayer {weather} enabled={rainEnabled} widgetHidden={variant === 'widget' && $environmentStore.widgetVisible === false} />
   </div>
+  {#if !weatherOverride && $environmentStore.weatherStatus === 'STALE' && weather !== 'CLEAR'}
+    <div class="stale-indicator" aria-label="Weather data is stale" title="Weather data might be outdated">↻</div>
+  {/if}
 </div>
 
 <style>
+  .stale-indicator {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    color: rgba(255, 255, 255, 0.7);
+    z-index: 10;
+    pointer-events: auto;
+  }
+
   .scene {
     position: absolute;
     inset: 0;

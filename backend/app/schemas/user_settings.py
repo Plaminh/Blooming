@@ -1,7 +1,10 @@
 from datetime import time
+from decimal import ROUND_HALF_UP, Decimal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.models.enums import SceneSeason
 
 
 class UserSettingsUpdate(BaseModel):
@@ -21,6 +24,23 @@ class UserSettingsUpdate(BaseModel):
     weather_enabled: bool | None = Field(default=None)
     weather_location: str | None = Field(default=None, max_length=100)
     weather_animation_enabled: bool | None = Field(default=None)
+    weather_location_name: str | None = Field(default=None, max_length=255)
+    weather_lat: Decimal | None = Field(
+        default=None, ge=-90, le=90, allow_inf_nan=False
+    )
+    weather_lon: Decimal | None = Field(
+        default=None, ge=-180, le=180, allow_inf_nan=False
+    )
+    scene_season: SceneSeason | None = Field(default=None)
+
+    @field_validator("weather_lat", "weather_lon")
+    @classmethod
+    def round_coordinate(cls, value: Decimal | None) -> Decimal | None:
+        if value is None:
+            return None
+        if not value.is_finite():
+            raise ValueError("Coordinate must be finite")
+        return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     @model_validator(mode="after")
     def validate_non_nullable_and_timezone(self) -> "UserSettingsUpdate":
@@ -47,6 +67,17 @@ class UserSettingsUpdate(BaseModel):
                 ZoneInfo(self.timezone)
             except ZoneInfoNotFoundError:
                 raise ValueError("Invalid timezone")
+        fields = {"weather_lat", "weather_lon"}
+        if self.model_fields_set & fields and not fields <= self.model_fields_set:
+            raise ValueError("Both weather coordinates must be supplied together")
+        if fields <= self.model_fields_set:
+            if (self.weather_lat is None) != (self.weather_lon is None):
+                raise ValueError("Both weather coordinates must be supplied together")
+            if (
+                self.weather_lat is not None
+                and not (self.weather_location_name or "").strip()
+            ):
+                raise ValueError("Coordinates require a selected place name")
         return self
 
 
@@ -67,3 +98,7 @@ class UserSettingsResponse(BaseModel):
     weather_enabled: bool
     weather_location: str | None
     weather_animation_enabled: bool
+    weather_location_name: str | None
+    weather_lat: float | None
+    weather_lon: float | None
+    scene_season: SceneSeason

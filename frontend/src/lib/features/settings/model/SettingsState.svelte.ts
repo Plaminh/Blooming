@@ -4,7 +4,7 @@ import { desktop, type NativeSettings } from "$lib/platform/desktopWindow";
 import type { UserSettingsResponse } from "$lib/api/types";
 import { get } from "svelte/store";
 import { authStore } from "$lib/shared/stores/authStore";
-import { deviceTimezone, requestDeviceLocation } from "$lib/shared/deviceLocation";
+import { deviceTimezone, requestApproximateDeviceLocation } from "$lib/shared/deviceLocation";
 
 const SETTINGS_KEY = "bloom_settings";
 
@@ -21,6 +21,10 @@ export class SettingsState {
     emailReminders: true,
     weatherEnabled: false,
     weatherLocation: "",
+    weatherLocationName: null,
+    weatherLat: null,
+    weatherLon: null,
+    sceneSeason: "AUTO",
     weatherAnimationEnabled: true,
   });
 
@@ -34,6 +38,7 @@ export class SettingsState {
   syncWarning = $state<string | null>(null);
   locationPending = $state(false);
   locationError = $state<string | null>(null);
+  locationPickerVersion = $state(0);
 
   isDirty = $derived(
     JSON.stringify(this.savedSettings) !== JSON.stringify(this.draftSettings),
@@ -84,6 +89,10 @@ export class SettingsState {
           emailReminders: this.savedSettings.emailReminders, // Keep local pref
           weatherEnabled: stored.weather_enabled ?? false,
           weatherLocation: stored.weather_location ?? "",
+          weatherLocationName: stored.weather_location_name ?? null,
+          weatherLat: stored.weather_lat ?? null,
+          weatherLon: stored.weather_lon ?? null,
+          sceneSeason: stored.scene_season || "AUTO",
           weatherAnimationEnabled: stored.weather_animation_enabled ?? true,
         };
         this.savedSettings = { ...this.savedSettings, ...mappedSettings };
@@ -141,9 +150,15 @@ export class SettingsState {
       isValid = false;
     }
 
-    if (weatherLocation.trim().length > 100 || (this.draftSettings.weatherEnabled && !weatherLocation.trim())) {
-      this.validationErrors.weatherLocation = "Enter a location (up to 100 characters) to enable weather.";
-      isValid = false;
+    if (this.draftSettings.weatherEnabled) {
+      if (
+        this.draftSettings.weatherLat === null ||
+        this.draftSettings.weatherLon === null ||
+        !this.draftSettings.weatherLocationName?.trim()
+      ) {
+        this.validationErrors.weatherLocation = "Search and select a valid location to enable weather.";
+        isValid = false;
+      }
     }
 
     return isValid;
@@ -151,6 +166,7 @@ export class SettingsState {
 
   cancel() {
     this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
+    this.locationPickerVersion += 1;
     this.draftSettings.timezone = deviceTimezone();
     this.validationErrors = {};
     this.saveSuccessMessage = null;
@@ -164,7 +180,10 @@ export class SettingsState {
     this.locationPending = true;
     this.locationError = null;
     try {
-      this.draftSettings.weatherLocation = await requestDeviceLocation();
+      const place = await requestApproximateDeviceLocation();
+      this.draftSettings.weatherLocationName = place.locationName;
+      this.draftSettings.weatherLat = place.lat;
+      this.draftSettings.weatherLon = place.lon;
       this.draftSettings.weatherEnabled = true;
       delete this.validationErrors.weatherLocation;
     } catch (error) {
@@ -202,6 +221,10 @@ export class SettingsState {
         ),
         weather_enabled: this.draftSettings.weatherEnabled,
         weather_location: this.draftSettings.weatherLocation.trim() || null,
+        weather_location_name: this.draftSettings.weatherLocationName?.trim() || null,
+        weather_lat: this.draftSettings.weatherLat,
+        weather_lon: this.draftSettings.weatherLon,
+        scene_season: this.draftSettings.sceneSeason,
         weather_animation_enabled: this.draftSettings.weatherAnimationEnabled,
       };
 
@@ -222,6 +245,7 @@ export class SettingsState {
       }
       this.savedSettings = JSON.parse(JSON.stringify(this.draftSettings));
       this.saveSuccessMessage = "Settings saved successfully.";
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('blooming:settings-updated'));
       try {
         await desktop.settingsUpdated();
       } catch {

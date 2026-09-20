@@ -3,7 +3,7 @@
   import Button from '../atoms/Button.svelte';
   import Checkbox from '../atoms/Checkbox.svelte';
   import Input from '../atoms/Input.svelte';
-  import { requestDeviceLocation, isDeviceCoordinates } from '$lib/shared/deviceLocation';
+  import WeatherLocationPicker from '$lib/features/settings/components/molecules/WeatherLocationPicker.svelte';
   import FormField from '../molecules/FormField.svelte';
   import PresetSelector from '../molecules/PresetSelector.svelte';
   import StepProgress from '../molecules/StepProgress.svelte';
@@ -20,20 +20,6 @@
     onBack: () => void;
   } = $props();
 
-  let locationPending = $state(false);
-  let locationError = $state<string | null>(null);
-
-  async function useDeviceLocation() {
-    locationPending = true;
-    locationError = null;
-    try {
-      setupState.weatherLocation = await requestDeviceLocation();
-    } catch (error) {
-      locationError = error instanceof Error ? error.message : 'Could not get device location.';
-    } finally {
-      locationPending = false;
-    }
-  }
 
   let selectedPresetDescription = $derived(
     setupState.focusPreset === '25 / 5'
@@ -94,19 +80,17 @@
         description="Use device location, or enter a city for widget weather."
         descriptionId="weather-location-description"
       >
-        <Input
-          id="weather-location"
-          bind:value={setupState.weatherLocation}
-          placeholder="City, country"
-          maxlength={100}
-          ariaDescribedby="weather-location-description"
-          disabled={pending}
-        />
-        <button type="button" class="location-button" disabled={pending || locationPending} onclick={useDeviceLocation}>
-          {locationPending ? 'Finding location...' : 'Use device location'}
-        </button>
-        {#if isDeviceCoordinates(setupState.weatherLocation)}<span role="status">Device location selected</span>{/if}
-        {#if locationError}<span role="alert">{locationError}</span>{/if}
+        <WeatherLocationPicker disabled={pending}
+          onInvalidate={() => {
+            setupState.weatherLocationName = null;
+            setupState.weatherLat = null;
+            setupState.weatherLon = null;
+          }}
+          onSelect={(place) => {
+            setupState.weatherLocationName = place.locationName;
+            setupState.weatherLat = place.lat;
+            setupState.weatherLon = place.lon;
+          }} />
       </FormField>
     </div>
 
@@ -221,17 +205,6 @@
     background: var(--bloom-surface-cream-alt);
     color: var(--bloom-text-control-blue);
     font: 19px var(--bloom-body-font);
-  }
-
-  .location-button {
-    align-self: flex-start;
-    margin-top: 8px;
-    padding: 7px 12px;
-    border: 1px solid var(--bloom-border-subtle);
-    border-radius: var(--bloom-radius);
-    background: var(--bloom-surface-cream-alt);
-    color: var(--bloom-text-dark-blue);
-    cursor: pointer;
   }
 
   .preset-row {

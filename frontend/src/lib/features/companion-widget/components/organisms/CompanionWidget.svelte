@@ -1,6 +1,7 @@
 <script lang="ts">
   import "../../styles/widget-theme.css";
   import type { CompanionWidgetProps } from "../../types/presentation";
+  import type { Daytime, Season, Weather } from '../../model/environment';
   import {
     desktopWindowService,
     type DesktopWindowService,
@@ -23,10 +24,21 @@
   let {
     presentation,
     windowService = desktopWindowService,
-    weather = "CLEAR",
-    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-    rainEnabled = true,
-  }: CompanionWidgetProps & { windowService?: DesktopWindowService } = $props();
+    daytimeOverride,
+    seasonOverride,
+    weatherOverride,
+    timezone,
+    weather,
+    rainEnabled,
+  }: CompanionWidgetProps & {
+    windowService?: DesktopWindowService;
+    daytimeOverride?: Daytime;
+    seasonOverride?: Season;
+    weatherOverride?: Weather;
+    timezone?: string;
+    weather?: Weather;
+    rainEnabled?: boolean;
+  } = $props();
 
   function openMainOnDoubleClick(node: HTMLElement) {
     const handleDoubleClick = (event: MouseEvent) => {
@@ -75,7 +87,7 @@
   aria-label="Blooming companion"
   style={widgetLayoutStyle(presentation.kind)}
 >
-  <WidgetSceneBackground {weather} {timezone} {rainEnabled} />
+  <WidgetSceneBackground {daytimeOverride} {seasonOverride} weatherOverride={weatherOverride ?? weather} timezoneOverride={timezone} animationOverride={rainEnabled} />
   <WidgetTitleBar {windowService} />
 
   <div class="plant-slot">

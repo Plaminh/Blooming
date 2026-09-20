@@ -8,8 +8,8 @@ from app.api.routes import (
     goals,
     health,
     planning,
-    statistics,
     reminders,
+    statistics,
     today,
     user_settings,
     users,
@@ -22,6 +22,7 @@ api_router.include_router(auth.router)
 api_router.include_router(users.router)
 api_router.include_router(user_settings.router)
 api_router.include_router(weather.router)
+api_router.include_router(weather.legacy_router)
 api_router.include_router(assistant.router)
 api_router.include_router(planning.router)
 api_router.include_router(focus.router)

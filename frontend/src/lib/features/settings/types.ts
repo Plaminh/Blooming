@@ -10,5 +10,9 @@ export interface SettingsProfile {
   emailReminders: boolean;
   weatherEnabled: boolean;
   weatherLocation: string;
+  weatherLocationName: string | null;
+  weatherLat: number | null;
+  weatherLon: number | null;
+  sceneSeason: string;
   weatherAnimationEnabled: boolean;
 }

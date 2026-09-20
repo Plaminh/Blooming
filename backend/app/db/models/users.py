@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, time
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
@@ -13,6 +14,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     Time,
@@ -125,6 +127,32 @@ class UserSettings(Base):
             "BTRIM(mr_bloom_display_name) <> ''",
             name="user_settings_mr_bloom_name_not_blank",
         ),
+        CheckConstraint(
+            "weather_lat IS NULL OR weather_lat BETWEEN -90.00 AND 90.00",
+            name="user_settings_weather_lat_valid",
+        ),
+        CheckConstraint(
+            "weather_lon IS NULL OR weather_lon BETWEEN -180.00 AND 180.00",
+            name="user_settings_weather_lon_valid",
+        ),
+        CheckConstraint(
+            "scene_season IN ('AUTO', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER')",
+            name="user_settings_scene_season_valid",
+        ),
+        CheckConstraint(
+            "(weather_lat IS NULL AND weather_lon IS NULL) OR "
+            "(weather_lat IS NOT NULL AND weather_lon IS NOT NULL)",
+            name="user_settings_weather_coordinate_pair",
+        ),
+        CheckConstraint(
+            "weather_location_name IS NULL OR BTRIM(weather_location_name) <> ''",
+            name="user_settings_weather_name_not_blank",
+        ),
+        CheckConstraint(
+            "(weather_lat IS NULL AND weather_lon IS NULL) OR "
+            "(weather_location_name IS NOT NULL AND BTRIM(weather_location_name) <> '')",
+            name="user_settings_weather_coordinates_named",
+        ),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -168,6 +196,12 @@ class UserSettings(Base):
         Boolean, nullable=False, server_default=text("FALSE")
     )
     weather_location: Mapped[str | None] = mapped_column(String(100))
+    weather_location_name: Mapped[str | None] = mapped_column(String(255))
+    weather_lat: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    weather_lon: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    scene_season: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=text("'AUTO'")
+    )
     weather_animation_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("TRUE")
     )
@@ -235,10 +269,10 @@ class AuthSession(Base):
 class EmailVerificationToken(Base):
     __tablename__ = "email_verification_tokens"
     __table_args__ = (
-        UniqueConstraint(
-            "token_hash", name="email_verification_tokens_token_hash_key"
+        UniqueConstraint("token_hash", name="email_verification_tokens_token_hash_key"),
+        CheckConstraint(
+            "expires_at > created_at", name="email_verification_tokens_expiry_valid"
         ),
-        CheckConstraint("expires_at > created_at", name="email_verification_tokens_expiry_valid"),
         Index(
             "email_verification_tokens_user_active_idx",
             "user_id",

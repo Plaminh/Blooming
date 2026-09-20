@@ -1,134 +1,160 @@
-import asyncio
-import gc
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
-from app.services import weather_service
-
-
-@pytest.mark.parametrize(
-    ("code", "condition"),
-    [(0, "CLEAR"), (2, "CLOUDY"), (3, "OVERCAST"), (61, "RAIN"), (71, "OVERCAST"), (95, "THUNDERSTORM")],
+from app.models.enums import WeatherCondition, WeatherStatus
+from app.services.weather_service import (
+    WeatherProviderError,
+    _forecast_cache,
+    _last_known_forecast,
+    _place_search_cache,
+    get_forecast,
+    normalize_weather,
+    search_places,
 )
-def test_normalize_weather(code, condition):
-    assert weather_service.normalize_weather(code) == condition
 
 
 @pytest.mark.asyncio
-async def test_device_coordinates_skip_city_lookup(monkeypatch):
-    weather_service._weather_cache.clear()
-    calls = []
-
-    def handler(request):
-        calls.append((request.url.path, request.url.params))
-        return httpx.Response(200, json={"current": {"weather_code": 61}})
-
-    actual_client = httpx.AsyncClient
-    monkeypatch.setattr(
-        weather_service.httpx,
-        "AsyncClient",
-        lambda **kwargs: actual_client(transport=httpx.MockTransport(handler)),
-    )
-    assert await weather_service.current_weather("10.8231,106.6297") == "RAIN"
-    assert len(calls) == 1
-    assert calls[0][0].endswith("/forecast")
-    assert calls[0][1]["latitude"] == "10.8231"
-
-
-@pytest.mark.asyncio
-async def test_weather_fetches_location_and_caches_result(monkeypatch):
-    weather_service._weather_cache.clear()
-    weather_service._location_cache.clear()
-    calls = []
-
-    def handler(request):
-        calls.append(request.url.path)
-        if request.url.path.endswith("/search"):
-            return httpx.Response(200, json={"results": [{"latitude": 10.8, "longitude": 106.6}]})
-        return httpx.Response(200, json={"current": {"weather_code": 95}})
-
-    actual_client = httpx.AsyncClient
-    monkeypatch.setattr(
-        weather_service.httpx,
-        "AsyncClient",
-        lambda **kwargs: actual_client(transport=httpx.MockTransport(handler)),
-    )
-    assert await weather_service.current_weather("Ho Chi Minh City") == "THUNDERSTORM"
-    assert await weather_service.current_weather("ho chi minh city") == "THUNDERSTORM"
-    assert len(calls) == 2
-
-
-@pytest.mark.asyncio
-async def test_provider_failure_falls_back_to_clear(monkeypatch):
-    weather_service._weather_cache.clear()
-    weather_service._location_cache.clear()
-
-    def handler(request):
-        raise httpx.ConnectError("offline", request=request)
-
-    actual_client = httpx.AsyncClient
-    monkeypatch.setattr(
-        weather_service.httpx,
-        "AsyncClient",
-        lambda **kwargs: actual_client(transport=httpx.MockTransport(handler)),
-    )
-    assert await weather_service.current_weather("Unknown City") == "CLEAR"
-
-
-@pytest.mark.asyncio
-async def test_expired_weather_is_not_served_when_provider_fails(monkeypatch):
-    weather_service._weather_cache.clear()
-    weather_service._location_cache.clear()
-    weather_service._weather_cache["old city"] = (
-        weather_service.time.monotonic() - 1,
-        "RAIN",
-    )
-
-    def handler(request):
-        raise httpx.ConnectError("offline", request=request)
-
-    actual_client = httpx.AsyncClient
-    monkeypatch.setattr(
-        weather_service.httpx,
-        "AsyncClient",
-        lambda **kwargs: actual_client(transport=httpx.MockTransport(handler)),
-    )
-    assert await weather_service.current_weather("Old City") == "CLEAR"
-    assert "old city" not in weather_service._weather_cache
-
-
-@pytest.mark.asyncio
-async def test_different_locations_fetch_concurrently(monkeypatch):
-    weather_service._weather_cache.clear()
-    weather_service._location_cache.clear()
-    started = set()
-    both_started = asyncio.Event()
-
-    async def handler(request):
-        if request.url.path.endswith("/search"):
-            started.add(request.url.params["name"])
-            if len(started) == 2:
-                both_started.set()
-            await asyncio.wait_for(both_started.wait(), timeout=1)
-            return httpx.Response(200, json={"results": [{"latitude": 10.8, "longitude": 106.6}]})
-        return httpx.Response(200, json={"current": {"weather_code": 2}})
-
-    actual_client = httpx.AsyncClient
-    monkeypatch.setattr(
-        weather_service.httpx,
-        "AsyncClient",
-        lambda **kwargs: actual_client(transport=httpx.MockTransport(handler)),
-    )
-    results = await asyncio.wait_for(
-        asyncio.gather(
-            weather_service.current_weather("City A"),
-            weather_service.current_weather("City B"),
+async def test_place_search_filters_malformed_candidates_and_caps_at_five():
+    _place_search_cache.clear()
+    items = [
+        {"name": "Missing latitude", "longitude": 1},
+        {"name": "Missing longitude", "latitude": 1},
+        {"name": " ", "latitude": 1, "longitude": 2},
+        {"name": "Invalid", "latitude": float("nan"), "longitude": 2},
+        *(
+            {"name": f"City {index}", "latitude": 10.123, "longitude": 20.456}
+            for index in range(7)
         ),
-        timeout=2,
+    ]
+    provider = MagicMock()
+    provider.raise_for_status.return_value = None
+    provider.json.return_value = {"results": items}
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=provider):
+        found = await search_places("Cities")
+    assert len(found.candidates) == 5
+    assert all(place.name.startswith("City") for place in found.candidates)
+    assert all((place.lat, place.lon) == (10.12, 20.46) for place in found.candidates)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload", [None, [], {}, {"results": None}, {"results": "wrong"}]
+)
+async def test_malformed_place_payload_is_an_explicit_error(payload):
+    _place_search_cache.clear()
+    provider = MagicMock()
+    provider.raise_for_status.return_value = None
+    provider.json.return_value = payload
+    with (
+        patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=provider),
+        pytest.raises(WeatherProviderError),
+    ):
+        await search_places("Example")
+
+
+@pytest.mark.asyncio
+async def test_empty_place_results_are_valid():
+    _place_search_cache.clear()
+    provider = MagicMock()
+    provider.raise_for_status.return_value = None
+    provider.json.return_value = {"results": []}
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=provider):
+        assert (await search_places("Missing")).candidates == []
+    assert (await search_places(" ")).candidates == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload", [{"current": {"weather_code": 999}}, {"current": {}}, [], None]
+)
+async def test_bad_forecast_never_becomes_successful_clear(payload):
+    _forecast_cache.clear()
+    _last_known_forecast.clear()
+    provider = MagicMock()
+    provider.raise_for_status.return_value = None
+    provider.json.return_value = payload
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=provider):
+        result = await get_forecast(44, 55)
+    assert result.status == WeatherStatus.UNAVAILABLE
+    assert (44, 55) not in _forecast_cache
+
+
+def test_normalize_weather_mapping():
+    assert normalize_weather(0) == WeatherCondition.CLEAR
+    assert normalize_weather(2) == WeatherCondition.CLOUDY
+    assert normalize_weather(3) == WeatherCondition.OVERCAST
+    assert normalize_weather(51) == WeatherCondition.RAIN
+    assert normalize_weather(95) == WeatherCondition.THUNDERSTORM
+
+    with pytest.raises(ValueError):
+        normalize_weather(999)
+
+
+@pytest.mark.asyncio
+@patch("httpx.AsyncClient.get")
+async def test_get_forecast_rounding(mock_get):
+    _forecast_cache.clear()
+
+    mock_resp_success = MagicMock()
+    mock_resp_success.json.return_value = {"current": {"weather_code": 0}}
+    mock_resp_success.raise_for_status = lambda: None
+
+    mock_get.return_value = mock_resp_success
+
+    res1 = await get_forecast(51.507, -0.128)
+    assert res1.status == WeatherStatus.OK
+
+    # Mock failure
+    mock_resp_fail = MagicMock()
+    mock_resp_fail.raise_for_status.side_effect = httpx.HTTPError("error")
+    mock_get.return_value = mock_resp_fail
+
+    res2 = await get_forecast(51.511, -0.134)
+    assert res2.status == WeatherStatus.OK
+
+
+@pytest.mark.asyncio
+@patch("httpx.AsyncClient.get")
+async def test_get_forecast_stale_fallback(mock_get):
+    _forecast_cache.clear()
+    _last_known_forecast.clear()
+
+    mock_resp_success = MagicMock()
+    mock_resp_success.json.return_value = {"current": {"weather_code": 51}}
+    mock_resp_success.raise_for_status = lambda: None
+    mock_get.return_value = mock_resp_success
+
+    res1 = await get_forecast(10.0, 20.0)
+    assert res1.status == WeatherStatus.OK
+    assert res1.condition == WeatherCondition.RAIN
+
+    _forecast_cache.clear()
+
+    mock_resp_fail = MagicMock()
+    mock_resp_fail.raise_for_status.side_effect = httpx.HTTPError("error")
+    mock_get.return_value = mock_resp_fail
+
+    res2 = await get_forecast(10.0, 20.0)
+    assert res2.status == WeatherStatus.STALE
+    assert res2.condition == WeatherCondition.RAIN
+
+    _last_known_forecast.clear()
+    res3 = await get_forecast(10.0, 20.0)
+    assert res3.status == WeatherStatus.UNAVAILABLE
+
+
+@pytest.mark.asyncio
+@patch("httpx.AsyncClient.get")
+async def test_search_places_provider_error(mock_get):
+    _place_search_cache.clear()
+
+    mock_resp_fail = MagicMock()
+    mock_resp_fail.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "429", request=None, response=None
     )
-    assert results == ["CLOUDY", "CLOUDY"]
-    assert started == {"City A", "City B"}
-    gc.collect()
-    assert "city a" not in weather_service._location_locks
-    assert "city b" not in weather_service._location_locks
+    mock_get.return_value = mock_resp_fail
+
+    with pytest.raises(WeatherProviderError):
+        await search_places("London")

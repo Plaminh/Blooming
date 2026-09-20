@@ -63,7 +63,12 @@ export interface UserSettingsResponse {
   milestone_reminder_lead_time_minutes: number;
   weather_enabled: boolean;
   weather_location: string | null;
+  weather_location_name: string | null;
+  weather_lat: number | null;
+  weather_lon: number | null;
+  scene_season: string;
   weather_animation_enabled: boolean;
+  widget_visibility?: boolean;
 }
 export interface WaterPlantResponse {
   water_balance: number;

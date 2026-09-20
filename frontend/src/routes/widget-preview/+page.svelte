@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import { parseSceneQuery } from './sceneQuery';
   import { CompanionWidget } from "$lib/features/companion-widget";
   import type {
     CompanionWidgetKind,
@@ -74,6 +75,7 @@
     },
   });
   let shot = $derived(page.url.searchParams.get("shot") === "1");
+  let sceneOverrides = $derived(parseSceneQuery(page.url.searchParams));
 </script>
 
 <main class="preview" class:shot>
@@ -115,7 +117,7 @@
     </div>
   </div>
   <div class="frame">
-    <CompanionWidget {presentation} />
+    <CompanionWidget {presentation} {...sceneOverrides} />
   </div>
 </main>
 

@@ -3,6 +3,7 @@
   import { GardenSelectionViewModel } from '$lib/features/garden-selection/model/state.svelte';
   import { gardenUpdates } from '$lib/features/garden-selection/model/gardenUpdates';
   import WidgetSceneBackground from '$lib/features/companion-widget/components/molecules/WidgetSceneBackground.svelte';
+  import { environmentStore } from '$lib/shared/stores/environmentStore';
   import { desktop } from '$lib/platform/desktopWindow';
   import { onMount } from 'svelte';
   let gardenOpen = $state(false);
@@ -37,7 +38,7 @@
   <header class="panel-strip">
     <h2 id="garden-heading">YOUR GARDEN</h2>
   </header>
-  <div class="garden-scene" aria-hidden="true">
+  <div class="garden-scene" aria-hidden="true" data-weather={$environmentStore.weatherCondition} data-status={$environmentStore.weatherStatus}>
     <WidgetSceneBackground variant="garden" />
   </div>
   <footer class="garden-footer">

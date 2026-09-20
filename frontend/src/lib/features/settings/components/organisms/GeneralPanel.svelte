@@ -2,8 +2,9 @@
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
   import TextInput from '$lib/shared/components/atoms/TextInput.svelte';
   import ToggleSwitch from '../atoms/ToggleSwitch.svelte';
+  import WeatherLocationPicker from '../molecules/WeatherLocationPicker.svelte';
   import { getSettingsState } from '../../model/SettingsState.svelte';
-  import { deviceTimezone, isDeviceCoordinates } from '$lib/shared/deviceLocation';
+  import { deviceTimezone } from '$lib/shared/deviceLocation';
 
   const settingsState = getSettingsState();
 
@@ -28,22 +29,49 @@
       <output aria-label="Device timezone">{deviceTimezone()}</output>
     </div>
 
-    <TextInput
-      id="weatherLocation"
-      label="Weather location"
-      bind:value={settingsState.draftSettings.weatherLocation}
-      error={settingsState.validationErrors.weatherLocation}
-    />
-    <div class="location-action">
-      <button type="button" disabled={settingsState.locationPending} onclick={() => settingsState.useDeviceLocation()}>
-        {settingsState.locationPending ? 'Finding location...' : 'Use device location'}
-      </button>
-      {#if isDeviceCoordinates(settingsState.draftSettings.weatherLocation)}
-        <span role="status">Device location selected</span>
+    <div class="settings-group">
+      <span class="group-label">Weather Location</span>
+      {#if settingsState.savedSettings.weatherLocationName}
+        <div class="current-location">
+          Saved: <strong>{settingsState.savedSettings.weatherLocationName}</strong>
+        </div>
+      {:else if settingsState.savedSettings.weatherLocation}
+        <span role="status">Confirm your weather location by selecting a place.</span>
       {/if}
-      {#if settingsState.locationError}
-        <span class="location-error" role="alert">{settingsState.locationError}</span>
+      {#key settingsState.locationPickerVersion}
+      <WeatherLocationPicker
+        onInvalidate={() => {
+          settingsState.draftSettings.weatherLocationName = null;
+          settingsState.draftSettings.weatherLat = null;
+          settingsState.draftSettings.weatherLon = null;
+        }}
+        onSelect={(place) => {
+          settingsState.draftSettings.weatherLocationName = place.locationName;
+          settingsState.draftSettings.weatherLat = place.lat;
+          settingsState.draftSettings.weatherLon = place.lon;
+          // Clear error if any
+          delete settingsState.validationErrors.weatherLocation;
+        }} 
+      />
+      {/key}
+      {#if settingsState.validationErrors.weatherLocation}
+        <span class="location-error" role="alert">{settingsState.validationErrors.weatherLocation}</span>
       {/if}
+    </div>
+
+    <div class="settings-group" style="margin-top: 12px; margin-bottom: 12px;">
+      <label class="group-label" for="sceneSeason">Garden Season Override</label>
+      <select 
+        id="sceneSeason"
+        bind:value={settingsState.draftSettings.sceneSeason}
+        class="season-select"
+      >
+        <option value="AUTO">Auto (Based on weather/date)</option>
+        <option value="SPRING">Spring</option>
+        <option value="SUMMER">Summer</option>
+        <option value="AUTUMN">Autumn</option>
+        <option value="WINTER">Winter</option>
+      </select>
     </div>
 
     <ToggleSwitch
@@ -126,24 +154,6 @@
     font-weight: 400;
   }
 
-  .location-action {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    margin: -6px 0 14px 232px;
-    font: 14px var(--bloom-body-font);
-  }
-
-  .location-action button {
-    padding: 7px 10px;
-    border: 1px solid var(--bloom-border-subtle);
-    border-radius: 4px;
-    background: var(--bloom-surface-cream-alt);
-    color: var(--bloom-text-dark-blue);
-    cursor: pointer;
-  }
-
   .location-error { color: var(--bloom-error); }
 
   .toggles {
@@ -151,5 +161,29 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+  }
+
+  .settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .group-label {
+    font-family: var(--bloom-body-font);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--bloom-text-dark-blue);
+  }
+  .current-location {
+    font-size: 14px;
+    color: var(--bloom-text-dark-blue);
+  }
+  .season-select {
+    padding: 8px;
+    border: 1px solid var(--bloom-border-subtle);
+    border-radius: 4px;
+    background: var(--bloom-surface-cream-alt);
+    font-family: var(--bloom-body-font);
+    font-size: 14px;
   }
 </style>

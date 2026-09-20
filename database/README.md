@@ -28,6 +28,11 @@ editing these files or rerunning CREATE TABLE IF NOT EXISTS. Apply the
 [additive update statements](../specs/019-cleanup-integration/quickstart.md#existing-local-databases)
 manually to an existing database. Do not reset the developer database or volume.
 
+Feature 024 adds fixed-precision weather coordinates and scene season to
+`01_users_and_auth.sql`. Existing databases require the separate
+[additive update statements](../specs/024-weather-environment-reliability/quickstart.md#existing-databases);
+the bootstrap installer does not alter an already-created table.
+
 ## Install
 
 The installer requires the PostgreSQL `psql` client because it uses `\ir` to

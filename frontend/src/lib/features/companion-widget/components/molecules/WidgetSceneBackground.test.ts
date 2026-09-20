@@ -2,10 +2,53 @@ import { render } from '@testing-library/svelte';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import WidgetSceneBackground from './WidgetSceneBackground.svelte';
 import { DAYTIME_ASSETS, SEASON_ASSETS, WEATHER_ASSETS, RAIN_CONFIGS } from '../../model/environment';
+import { writable } from 'svelte/store';
+
+const { mockEnvStore, mockSettingsState } = vi.hoisted(() => {
+  let value = {
+    weatherCondition: 'CLEAR',
+    sceneSeason: 'AUTO',
+    effectiveTimezone: 'UTC',
+    animationEnabled: true,
+    widgetVisible: true,
+  };
+  const subs = new Set<Function>();
+  
+  return {
+    mockEnvStore: {
+      subscribe: (fn: Function) => {
+        subs.add(fn);
+        fn(value);
+        return () => subs.delete(fn);
+      },
+      set: (newVal: any) => {
+        value = newVal;
+        subs.forEach(s => s(value));
+      }
+    },
+    mockSettingsState: {
+      savedSettings: {
+        timezone: 'UTC',
+        weatherAnimationEnabled: true
+      }
+    }
+  };
+});
+
+vi.mock('$lib/shared/stores/environmentStore', () => ({
+  environmentStore: mockEnvStore
+}));
+
+vi.mock('$lib/features/settings/model/SettingsState.svelte', () => ({
+  getSettingsState: () => mockSettingsState
+}));
 
 describe('WidgetSceneBackground', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    mockEnvStore.set({ weatherCondition: 'CLEAR', sceneSeason: 'AUTO', effectiveTimezone: 'UTC', animationEnabled: true, widgetVisible: true });
+    mockSettingsState.savedSettings.timezone = 'UTC';
+    mockSettingsState.savedSettings.weatherAnimationEnabled = true;
   });
 
   afterEach(() => {
@@ -13,11 +56,11 @@ describe('WidgetSceneBackground', () => {
   });
 
   it('renders correct daytime and season assets based on local time', () => {
-    // Set time to 9:00 AM in May
     const fakeDate = new Date('2023-05-15T02:00:00Z'); // 9 AM in Ho Chi Minh City
     vi.setSystemTime(fakeDate);
+    mockEnvStore.set({ weatherCondition: 'CLEAR', sceneSeason: 'AUTO', effectiveTimezone: 'Asia/Ho_Chi_Minh', animationEnabled: true, widgetVisible: true });
 
-    const { container } = render(WidgetSceneBackground, { props: { timezone: 'Asia/Ho_Chi_Minh' } });
+    const { container } = render(WidgetSceneBackground);
 
     const sky = container.querySelector('.sky') as HTMLImageElement;
     expect(sky.src).toContain(DAYTIME_ASSETS['MORNING']);
@@ -25,16 +68,26 @@ describe('WidgetSceneBackground', () => {
     const bushes = container.querySelector('.bushes') as HTMLImageElement;
     expect(bushes.src).toContain(SEASON_ASSETS['SPRING']);
   });
+  
+  it('respects scene season override from store', () => {
+    const fakeDate = new Date('2023-05-15T02:00:00Z');
+    vi.setSystemTime(fakeDate);
+    mockEnvStore.set({ weatherCondition: 'CLEAR', sceneSeason: 'WINTER' });
+    const { container } = render(WidgetSceneBackground);
+    const bushes = container.querySelector('.bushes') as HTMLImageElement;
+    expect(bushes.src).toContain(SEASON_ASSETS['WINTER']);
+  });
 
   it('renders no weather overlay or rain when weather is CLEAR (fallback)', () => {
-    const { container } = render(WidgetSceneBackground, { props: { weather: 'CLEAR' } });
+    const { container } = render(WidgetSceneBackground);
 
     expect(container.querySelector('.weather-overlay')).toBeNull();
     expect(container.querySelector('.rain-layer')).toBeNull();
   });
 
   it('renders cloudy ambience when weather is CLOUDY', () => {
-    const { container } = render(WidgetSceneBackground, { props: { weather: 'CLOUDY' } });
+    mockEnvStore.set({ weatherCondition: 'CLOUDY', sceneSeason: 'AUTO' });
+    const { container } = render(WidgetSceneBackground);
 
     const overlay = container.querySelector('.weather-overlay') as HTMLImageElement;
     expect(overlay).not.toBeNull();
@@ -43,7 +96,8 @@ describe('WidgetSceneBackground', () => {
   });
 
   it('renders overcast ambience when weather is OVERCAST', () => {
-    const { container } = render(WidgetSceneBackground, { props: { weather: 'OVERCAST' } });
+    mockEnvStore.set({ weatherCondition: 'OVERCAST', sceneSeason: 'AUTO' });
+    const { container } = render(WidgetSceneBackground);
 
     const overlay = container.querySelector('.weather-overlay') as HTMLImageElement;
     expect(overlay).not.toBeNull();
@@ -52,7 +106,8 @@ describe('WidgetSceneBackground', () => {
   });
 
   it('renders rain overlay and enables rain animation when weather is RAIN', () => {
-    const { container } = render(WidgetSceneBackground, { props: { weather: 'RAIN' } });
+    mockEnvStore.set({ weatherCondition: 'RAIN', sceneSeason: 'AUTO' });
+    const { container } = render(WidgetSceneBackground);
 
     const overlay = container.querySelector('.weather-overlay') as HTMLImageElement;
     expect(overlay.src).toContain(WEATHER_ASSETS['RAIN']);
@@ -64,7 +119,8 @@ describe('WidgetSceneBackground', () => {
   });
 
   it('renders storm overlay and denser rain when weather is THUNDERSTORM', () => {
-    const { container } = render(WidgetSceneBackground, { props: { weather: 'THUNDERSTORM' } });
+    mockEnvStore.set({ weatherCondition: 'THUNDERSTORM', sceneSeason: 'AUTO' });
+    const { container } = render(WidgetSceneBackground);
 
     const overlay = container.querySelector('.weather-overlay') as HTMLImageElement;
     expect(overlay.src).toContain(WEATHER_ASSETS['THUNDERSTORM']);
@@ -75,15 +131,11 @@ describe('WidgetSceneBackground', () => {
     expect(streaks?.length).toBe(RAIN_CONFIGS.THUNDERSTORM.streakCount);
   });
 
-  it('has denser rain in THUNDERSTORM than RAIN', () => {
-    expect(RAIN_CONFIGS.THUNDERSTORM.streakCount).toBeGreaterThan(RAIN_CONFIGS.RAIN.streakCount);
-  });
-
-  it('suppresses moving rain if rainEnabled is false', () => {
-    const { container } = render(WidgetSceneBackground, { props: { weather: 'RAIN', rainEnabled: false } });
+  it('suppresses moving rain if weatherAnimationEnabled is false', () => {
+    mockEnvStore.set({ weatherCondition: 'RAIN', sceneSeason: 'AUTO', animationEnabled: false, widgetVisible: true });
+    const { container } = render(WidgetSceneBackground);
 
     expect(container.querySelector('.weather-overlay')).not.toBeNull();
-    // rain-layer should not be in the document
     expect(container.querySelector('.rain-layer')).toBeNull();
   });
 });

@@ -16,9 +16,12 @@
       default_break_minutes: defaultBreakMinutes,
       launch_on_startup: data.startAtLogin,
       widget_always_on_top: data.keepWidgetOnTop,
-      weather_location: data.weatherLocation.trim() || null,
-      weather_enabled: Boolean(data.weatherLocation.trim()),
+      weather_location_name: data.weatherLocationName,
+      weather_lat: data.weatherLat,
+      weather_lon: data.weatherLon,
+      weather_enabled: data.weatherLat !== null && data.weatherLon !== null,
     });
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('blooming:settings-updated'));
     try {
       await desktop.settingsUpdated();
     } catch {
