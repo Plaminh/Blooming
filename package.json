@@ -10,6 +10,8 @@
     "web": "cd frontend && npm run dev",
     "tauri": "cd frontend && npm run tauri dev",
     "dev:web": "npm run db:up && concurrently -n api,web -c green,magenta \"npm run backend\" \"npm run web\"",
-    "dev:tauri": "npm run db:up && concurrently -n api,tauri -c green,magenta \"npm run backend\" \"npm run tauri\""
+    "dev:tauri": "npm run db:up && concurrently -n api,tauri -c green,magenta \"npm run backend\" \"npm run tauri\"",
+    "test:backend": "node scripts/run-python.cjs -m pytest tests",
+    "python": "node scripts/run-python.cjs"
   }
 }

@@ -17,11 +17,12 @@ volume was initialized with another password, update that volume's database
 user password to match `POSTGRES_PASSWORD` in `backend/.env`; recreating the
 container alone does not change passwords stored in an existing volume.
 
-Use the existing repository virtual environment:
+Use the repository scripts to start the backend. This automatically sets `PYTHONPYCACHEPREFIX` to store bytecode in `.cache/python` instead of creating `__pycache__` directories throughout the source.
+
+From the repository root:
 
 ```cmd
-cd E:\Blooming\backend
-E:\Blooming\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+npm run backend
 ```
 
 - Health: http://127.0.0.1:8000/api/v1/health
@@ -32,7 +33,7 @@ On Windows, psycopg's async driver requires a selector event loop. `--reload`
 provides one. Without `--reload`, pass the loop factory explicitly:
 
 ```cmd
-E:\Blooming\.venv\Scripts\python.exe -m uvicorn app.main:app --loop app.core.runtime:selector_loop_factory
+npm run python -- -m uvicorn app.main:app --loop app.core.runtime:selector_loop_factory
 ```
 
 ## Structure and scope
@@ -80,8 +81,9 @@ a SQLAlchemy `URL`, so logs and tracebacks render it as `***`.
 From the repository root:
 
 ```cmd
-E:\Blooming\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
-E:\Blooming\.venv\Scripts\python.exe -m compileall backend\app
+npm run python -- -m pip install -r backend\requirements.txt
+npm run python -- -m compileall backend\app
+npm run test:backend
 ```
 
 `requirements.txt` records direct dependency versions observed in the existing
