@@ -40,24 +40,34 @@ test('ChatComposer does not submit when empty or disabled', async () => {
   expect(submitHandler).toHaveBeenCalledWith('Valid text');
 });
 
-test('ChatComposer does not submit on Shift+Enter', async () => {
+test('ChatComposer does not submit on Shift+Enter and inserts newline', async () => {
   const submitHandler = vi.fn();
   const { getByRole } = render(ChatComposer, {
     props: { value: 'Valid text', disabled: false, onsubmit: submitHandler }
   });
-  const input = getByRole('textbox');
-  await fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
+  const input = getByRole('textbox') as HTMLTextAreaElement;
+  
+  const userEvent = (await import('@testing-library/user-event')).default;
+  await userEvent.type(input, '{Shift>}{Enter}{/Shift}Line 2');
+  
   expect(submitHandler).not.toHaveBeenCalled();
+  expect(input.value).toBe('Valid text\nLine 2');
 });
 
-test('ChatComposer does not submit when composing (IME)', async () => {
+test('ChatComposer does not submit when composing (IME) but submits after compositionend', async () => {
   const submitHandler = vi.fn();
-  const { getByRole } = render(ChatComposer, {
+  const { getByRole, rerender } = render(ChatComposer, {
     props: { value: 'Valid text', disabled: false, onsubmit: submitHandler }
   });
   const input = getByRole('textbox');
-  const event = new KeyboardEvent('keydown', { key: 'Enter' });
-  Object.defineProperty(event, 'isComposing', { value: true });
-  await fireEvent(input, event);
+  
+  // Enter while composing
+  const composingEvent = new KeyboardEvent('keydown', { key: 'Enter' });
+  Object.defineProperty(composingEvent, 'isComposing', { value: true });
+  await fireEvent(input, composingEvent);
   expect(submitHandler).not.toHaveBeenCalled();
+  
+  // Enter after compositionend
+  await fireEvent.keyDown(input, { key: 'Enter', isComposing: false, keyCode: 13 });
+  expect(submitHandler).toHaveBeenCalledWith('Valid text');
 });

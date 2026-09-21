@@ -1,4 +1,4 @@
-<div class="loading-dots">
+<div class="loading-dots" role="status" aria-label="Waiting for response">
   <div class="dot"></div>
   <div class="dot"></div>
   <div class="dot"></div>

@@ -376,4 +376,23 @@ describe("CompanionWidget", () => {
     const results = await axe.run(container);
     expect(results.violations).toEqual([]);
   });
+
+  it("UI-020: Widget does not expose free-form chat composer", () => {
+    // Render the widget in any normal state
+    const presentation = { ...remindersFixture };
+    const { queryByRole } = render(CompanionWidget, {
+      props: {
+        presentation,
+        windowService: mockWindowService(),
+      }
+    });
+    
+    // The main Mr. Bloom screen has a textarea
+    // and a 'Send' button. We must assert these are absent.
+    const composer = queryByRole('textbox');
+    expect(composer).toBeNull();
+    
+    const sendButton = queryByRole('button', { name: 'Send' });
+    expect(sendButton).toBeNull();
+  });
 });
