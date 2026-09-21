@@ -29,12 +29,31 @@ from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
+
+def _cors_headers_for(request: Request) -> dict[str, str]:
+    """Keep unexpected error responses readable by approved frontends.
+
+    Starlette's server-error middleware sits outside middleware registered via
+    ``add_middleware``. Without explicit headers here, a browser masks a JSON
+    500 response as a generic CORS/network failure.
+    """
+    origin = request.headers.get("origin")
+    if origin not in settings.FRONTEND_URLS:
+        return {}
+    return {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Credentials": "true",
+        "Vary": "Origin",
+    }
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("transaction_failure")
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error"}
+        content={"detail": "Internal server error"},
+        headers=_cors_headers_for(request),
     )
 
 app.add_middleware(

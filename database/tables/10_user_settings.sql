@@ -15,6 +15,10 @@ CREATE TABLE user_settings (
 	launch_on_startup BOOLEAN DEFAULT FALSE NOT NULL, 
 	weather_enabled BOOLEAN DEFAULT FALSE NOT NULL, 
 	weather_location VARCHAR(100), 
+	weather_location_name VARCHAR(255),
+	weather_lat NUMERIC(5, 2),
+	weather_lon NUMERIC(6, 2),
+	scene_season VARCHAR(20) DEFAULT 'AUTO' NOT NULL,
 	weather_animation_enabled BOOLEAN DEFAULT TRUE NOT NULL, 
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
 	updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
@@ -24,6 +28,12 @@ CREATE TABLE user_settings (
 	CONSTRAINT user_settings_break_duration_valid CHECK (default_break_minutes BETWEEN 0 AND 180), 
 	CONSTRAINT user_settings_quiet_hours_pair CHECK ((quiet_hours_start IS NULL AND quiet_hours_end IS NULL) OR (quiet_hours_start IS NOT NULL AND quiet_hours_end IS NOT NULL)), 
 	CONSTRAINT user_settings_mr_bloom_name_not_blank CHECK (BTRIM(mr_bloom_display_name) <> ''), 
+	CONSTRAINT user_settings_weather_lat_valid CHECK (weather_lat IS NULL OR weather_lat BETWEEN -90.00 AND 90.00),
+	CONSTRAINT user_settings_weather_lon_valid CHECK (weather_lon IS NULL OR weather_lon BETWEEN -180.00 AND 180.00),
+	CONSTRAINT user_settings_scene_season_valid CHECK (scene_season IN ('AUTO', 'SPRING', 'SUMMER', 'AUTUMN', 'WINTER')),
+	CONSTRAINT user_settings_weather_coordinate_pair CHECK ((weather_lat IS NULL AND weather_lon IS NULL) OR (weather_lat IS NOT NULL AND weather_lon IS NOT NULL)),
+	CONSTRAINT user_settings_weather_name_not_blank CHECK (weather_location_name IS NULL OR BTRIM(weather_location_name) <> ''),
+	CONSTRAINT user_settings_weather_coordinates_named CHECK ((weather_lat IS NULL AND weather_lon IS NULL) OR (weather_location_name IS NOT NULL AND BTRIM(weather_location_name) <> '')),
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 DROP TRIGGER IF EXISTS user_settings_set_updated_at ON user_settings;

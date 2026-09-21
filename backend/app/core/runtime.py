@@ -12,8 +12,8 @@ import sys
 def selector_loop_factory() -> asyncio.AbstractEventLoop:
     """Create a psycopg-compatible event loop.
 
-    Used as uvicorn's custom loop factory:
-    ``uvicorn app.main:app --loop app.core.runtime:selector_loop_factory``
+    Passed programmatically by ``dev_server.py`` because Uvicorn's CLI only
+    accepts its built-in loop names.
     """
     if sys.platform == "win32":
         return asyncio.SelectorEventLoop()

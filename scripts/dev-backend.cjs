@@ -20,7 +20,7 @@ if (python === "python") {
   );
 }
 
-const child = spawn(python, ["-m", "uvicorn", "app.main:app", "--reload"], {
+const child = spawn(python, ["dev_server.py"], {
   cwd: path.join(root, "backend"),
   stdio: "inherit",
   shell: win, // Windows cần shell:true để resolve .exe đúng
