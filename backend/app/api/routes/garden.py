@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from uuid import UUID
 
 from app.api.deps import SessionDep, CurrentUser

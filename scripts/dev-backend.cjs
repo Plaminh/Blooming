@@ -24,6 +24,10 @@ const child = spawn(python, ["-m", "uvicorn", "app.main:app", "--reload"], {
   cwd: path.join(root, "backend"),
   stdio: "inherit",
   shell: win, // Windows cần shell:true để resolve .exe đúng
+  env: {
+    ...process.env,
+    PYTHONPYCACHEPREFIX: path.join(root, ".cache", "python"),
+  },
 });
 
 child.on("exit", (code) => process.exit(code ?? 0));

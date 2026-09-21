@@ -39,3 +39,25 @@ test('ChatComposer does not submit when empty or disabled', async () => {
   await fireEvent.click(button);
   expect(submitHandler).toHaveBeenCalledWith('Valid text');
 });
+
+test('ChatComposer does not submit on Shift+Enter', async () => {
+  const submitHandler = vi.fn();
+  const { getByRole } = render(ChatComposer, {
+    props: { value: 'Valid text', disabled: false, onsubmit: submitHandler }
+  });
+  const input = getByRole('textbox');
+  await fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
+  expect(submitHandler).not.toHaveBeenCalled();
+});
+
+test('ChatComposer does not submit when composing (IME)', async () => {
+  const submitHandler = vi.fn();
+  const { getByRole } = render(ChatComposer, {
+    props: { value: 'Valid text', disabled: false, onsubmit: submitHandler }
+  });
+  const input = getByRole('textbox');
+  const event = new KeyboardEvent('keydown', { key: 'Enter' });
+  Object.defineProperty(event, 'isComposing', { value: true });
+  await fireEvent(input, event);
+  expect(submitHandler).not.toHaveBeenCalled();
+});

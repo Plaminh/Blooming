@@ -1,7 +1,6 @@
-"""ORM models for the 19 Blooming tables, split by the database baseline scopes.
+"""ORM models for the Blooming tables, split by the database baseline scopes.
 
-Importing this package attaches every table to ``Base.metadata`` so Alembic and
-SQLAlchemy see the full schema.
+Importing this package attaches every table to ``Base.metadata``.
 """
 
 from app.db.models.daily_plans import (
@@ -17,8 +16,10 @@ from app.db.models.planning import PlanningMessage, PlanningSession
 from app.db.models.reminders import Reminder, ReminderAction
 from app.db.models.tasks import Task, TaskDependency
 from app.db.models.users import AuthSession, EmailVerificationToken, User, UserSettings
+from app.db.models.ai_usage import AiUsageLog
 
 __all__ = [
+    "AiUsageLog",
     "AuthSession",
     "AvailabilityWindow",
     "DailyPlan",

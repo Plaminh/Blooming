@@ -1,8 +1,8 @@
 """Event-loop compatibility for psycopg 3's async driver.
 
 psycopg's async connections need ``loop.add_reader``/``add_writer``, which
-Windows' default ``ProactorEventLoop`` does not implement. Both the ASGI server
-and Alembic therefore have to run on a selector event loop.
+Windows' default ``ProactorEventLoop`` does not implement. The ASGI server
+therefore has to run on a selector event loop.
 """
 
 import asyncio

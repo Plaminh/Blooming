@@ -1,7 +1,10 @@
-from datetime import date, datetime
+from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from app.ai.patches import PatchOp
+from app.schemas.drafts import RoadmapDraft, TodayDraft
 
 
 class ChatTurn(BaseModel):
@@ -9,66 +12,63 @@ class ChatTurn(BaseModel):
     content: str = Field(min_length=1, max_length=4000)
 
 
+class GardenContext(BaseModel):
+    stage: str
+    inventory: dict[str, int] = Field(default_factory=dict)
+    active_plant: str | None = None
+
+
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
+    session_id: str | None = None
     history: list[ChatTurn] = Field(default_factory=list, max_length=20)
+    current_draft: RoadmapDraft | TodayDraft | None = None
+    garden: GardenContext | None = None
+    tz: str = "UTC"
 
 
-class MilestoneDraft(BaseModel):
-    title: str = Field(min_length=1)
-    targetDate: date
+class QuickReply(BaseModel):
+    label: str = Field(min_length=1, max_length=80)
+    action: str | None = None
+    send_text: str | None = Field(default=None, min_length=1, max_length=4000)
+    patch: list[PatchOp] | None = Field(default=None, min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def one_command(self) -> "QuickReply":
+        if sum(value is not None for value in (self.action, self.send_text, self.patch)) != 1:
+            raise ValueError("Quick reply needs exactly one command")
+        return self
 
 
-class RoadmapDraft(BaseModel):
-    type: Literal["roadmap"]
-    goalTitle: str = Field(min_length=1)
-    goalDescription: str = ""
-    targetDate: date
-    milestones: list[MilestoneDraft] = Field(default_factory=list)
-
-
-class AvailabilityDraft(BaseModel):
-    start: str
-    end: str
-    totalHours: float
-
-
-class ChatTaskDraft(BaseModel):
-    title: str = Field(min_length=1)
-    durationMin: int = Field(ge=1, le=1440)
-    priority: Literal["Core", "Optional"] = "Core"
-
-
-class ChatTodayDraft(BaseModel):
-    type: Literal["today"]
-    availability: AvailabilityDraft
-    tasks: list[ChatTaskDraft] = Field(default_factory=list)
-
-
-class AvailabilityWindowDraft(BaseModel):
-    start: str = Field(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
-    end: str = Field(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
-
-class TaskDraft(BaseModel):
-    id: str = Field(min_length=1)
-    title: str = Field(min_length=1)
-    durationMin: int = Field(ge=1, le=1440)
-    priority: Literal["URGENT", "HIGH", "MEDIUM", "LOW"] = "MEDIUM"
-    deadline: datetime | None = None
-    schedulingType: Literal["FLEXIBLE", "FIXED"] = "FLEXIBLE"
-    fixedStart: datetime | None = None
-    fixedEnd: datetime | None = None
-    dependencies: list[str] = Field(default_factory=list)
-    splittable: bool = False
-
-class TodayDraft(BaseModel):
-    type: Literal["today"] = "today"
-    planDate: date
-    timezone: str = "UTC"
-    windows: list[AvailabilityWindowDraft] = Field(default_factory=list)
-    tasks: list[TaskDraft] = Field(default_factory=list)
+class Assumption(BaseModel):
+    id: str
+    kind: str
+    text: str
+    task_id: str | None = None
 
 
 class ChatResponse(BaseModel):
     reply: str = Field(min_length=1)
-    draft: RoadmapDraft | ChatTodayDraft | TodayDraft | None = None
+    session_id: str | None = None
+    intent: str | None = None
+    tier: str = "PARSER"
+    degraded: str | None = None
+    draft: RoadmapDraft | TodayDraft | None = None
+    preview: dict | None = None
+    goal_created: dict | None = None
+    suggestions: list[QuickReply] = Field(default_factory=list, max_length=3)
+    assumptions: list[Assumption] = Field(default_factory=list)
+    question: str | None = None
+
+
+class SessionMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+    structured_payload: dict | None = None
+    created_at: datetime
+
+
+class SessionResponse(BaseModel):
+    session_id: str
+    status: str
+    messages: list[SessionMessage]

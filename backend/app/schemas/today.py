@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.planning import TaskCategory
-from app.schemas.assistant import TodayDraft
+from app.schemas.drafts import TodayDraft
 
 
 class TodayBlock(BaseModel):
@@ -16,6 +16,9 @@ class TodayBlock(BaseModel):
     description: str | None = None
     category: TaskCategory | None = None
     estimated_duration_minutes: int | None = None
+    importance: Literal["CORE", "OPTIONAL"] | None = None
+    preferred_break_duration_minutes: int | None = None
+    source: str | None = None
     planned_start_at: datetime
     planned_end_at: datetime
     position: int
@@ -87,3 +90,4 @@ class TodaySaveRequest(BaseModel):
     preview_token: str
     draft: TodayDraft
     session_id: UUID | None = None
+    replace_existing: bool = False

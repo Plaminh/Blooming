@@ -64,6 +64,7 @@ class PlanningSession(Base):
         String(30), nullable=False, server_default=text("'OPEN'")
     )
     context_date: Mapped[date | None] = mapped_column(Date)
+    pending_intent: Mapped[str | None] = mapped_column(String(30))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

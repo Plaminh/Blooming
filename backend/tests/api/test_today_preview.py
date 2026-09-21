@@ -7,7 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from app.core.scheduler import DeterministicScheduler
 from app.db.models.daily_plans import DailyPlan, PlanBlock, PlanRevision
 from app.db.models.tasks import Task, TaskDependency
-from app.schemas.assistant import AvailabilityWindowDraft, TaskDraft, TodayDraft
+from app.schemas.drafts import AvailabilityWindowDraft, TaskDraft, TodayDraft
 from app.services.today_service import today_service
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -54,6 +54,65 @@ async def test_today_save_success_and_idempotency(async_client: AsyncClient, aut
     
     tasks_res = await db_session.execute(select(Task).where(Task.title == "Task 1"))
     assert len(tasks_res.scalars().all()) == 1
+
+
+async def test_preview_save_and_reload_preserve_planning_fields(
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    test_user: dict,
+    db_session: AsyncSession,
+):
+    draft = TodayDraft(
+        planDate=date.today(),
+        timezone="UTC",
+        windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
+        tasks=[
+            TaskDraft(
+                id="preserved",
+                title="Write report",
+                durationMin=60,
+                priority="HIGH",
+                importance="OPTIONAL",
+                category="Work",
+                estimateSource="USER",
+                breakAfterMin=10,
+            )
+        ],
+    )
+    payload = draft.model_dump(mode="json")
+    preview = await async_client.post(
+        "/api/v1/today/preview", headers=auth_headers, json={"draft": payload}
+    )
+    assert preview.status_code == 200, preview.text
+    task_block = next(
+        block for block in preview.json()["blocks"] if block["block_type"] == "TASK"
+    )
+    assert task_block["importance"] == "OPTIONAL"
+    assert task_block["category"] == "Work"
+    assert task_block["preferred_break_duration_minutes"] == 10
+    assert any(block["block_type"] == "BREAK" for block in preview.json()["blocks"])
+
+    saved = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": preview.json()["preview_token"], "draft": payload},
+    )
+    assert saved.status_code == 200, saved.text
+    stored = await db_session.scalar(
+        select(Task).where(Task.user_id == test_user.id, Task.title == "Write report")
+    )
+    assert stored.importance == "OPTIONAL"
+    assert stored.category == "Work"
+    assert stored.preferred_break_duration_minutes == 10
+    assert stored.source == "MANUAL"
+
+    restored = await async_client.get("/api/v1/today", headers=auth_headers)
+    restored_task = next(
+        block for block in restored.json()["blocks"] if block["block_type"] == "TASK"
+    )
+    assert restored_task["importance"] == "OPTIONAL"
+    assert restored_task["category"] == "Work"
+    assert restored_task["preferred_break_duration_minutes"] == 10
 
 async def test_today_save_atomic_rollback(async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict, db_session: AsyncSession):
     user_id = test_user.id
@@ -206,6 +265,12 @@ async def test_edited_draft_in_same_session(async_client: AsyncClient, auth_head
     draft_dict2 = draft2.model_dump(mode="json")
     token2 = await get_preview_token(async_client, auth_headers, draft_dict2)
     save_resp = await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": token2, "draft": draft_dict2})
+    assert save_resp.status_code == 409
+    save_resp = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": token2, "draft": draft_dict2, "replace_existing": True},
+    )
     assert save_resp.status_code == 200
     assert [block["title"] for block in save_resp.json()["blocks"]] == ["Task 2"]
     
@@ -351,4 +416,3 @@ async def test_overloaded_schedule_preview(async_client: AsyncClient, auth_heade
     restored = await async_client.get("/api/v1/today", headers=auth_headers)
     assert restored.status_code == 200
     assert restored.json()["unscheduled_tasks"] == unsched
-

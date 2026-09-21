@@ -2,7 +2,7 @@
   import type { ChatMessage as ChatMessageType } from '../../stores/mrBloomStore';
   import ChatAvatar from '../atoms/ChatAvatar.svelte';
   
-  let { message }: { message: ChatMessageType } = $props();
+  let { message, onretry }: { message: ChatMessageType, onretry?: () => void } = $props();
 </script>
 
 <div class="chat-message {message.role}" class:initial={message.id === '1'}>
@@ -20,6 +20,9 @@
     {message.content}
     {#if message.role === 'user'}
       <span class="time user-time">{message.timestamp}</span>
+      {#if message.status === 'failed'}
+        <button class="retry-btn" onclick={onretry}>Gửi lại</button>
+      {/if}
     {/if}
   </div>
 </div>
@@ -79,6 +82,7 @@
     flex-direction: column;
     overflow-wrap: break-word;
     word-break: break-word;
+    white-space: pre-wrap;
   }
   
   .assistant .bubble {
@@ -145,5 +149,18 @@
     align-self: flex-end;
     margin-top: 4px;
     color: #9b6076;
+  }
+  
+  .retry-btn {
+    background: none;
+    border: none;
+    color: var(--bloom-error, #d32f2f);
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    align-self: flex-end;
+    margin-top: 4px;
   }
 </style>

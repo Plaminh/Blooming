@@ -2,19 +2,32 @@
 
 BEGIN;
 
-\ir migrations/00_extensions.sql
-\ir migrations/01_users_and_auth.sql
-\ir migrations/02_goals_and_milestones.sql
-\ir migrations/03_planning_chat.sql
-\ir migrations/04_tasks_and_dependencies.sql
-\ir migrations/05_daily_planning.sql
-\ir migrations/06_focus.sql
-\ir migrations/07_reminders.sql
-\ir migrations/08_heart_and_garden.sql
-\ir migrations/09_updated_at_triggers.sql
-\ir migrations/10_indexes.sql
+\ir 00_init.sql
+\ir tables/01_plants.sql
+\ir tables/02_users.sql
+\ir tables/03_ai_usage_log.sql
+\ir tables/04_auth_sessions.sql
+\ir tables/05_email_verification_tokens.sql
+\ir tables/06_garden_states.sql
+\ir tables/07_goals.sql
+\ir tables/08_planning_sessions.sql
+\ir tables/09_plant_ownerships.sql
+\ir tables/10_user_settings.sql
+\ir tables/11_daily_plans.sql
+\ir tables/12_milestones.sql
+\ir tables/13_planning_messages.sql
+\ir tables/14_availability_windows.sql
+\ir tables/15_plan_revisions.sql
+\ir tables/16_tasks.sql
+\ir tables/17_plan_blocks.sql
+\ir tables/18_task_dependencies.sql
+\ir tables/19_focus_runs.sql
+\ir tables/20_reminders.sql
+\ir tables/21_focus_run_events.sql
+\ir tables/22_reminder_actions.sql
+\ir tables/23_reward_events.sql
+\ir 99_seed.sql
 
 COMMIT;
 
 \echo 'Blooming database baseline installed successfully.'
-

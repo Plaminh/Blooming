@@ -37,7 +37,9 @@ class CRUDTask:
 
         await db.flush()
         # Return loaded instance
-        return await self.get(db, id=db_obj.id, user_id=db_obj.user_id)
+        loaded = await self.get(db, id=db_obj.id, user_id=db_obj.user_id)
+        assert loaded is not None
+        return loaded
 
     async def get(self, db: AsyncSession, id: UUID, user_id: UUID) -> Task | None:
         result = await db.execute(
@@ -85,7 +87,9 @@ class CRUDTask:
                 db.add(dep_obj)
 
         await db.flush()
-        return await self.get(db, id=db_obj.id, user_id=db_obj.user_id)
+        loaded = await self.get(db, id=db_obj.id, user_id=db_obj.user_id)
+        assert loaded is not None
+        return loaded
 
     async def delete(self, db: AsyncSession, *, id: UUID, user_id: UUID) -> Task | None:
         obj = await self.get(db, id=id, user_id=user_id)

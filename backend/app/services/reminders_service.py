@@ -49,15 +49,16 @@ class RemindersService:
         )
         active = [r for r in reminders if r.status in ("SCHEDULED", "DUE")]
         if milestone_status in ("COMPLETED", "CANCELLED") or reminder_due_at is None:
-            for reminder in active:
-                reminder.status = (
+            for active_reminder in active:
+                active_reminder.status = (
                     "COMPLETED" if milestone_status == "COMPLETED" else "CANCELLED"
                 )
-                reminder.completed_at = now if milestone_status == "COMPLETED" else None
+                active_reminder.completed_at = now if milestone_status == "COMPLETED" else None
             await db.flush()
             return
+        assert new_due_at is not None
         # Keep a single reminder per milestone; dismissed/completed actions stay acknowledged.
-        reminder = (
+        reminder: Reminder | None = (
             active[0]
             if active
             else next(

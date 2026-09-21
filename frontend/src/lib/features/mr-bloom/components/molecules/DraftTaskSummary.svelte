@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { mrBloomStore, type DraftTask, type Priority } from '../../stores/mrBloomStore';
+  import { mrBloomStore, type DraftTask, type Importance } from '../../stores/mrBloomStore';
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
 
   let { task }: { task: DraftTask } = $props();
@@ -10,12 +10,12 @@
   }
 
   function handlePriorityChange(event: Event) {
-    mrBloomStore.updateTaskPriority(task.id, (event.currentTarget as HTMLSelectElement).value as Priority);
+    mrBloomStore.updateTaskImportance(task.id, (event.currentTarget as HTMLSelectElement).value as Importance);
   }
 </script>
 
 <article class="draft-task-row">
-  <span class="task-icon"><AppIcon name={task.icon ?? 'document'} size="task-type" /></span>
+  <span class="task-icon"><AppIcon name="document" size="task-type" /></span>
   <strong class="task-title">{task.title}</strong>
 
   <div class="duration-editor">
@@ -38,9 +38,9 @@
 
   <label class="priority-editor">
     <span class="sr-only">Priority for {task.title}</span>
-    <select value={task.priority} onchange={handlePriorityChange}>
-      <option value="Core">Core</option>
-      <option value="Optional">Optional</option>
+    <select value={task.importance} onchange={handlePriorityChange}>
+      <option value="CORE">Core</option>
+      <option value="OPTIONAL">Optional</option>
     </select>
   </label>
 

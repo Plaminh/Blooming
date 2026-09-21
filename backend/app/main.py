@@ -5,14 +5,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
+from app.ai.providers import llm_provider
 from app.core.config import settings
 from app.db.session import engine
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    yield
-    await engine.dispose()
+    llm_provider.init_client()
+    try:
+        yield
+    finally:
+        await llm_provider.close_client()
+        await engine.dispose()
 
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)

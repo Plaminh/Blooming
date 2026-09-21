@@ -1,8 +1,8 @@
 <script lang="ts">
-  let { label, variant, onclick }: { label: string; variant: 'task' | 'milestone'; onclick?: () => void } = $props();
+  let { label, variant, disabled = false, onclick }: { label: string; variant: 'task' | 'milestone'; disabled?: boolean; onclick?: () => void } = $props();
 </script>
 
-<button class="add-draft-btn variant-{variant}" {onclick}>
+<button class="add-draft-btn variant-{variant}" {disabled} {onclick}>
   <span aria-hidden="true">+</span>
   {label}
 </button>
@@ -52,6 +52,10 @@
     font-weight: 300;
   }
 
-  .add-draft-btn:hover { background: var(--bloom-action-draft-hover); }
-  .add-draft-btn:focus-visible { outline: 2px solid var(--bloom-action-draft-focus); outline-offset: 2px; }
+  .add-draft-btn:hover:not(:disabled) { background: var(--bloom-action-draft-hover); }
+  .add-draft-btn:focus-visible:not(:disabled) { outline: 2px solid var(--bloom-action-draft-focus); outline-offset: 2px; }
+  .add-draft-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 </style>

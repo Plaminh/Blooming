@@ -75,7 +75,8 @@ class DeterministicScheduler:
                 fail(task.id, "INVALID_SCHEDULING_TYPE")
 
         # Detect actual cycle members, then propagate failure to their descendants.
-        visited, path = set(), []
+        visited: set[UUID] = set()
+        path: list[UUID] = []
         def visit(task_id):
             if task_id in path:
                 cycle = path[path.index(task_id):]
@@ -117,7 +118,7 @@ class DeterministicScheduler:
 
         # 1. Normalize windows (merge overlapping)
         windows = sorted(windows, key=lambda w: w.start_at)
-        merged_windows = []
+        merged_windows: list[ScheduleWindow] = []
         for w in windows:
             if not merged_windows:
                 merged_windows.append(ScheduleWindow(w.start_at, w.end_at))
@@ -166,11 +167,11 @@ class DeterministicScheduler:
                         available_all.append(child)
 
         # Fixed descendants impose a real deadline, not a blanket FIXED/FLEXIBLE ban.
-        deadlines = {}
+        deadlines: dict[UUID, tuple[datetime, UUID]] = {}
         for tid in reversed(ordered_tasks):
             task = task_map[tid]
             bounds = [deadlines[child] for child in graph[tid] if child in deadlines]
-            if task.scheduling_type == "FIXED":
+            if task.scheduling_type == "FIXED" and task.fixed_start_at is not None:
                 bounds.append((task.fixed_start_at, tid))
             if bounds:
                 deadlines[tid] = min(bounds, key=lambda bound: (bound[0], str(bound[1])))
@@ -202,6 +203,10 @@ class DeterministicScheduler:
             if tid in failed:
                 continue
             if task.scheduling_type == "FIXED":
+                if task.fixed_start_at is None:
+                    fail(tid, "INVALID_FIXED_INTERVAL")
+                    cascade()
+                    continue
                 for dep in sorted(set(task.dependencies), key=str):
                     if dep not in task_end_times or task_end_times[dep] > task.fixed_start_at:
                         fail(tid, "DEPENDENCY_TIME_CONFLICT", dep)
@@ -209,7 +214,7 @@ class DeterministicScheduler:
                         break
                 continue
 
-            dep_end_times = [task_end_times.get(d) for d in task.dependencies if task_end_times.get(d)]
+            dep_end_times = [task_end_times[d] for d in task.dependencies if d in task_end_times]
             earliest_start = max(dep_end_times) if dep_end_times else windows[0].start_at
 
             remaining_duration = timedelta(minutes=task.estimated_duration_minutes)

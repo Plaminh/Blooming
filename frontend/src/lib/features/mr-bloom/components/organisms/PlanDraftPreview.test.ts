@@ -2,20 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, waitFor } from '@testing-library/svelte';
 import PlanDraftPreview from './PlanDraftPreview.svelte';
 import { mrBloomStore, type MrBloomState } from '../../stores/mrBloomStore';
-import { goalsStore } from '$lib/features/goals/stores/goalsStore';
+import { saveRoadmap } from '$lib/api';
 import * as navigation from '$app/navigation';
 
 vi.mock('$app/navigation', () => ({
   goto: vi.fn()
 }));
 
-vi.mock('$lib/features/goals/stores/goalsStore', () => ({
-  goalsStore: {
-    createGoal: vi.fn(),
-    addMilestone: vi.fn(),
-    subscribe: vi.fn((cb) => { cb({ goals: [] }); return () => {}; })
-  }
-}));
+vi.mock('$lib/api', () => ({ saveRoadmap: vi.fn() }));
 
 describe('PlanDraftPreview save to goals', () => {
   beforeEach(() => {
@@ -28,33 +22,23 @@ describe('PlanDraftPreview save to goals', () => {
         type: 'roadmap',
         goalTitle: 'Test Goal',
         goalDescription: 'Test Desc',
-        targetDate: 'Jun 30, 2024',
+        targetDate: '2024-06-30',
         milestones: [
-          { id: 'm1', title: 'M1', targetDate: 'Apr 30, 2024' }
+          { title: 'M1', targetDate: '2024-04-30' }
         ]
-      }
+      }, preview: null, sessionId: null, degraded: null, suggestions: [], assumptions: [], needsReplace: false
     });
   });
 
   it('calls Goal persistence correctly and navigates to /goals on success', async () => {
-    const createGoalMock = vi.mocked(goalsStore.createGoal).mockResolvedValue({ id: 'goal-123' });
-    const addMilestoneMock = vi.mocked(goalsStore.addMilestone).mockResolvedValue(undefined);
+    const saveRoadmapMock = vi.mocked(saveRoadmap).mockResolvedValue({ id: 'goal-123' });
 
     const { getByRole, queryByText } = render(PlanDraftPreview);
     
     await fireEvent.click(getByRole('button', { name: /SAVE TO GOALS/i }));
     
     await waitFor(() => {
-      expect(createGoalMock).toHaveBeenCalledWith({
-        title: 'Test Goal',
-        description: 'Test Desc',
-        target_date: '2024-06-30'
-      });
-    });
-
-    expect(addMilestoneMock).toHaveBeenCalledWith('goal-123', {
-      title: 'M1',
-      due_at: expect.any(String)
+      expect(saveRoadmapMock).toHaveBeenCalledWith(null, expect.objectContaining({ goalTitle: 'Test Goal' }));
     });
 
     expect(navigation.goto).toHaveBeenCalledWith('/goals');
@@ -66,7 +50,7 @@ describe('PlanDraftPreview save to goals', () => {
   });
 
   it('preserves draft and shows error on failure', async () => {
-    vi.mocked(goalsStore.createGoal).mockRejectedValue(new Error('Backend error'));
+    vi.mocked(saveRoadmap).mockRejectedValue(new Error('Backend error'));
 
     const { getByRole, findByText } = render(PlanDraftPreview);
     

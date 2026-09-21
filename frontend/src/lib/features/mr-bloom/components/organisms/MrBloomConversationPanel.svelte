@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { mrBloomStore } from '../../stores/mrBloomStore';
   import ChatMessage from '../molecules/ChatMessage.svelte';
   import PromptSuggestion from '../molecules/PromptSuggestion.svelte';
@@ -6,7 +7,22 @@
   import LoadingDots from '../atoms/LoadingDots.svelte';
   import ChatAvatar from '../atoms/ChatAvatar.svelte';
   import PanelHeading from '../atoms/PanelHeading.svelte';
+  import DegradedBanner from '../molecules/DegradedBanner.svelte';
   
+  let messagesContainer: HTMLDivElement | undefined = $state();
+
+  $effect(() => {
+    // Read properties to create dependencies
+    const len = $mrBloomStore.chatHistory.length;
+    const waiting = $mrBloomStore.isWaitingForResponse;
+    
+    tick().then(() => {
+      if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+    });
+  });
+
   function handleSuggestion(content: string) {
     mrBloomStore.submitMessage(content);
   }
@@ -17,9 +33,10 @@
     <PanelHeading>CHAT WITH MR. BLOOM</PanelHeading>
   </header>
 
-  <div class="messages-container">
+  <div class="messages-container" bind:this={messagesContainer}>
+    {#if $mrBloomStore.degraded}<DegradedBanner mode={$mrBloomStore.degraded} />{/if}
     {#each $mrBloomStore.chatHistory as message (message.id)}
-      <ChatMessage {message} />
+      <ChatMessage {message} onretry={() => mrBloomStore.retryMessage(message.id)} />
     {/each}
     
     {#if $mrBloomStore.isWaitingForResponse}
@@ -35,6 +52,16 @@
 
     {#if $mrBloomStore.error}
       <p class="chat-error" role="alert">{$mrBloomStore.error}</p>
+    {/if}
+
+    {#if $mrBloomStore.suggestions.length}
+      <div class="quick-replies" aria-label="Suggested actions">
+        {#each $mrBloomStore.suggestions as suggestion (`${suggestion.label}-${suggestion.action ?? suggestion.send_text ?? 'patch'}`)}
+          <button type="button" onclick={() => mrBloomStore.handleSuggestion(suggestion)}>
+            {suggestion.label}
+          </button>
+        {/each}
+      </div>
     {/if}
     
     {#if $mrBloomStore.chatHistory.length <= 1}
@@ -92,6 +119,23 @@
     display: flex;
     flex-direction: column;
     gap: 9px;
+  }
+
+  .quick-replies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-left: calc(var(--bloom-chat-avatar-slot) + 12px);
+  }
+
+  .quick-replies button {
+    padding: 7px 11px;
+    border: 1px solid #70c7ed;
+    border-radius: 999px;
+    background: #eefaff;
+    color: #075b9d;
+    cursor: pointer;
+    font: inherit;
   }
   
   .composer-container {

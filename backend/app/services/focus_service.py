@@ -142,6 +142,8 @@ class FocusService:
         run.outcome = obj_in.outcome
 
         # Calculate actual duration from server timestamps
+        if run.started_at is None:
+            raise InvalidStatusTransitionError("Focus session has no start time")
         total_elapsed = int((now - run.started_at).total_seconds())
         run.actual_duration_seconds = max(0, total_elapsed - run.total_paused_seconds)
 
@@ -161,7 +163,8 @@ class FocusService:
                 run.id,
             )
         if run.task_id and obj_in.outcome in ("DONE", "FINISHED_EARLY", "SKIP"):
-            task_status = "SKIPPED" if obj_in.outcome == "SKIP" else "COMPLETED"
+            from typing import Literal
+            task_status: Literal["SKIPPED", "COMPLETED"] = "SKIPPED" if obj_in.outcome == "SKIP" else "COMPLETED"
             await today_service.update_task_status_from_today(
                 db,
                 user_id,
