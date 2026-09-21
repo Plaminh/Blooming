@@ -323,24 +323,27 @@ function createMrBloomStore() {
     handleSuggestion: async (suggestion: AssistantSuggestion) => {
       if (suggestion.patch?.length) return applyPatch(suggestion.patch);
       if (suggestion.send_text) return submit(suggestion.send_text);
-      if (suggestion.action === 'SAVE_TODAY') return saveToday();
-      if (suggestion.action === 'SAVE_ROADMAP') return persistRoadmap();
-      if (suggestion.action === 'SKIP_OPTIONAL_TODAY') {
-        try {
-          await api.post('/assistant/actions/SKIP_OPTIONAL_TODAY', {});
-          update(state => ({
-            ...state,
-            suggestions: [],
-            chatHistory: [...state.chatHistory, { id: crypto.randomUUID(), role: 'assistant', content: 'Optional tasks were skipped and today was replanned.', timestamp: timeLabel() }]
-          }));
-        } catch (error) {
-          update(state => ({ ...state, error: error instanceof Error ? error.message : 'Action failed.' }));
+      if (suggestion.action) {
+        if (suggestion.action === 'SAVE_TODAY') return saveToday();
+        if (suggestion.action === 'SAVE_ROADMAP') return persistRoadmap();
+        if (suggestion.action === 'SKIP_OPTIONAL_TODAY') {
+          try {
+            await api.post('/assistant/actions/SKIP_OPTIONAL_TODAY', {});
+            update(state => ({
+              ...state,
+              suggestions: [],
+              chatHistory: [...state.chatHistory, { id: crypto.randomUUID(), role: 'assistant', content: 'Optional tasks were skipped and today was replanned.', timestamp: timeLabel() }]
+            }));
+          } catch (error) {
+            update(state => ({ ...state, error: error instanceof Error ? error.message : 'Action failed.' }));
+          }
+          return;
         }
-        return;
-      }
-      if (suggestion.action === 'REPLAN_TODAY') {
-        try { await api.post('/assistant/actions/REPLAN_TODAY', {}); }
-        catch (error) { update(state => ({ ...state, error: error instanceof Error ? error.message : 'Action failed.' })); }
+        if (suggestion.action === 'REPLAN_TODAY') {
+          try { await api.post('/assistant/actions/REPLAN_TODAY', {}); }
+          catch (error) { update(state => ({ ...state, error: error instanceof Error ? error.message : 'Action failed.' })); }
+          return;
+        }
         return;
       }
       return submit(suggestion.label);

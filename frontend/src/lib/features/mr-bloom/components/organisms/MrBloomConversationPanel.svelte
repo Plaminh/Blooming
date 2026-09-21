@@ -57,7 +57,7 @@
     {#if $mrBloomStore.suggestions.length}
       <div class="quick-replies" aria-label="Suggested actions">
         {#each $mrBloomStore.suggestions as suggestion (`${suggestion.label}-${suggestion.action ?? suggestion.send_text ?? 'patch'}`)}
-          <button type="button" onclick={() => mrBloomStore.handleSuggestion(suggestion)}>
+          <button type="button" disabled={$mrBloomStore.isWaitingForResponse} onclick={() => mrBloomStore.handleSuggestion(suggestion)}>
             {suggestion.label}
           </button>
         {/each}

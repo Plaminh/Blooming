@@ -210,3 +210,112 @@ test('UI-010: Double-click Send protection', async () => {
   // Assistant response must appear
   expect(getAllByText('I am here')).toHaveLength(1);
 });
+
+
+test('UI-014: send_text quick reply uses normal submitMessage flow', async () => {
+  const { getByText } = render(MrBloomConversationPanel);
+  mrBloomStore.update(state => ({
+    ...state,
+    suggestions: [{ label: 'Just do it', send_text: 'I said just do it' }]
+  }));
+  await tick();
+  
+  vi.mocked(api.post).mockResolvedValueOnce({ reply: 'Done', draft: null });
+  
+  const button = getByText('Just do it');
+  await fireEvent.click(button);
+  
+  expect(api.post).toHaveBeenCalledWith('/assistant/chat', expect.objectContaining({
+    message: 'I said just do it'
+  }));
+  
+  expect(get(mrBloomStore).chatHistory.at(-2)?.content).toBe('I said just do it');
+  expect(get(mrBloomStore).chatHistory.at(-2)?.role).toBe('user');
+});
+
+test('UI-015: patch quick reply invokes applyPatch without calling chat endpoint', async () => {
+  const { getByText } = render(MrBloomConversationPanel);
+  const patchOp = { op: 'remove_task', task_id: '1' };
+  
+  mrBloomStore.update(state => ({
+    ...state,
+    activeDraft: { type: 'today', planDate: '2026-01-01', timezone: 'UTC', windows: [], tasks: [] },
+    suggestions: [{ label: 'Remove task', patch: [patchOp] }]
+  }));
+  await tick();
+  
+  vi.mocked(api.post).mockResolvedValueOnce({ draft: { type: 'today', tasks: [] }, preview: null });
+  
+  const button = getByText('Remove task');
+  await fireEvent.click(button);
+  
+  expect(api.post).toHaveBeenCalledWith('/assistant/apply-patch', expect.objectContaining({
+    ops: [patchOp]
+  }));
+  expect(api.post).not.toHaveBeenCalledWith('/assistant/chat', expect.anything());
+});
+
+test('UI-016 / UI-017: action executes only after explicit user click', async () => {
+  const { getByText, getByPlaceholderText } = render(MrBloomConversationPanel);
+  const input = getByPlaceholderText(/Choose what you want to plan first/i);
+  
+  // Stage 1: Submit normal message
+  vi.mocked(api.post).mockResolvedValueOnce({
+    reply: 'Here is a suggestion',
+    draft: null,
+    suggestions: [{ label: 'Skip Optionals', action: 'SKIP_OPTIONAL_TODAY' }]
+  });
+  
+  await fireEvent.input(input, { target: { value: 'What should I do?' } });
+  await fireEvent.keyDown(input, { key: 'Enter' });
+  
+  // Wait for the response and suggestion to render
+  await waitFor(() => {
+    expect(getByText('Skip Optionals')).toBeInTheDocument();
+  });
+  
+  // Verify the action endpoint has NOT been called yet
+  expect(api.post).toHaveBeenCalledWith('/assistant/chat', expect.anything());
+  expect(api.post).not.toHaveBeenCalledWith('/assistant/actions/SKIP_OPTIONAL_TODAY', expect.anything());
+  
+  // Stage 2: User explicitly clicks suggestion
+  vi.mocked(api.post).mockResolvedValueOnce({});
+  const button = getByText('Skip Optionals');
+  await fireEvent.click(button);
+  
+  // Verify the action endpoint is called exactly once
+  expect(api.post).toHaveBeenCalledWith('/assistant/actions/SKIP_OPTIONAL_TODAY', expect.anything());
+  const actionCalls = vi.mocked(api.post).mock.calls.filter(call => call[0] === '/assistant/actions/SKIP_OPTIONAL_TODAY');
+  expect(actionCalls.length).toBe(1);
+});
+
+test('UI-018: quick replies are disabled while waiting for response', async () => {
+  const { getByText } = render(MrBloomConversationPanel);
+  
+  mrBloomStore.update(state => ({
+    ...state,
+    suggestions: [{ label: 'Say hi', send_text: 'hi' }]
+  }));
+  await tick();
+  
+  const button = getByText('Say hi') as HTMLButtonElement;
+  expect(button.disabled).toBe(false);
+  
+  let resolveApi: ((val: any) => void) | undefined;
+  vi.mocked(api.post).mockReturnValueOnce(new Promise(r => { resolveApi = r; }));
+  
+  await fireEvent.click(button);
+  await tick();
+  
+  expect(button.disabled).toBe(true);
+  
+  await fireEvent.click(button);
+  expect(api.post).toHaveBeenCalledTimes(1);
+  
+  resolveApi!({ reply: 'hello', draft: null });
+  await tick();
+  
+  await waitFor(() => {
+    expect(document.body.contains(button)).toBe(false);
+  });
+});

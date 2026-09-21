@@ -193,3 +193,24 @@ test('SS-011, PR-016: Stale response protection prevents older requests from ove
   expect(state.sessionId).not.toBe('stale-session');
   expect(state.activeDraft).toBeNull();
 });
+
+
+test('MD-008: safely ignores unsupported actions', async () => {
+  const initialState = get(mrBloomStore);
+  
+  vi.mocked(api.post).mockClear();
+  const suggestion = { label: 'Delete account', action: 'delete_account' };
+  
+  // Provide the suggestion so it can be handled
+  mrBloomStore.update(state => ({ ...state, suggestions: [suggestion] }));
+  
+  await mrBloomStore.handleSuggestion(suggestion);
+  
+  const stateAfter = get(mrBloomStore);
+  
+  expect(api.post).not.toHaveBeenCalled();
+  expect(stateAfter.chatHistory).toEqual(initialState.chatHistory);
+  expect(stateAfter.activeDraft).toBe(initialState.activeDraft);
+  expect(stateAfter.sessionId).toBe(initialState.sessionId);
+  expect(stateAfter.error).toBeNull();
+});
