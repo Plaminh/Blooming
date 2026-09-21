@@ -1,10 +1,11 @@
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.ai.patches import PatchOp
 from app.schemas.drafts import RoadmapDraft, TodayDraft
+from app.schemas.today import TodayPreviewResponse
 
 
 class ChatTurn(BaseModel):
@@ -19,12 +20,21 @@ class GardenContext(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(min_length=1, max_length=4000)
+    message: str = Field(min_length=1, max_length=2000)
     session_id: str | None = None
     history: list[ChatTurn] = Field(default_factory=list, max_length=20)
     current_draft: RoadmapDraft | TodayDraft | None = None
     garden: GardenContext | None = None
     tz: str = "UTC"
+
+    @field_validator("message", mode="before")
+    @classmethod
+    def check_not_empty_after_strip(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                raise ValueError("message cannot be empty or whitespace only")
+        return value
 
 
 class QuickReply(BaseModel):
@@ -32,6 +42,13 @@ class QuickReply(BaseModel):
     action: str | None = None
     send_text: str | None = Field(default=None, min_length=1, max_length=4000)
     patch: list[PatchOp] | None = Field(default=None, min_length=1, max_length=10)
+
+    @field_validator("label", mode="before")
+    @classmethod
+    def truncate_label(cls, value: Any) -> Any:
+        if isinstance(value, str) and len(value) > 80:
+            return value[:80]
+        return value
 
     @model_validator(mode="after")
     def one_command(self) -> "QuickReply":
@@ -54,11 +71,18 @@ class ChatResponse(BaseModel):
     tier: str = "PARSER"
     degraded: str | None = None
     draft: RoadmapDraft | TodayDraft | None = None
-    preview: dict | None = None
+    preview: TodayPreviewResponse | None = None
     goal_created: dict | None = None
-    suggestions: list[QuickReply] = Field(default_factory=list, max_length=3)
+    suggestions: list[QuickReply] = Field(default_factory=list, max_length=4)
     assumptions: list[Assumption] = Field(default_factory=list)
     question: str | None = None
+
+    @field_validator("suggestions", mode="before")
+    @classmethod
+    def truncate_suggestions(cls, value: list | None) -> list | None:
+        if isinstance(value, list) and len(value) > 4:
+            return value[:4]
+        return value
 
 
 class SessionMessage(BaseModel):

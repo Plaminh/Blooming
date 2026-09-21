@@ -3,7 +3,7 @@ import {
   api, APIError, previewTodayPlan, saveTodayPlan,
   type TodayDraft, type RoadmapDraft, type TaskDraft, type MilestoneDraft,
   type AssistantDraft, type TodayPreviewResponse, type AssistantSuggestion,
-  type AssistantAssumption, type AssistantSession, saveRoadmap
+  type AssistantAssumption, type AssistantSession, saveRoadmap, type ChatResponse
 } from '$lib/api';
 import type { IconName } from '$lib/shared/components/atoms/AppIcon.svelte';
 
@@ -53,11 +53,7 @@ async function sendMessage(
   snapshot: MrBloomState
 ) {
   try {
-    const result: {
-      reply: string; draft: AssistantDraft | null; preview?: TodayPreviewResponse | null;
-      session_id?: string | null; degraded?: string | null;
-      suggestions?: AssistantSuggestion[]; assumptions?: AssistantAssumption[];
-    } = await api.post('/assistant/chat', {
+    const result: ChatResponse = await api.post('/assistant/chat', {
       message, session_id: snapshot.sessionId, current_draft: snapshot.activeDraft
     });
     update(state => ({

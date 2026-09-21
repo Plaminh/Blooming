@@ -281,3 +281,16 @@ export const saveRoadmap = async (sessionId: string | null, draft: RoadmapDraft)
   return await api.post('/goals/from-roadmap', { session_id: sessionId, draft });
 };
 
+export interface ChatResponse {
+  reply: string;
+  session_id: string | null;
+  intent: string | null;
+  tier: string;
+  degraded: string | null;
+  draft: AssistantDraft | null;
+  preview: TodayPreviewResponse | null;
+  goal_created: Record<string, unknown> | null;
+  suggestions: AssistantSuggestion[];
+  assumptions: AssistantAssumption[];
+  question: string | null;
+}
