@@ -10,8 +10,6 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
-from alembic import command
-from alembic.config import Config
 from app.core.config import settings
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event, text
@@ -62,7 +60,7 @@ def clock(monkeypatch):
 
 
 # Constants
-MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "database" / "migrations"
+DATABASE_DIR = Path(__file__).resolve().parents[2] / "database"
 
 
 def check_safe_db_url(url: str) -> str:
@@ -116,8 +114,8 @@ async def engine_and_template():
     Starts an ephemeral PostgreSQL container (or uses TEST_DATABASE_URL).
     Creates a unique template database and initializes the schema on it.
     """
-    if not MIGRATIONS_DIR.exists() or not any(MIGRATIONS_DIR.iterdir()):
-        raise RuntimeError(f"Migration directory {MIGRATIONS_DIR} is missing or empty.")
+    if not DATABASE_DIR.exists() or not any((DATABASE_DIR / "tables").iterdir()):
+        raise RuntimeError(f"Database tables directory is missing or empty.")
 
     test_db_url = os.getenv("TEST_DATABASE_URL")
     container = None
@@ -155,7 +153,7 @@ async def engine_and_template():
         finally:
             await root_engine.dispose()
 
-        # Connect to the template database to run migrations
+        # Connect to the template database to initialize schema
         template_url = (
             make_url(root_url)
             .set(database=template_name)
@@ -165,23 +163,19 @@ async def engine_and_template():
 
         try:
             async with template_engine.begin() as conn:
-                migrations = sorted(
-                    [f for f in os.listdir(MIGRATIONS_DIR) if f.endswith(".sql")]
-                )
-                for migration in migrations:
-                    sql_path = MIGRATIONS_DIR / migration
-                    sql = sql_path.read_text(encoding="utf-8")
-
-                    # Execute raw SQL with the driver connection directly
-                    # to use simple query protocol for multiple statements
-                    raw_conn = await conn.get_raw_connection()
-                    await raw_conn.driver_connection.execute(sql)
-                alembic_config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
-                def upgrade_schema(sync_connection):
-                    alembic_config.attributes["connection"] = sync_connection
-                    command.stamp(alembic_config, "6ebc3e7e2e0e")
-                    command.upgrade(alembic_config, "head")
-                await conn.run_sync(upgrade_schema)
+                # Read install.sql to get the exact order of tables
+                install_sql_path = DATABASE_DIR / "install.sql"
+                install_lines = install_sql_path.read_text(encoding="utf-8").splitlines()
+                
+                for line in install_lines:
+                    line = line.strip()
+                    if line.startswith(r'\ir '):
+                        rel_path = line.split(' ')[1]
+                        sql_path = DATABASE_DIR / rel_path
+                        sql = sql_path.read_text(encoding="utf-8")
+                        
+                        raw_conn = await conn.get_raw_connection()
+                        await raw_conn.driver_connection.execute(sql)
         finally:
             await template_engine.dispose()
 

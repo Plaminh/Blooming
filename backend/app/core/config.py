@@ -5,7 +5,7 @@ from sqlalchemy import URL
 import warnings
 
 # Resolve .env locations from this file so settings load identically no matter
-# which working directory uvicorn, alembic, or pytest is started from.
+# which working directory uvicorn or pytest is started from.
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 _REPO_ROOT = _BACKEND_DIR.parent
 
