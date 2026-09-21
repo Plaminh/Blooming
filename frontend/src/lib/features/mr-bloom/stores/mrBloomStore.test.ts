@@ -162,3 +162,34 @@ test('duration edits debounce into one preview request', async () => {
     vi.useRealTimers();
   }
 });
+
+test('SS-011, PR-016: Stale response protection prevents older requests from overwriting newer state', async () => {
+  let resolveA: (val: any) => void;
+  const promiseA = new Promise((resolve) => { resolveA = resolve; });
+  vi.mocked(api.post).mockReturnValueOnce(promiseA);
+
+  // Set an initial active draft so discardDraft makes semantic sense
+  mrBloomStore.update(s => ({ ...s, activeDraft: { type: 'today', planDate: '2026-01-01', tasks: [] } as any }));
+
+  // Request A starts through submitMessage()
+  const pending = mrBloomStore.submitMessage('Change something');
+
+  // A legitimate public store action changes/invalidates the authoritative context
+  mrBloomStore.discardDraft();
+
+  let state = get(mrBloomStore);
+  expect(state.activeDraft).toBeNull();
+
+  // A resolves late
+  resolveA!({
+    reply: 'Late reply',
+    session_id: 'stale-session',
+    draft: { type: 'today', planDate: '2026-01-02', tasks: [] }
+  });
+  await pending;
+
+  // A must NOT restore stale session/draft state
+  state = get(mrBloomStore);
+  expect(state.sessionId).not.toBe('stale-session');
+  expect(state.activeDraft).toBeNull();
+});

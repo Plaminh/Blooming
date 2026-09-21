@@ -47,15 +47,19 @@ function timeLabel() {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+let latestRequestVersion = 0;
+
 async function sendMessage(
   message: string, msgId: string,
   update: (updater: (state: MrBloomState) => MrBloomState) => void,
   snapshot: MrBloomState
 ) {
+  const version = ++latestRequestVersion;
   try {
     const result: ChatResponse = await api.post('/assistant/chat', {
       message, session_id: snapshot.sessionId, current_draft: snapshot.activeDraft
     });
+    if (version !== latestRequestVersion) return;
     update(state => ({
       ...state, isWaitingForResponse: false,
       activeDraft: result.draft ?? state.activeDraft,
@@ -70,6 +74,7 @@ async function sendMessage(
       }]
     }));
   } catch (error) {
+    if (version !== latestRequestVersion) return;
     update(state => ({
       ...state, isWaitingForResponse: false,
       error: error instanceof Error ? error.message : 'Unable to reach Mr. Bloom.',
@@ -157,7 +162,7 @@ function createMrBloomStore() {
   async function saveToday(replaceExisting = false) {
     await flushPendingDurations();
     await patchQueue;
-    let snapshot: MrBloomState = initial;
+    ++latestRequestVersion; let snapshot: MrBloomState = initial;
     update(state => { snapshot = state; return { ...state, error: null }; });
     if (snapshot.error) return;
     if (snapshot.activeDraft?.type !== 'today' || !snapshot.preview) return;
@@ -189,7 +194,7 @@ function createMrBloomStore() {
   }
 
   async function persistRoadmap() {
-    let snapshot = initial;
+    ++latestRequestVersion; let snapshot = initial;
     update(state => { snapshot = state; return { ...state, error: null }; });
     if (snapshot.activeDraft?.type !== 'roadmap') return false;
     try {
@@ -225,8 +230,12 @@ function createMrBloomStore() {
         return state;
       });
       if (!shouldRestore) return;
+      
+      const version = ++latestRequestVersion;
       try {
         const session = await api.get('/assistant/sessions/latest') as AssistantSession;
+        if (version !== latestRequestVersion) return;
+        
         const latestPayload = [...session.messages]
           .reverse()
           .find(message => message.role === 'assistant' && message.structured_payload)
@@ -250,16 +259,23 @@ function createMrBloomStore() {
           error: null
         }));
       } catch (error) {
+        if (version !== latestRequestVersion) return;
         if (!(error instanceof APIError && error.status === 404)) {
           update(state => ({ ...state, error: error instanceof Error ? error.message : 'Session reload failed.' }));
         }
       }
     },
-    discardDraft: () => update(state => ({ ...state, activeDraft: null, preview: null, previewMode: 'placeholder', suggestions: [], assumptions: [], needsReplace: false })),
-    acceptDraft: (message: string) => update(state => ({
-      ...state, activeDraft: null, preview: null, previewMode: 'placeholder', suggestions: [], assumptions: [], needsReplace: false,
-      chatHistory: [...state.chatHistory, { id: crypto.randomUUID(), role: 'assistant', content: message, timestamp: timeLabel() }]
-    })),
+    discardDraft: () => {
+      ++latestRequestVersion;
+      update(state => ({ ...state, activeDraft: null, preview: null, previewMode: 'placeholder', suggestions: [], assumptions: [], needsReplace: false }));
+    },
+    acceptDraft: (message: string) => {
+      ++latestRequestVersion;
+      update(state => ({
+        ...state, activeDraft: null, preview: null, previewMode: 'placeholder', suggestions: [], assumptions: [], needsReplace: false,
+        chatHistory: [...state.chatHistory, { id: crypto.randomUUID(), role: 'assistant', content: message, timestamp: timeLabel() }]
+      }));
+    },
     applyPatch,
     updateTaskDuration: scheduleDuration,
     addTask: (title: string, durationMin: number) => {

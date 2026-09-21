@@ -117,3 +117,96 @@ test('UI-013: Auto-scroll', async () => {
     expect(messagesContainer.scrollTop).toBe(500);
   });
 });
+
+test('UI-008, UI-009, UI-012, E2E-010: Message failure and retry lifecycle', async () => {
+  let rejectApi: (err: any) => void;
+  let resolveApi: (val: any) => void;
+  
+  // First request will fail
+  const apiPromise1 = new Promise((resolve, reject) => {
+    rejectApi = reject;
+  });
+  vi.mocked(api.post).mockReturnValueOnce(apiPromise1);
+  
+  const { getByPlaceholderText, getAllByText, getByRole, queryByRole } = render(MrBloomConversationPanel);
+  const input = getByPlaceholderText(/Choose what you want to plan first/i);
+  
+  // Send message
+  await fireEvent.input(input, { target: { value: 'Hello Fail' } });
+  await fireEvent.keyDown(input, { key: 'Enter' });
+  
+  expect(api.post).toHaveBeenCalledTimes(1);
+  
+  // E2E-010: Provider timeout/failure occurs
+  rejectApi!(new Error('Network/Timeout error'));
+  
+  await waitFor(() => {
+    // Waiting state ends
+    expect(queryByRole('status', { name: /waiting for response/i })).not.toBeInTheDocument();
+  });
+  
+  // UI-008: Message remains and is marked failed
+  expect(getAllByText('Hello Fail')).toHaveLength(1);
+  const retryBtn = getByRole('button', { name: /Gửi lại|Retry/i }); 
+  expect(retryBtn).toBeInTheDocument();
+  
+  // Prepare for retry
+  const apiPromise2 = new Promise(resolve => {
+    resolveApi = resolve;
+  });
+  vi.mocked(api.post).mockReturnValueOnce(apiPromise2);
+  
+  // UI-009, UI-012: Retry failed message
+  await fireEvent.click(retryBtn);
+  
+  // API called again
+  expect(api.post).toHaveBeenCalledTimes(2);
+  
+  // Failure marker disappears, it's pending again
+  expect(queryByRole('button', { name: /Gửi lại|Retry/i })).not.toBeInTheDocument();
+  expect(queryByRole('status', { name: /waiting for response/i })).toBeInTheDocument();
+  
+  // Resolve the retry request
+  resolveApi!({ reply: 'Recovered', draft: null });
+  
+  await waitFor(() => {
+    expect(queryByRole('status', { name: /waiting for response/i })).not.toBeInTheDocument();
+  });
+  
+  // User message remains exactly ONE logical turn (no duplicate)
+  expect(getAllByText('Hello Fail')).toHaveLength(1);
+  expect(getAllByText('Recovered')).toHaveLength(1);
+});
+
+test('UI-010: Double-click Send protection', async () => {
+  let resolveApi: (val: any) => void;
+  // A request that hangs so we can double click
+  vi.mocked(api.post).mockReturnValue(new Promise((resolve) => { resolveApi = resolve; }));
+  
+  const { getByPlaceholderText, getByRole, getAllByText, queryByRole } = render(MrBloomConversationPanel);
+  const input = getByPlaceholderText(/Choose what you want to plan first/i);
+  const sendButton = getByRole('button', { name: 'Send' });
+  
+  await fireEvent.input(input, { target: { value: 'Rapid click' } });
+  
+  // Double click! 
+  await fireEvent.click(sendButton);
+  await fireEvent.click(sendButton); // second click while waiting
+  
+  // Should only invoke API once due to isWaitingForResponse guard
+  expect(api.post).toHaveBeenCalledTimes(1);
+  
+  // Should only create ONE user message
+  expect(getAllByText('Rapid click')).toHaveLength(1);
+  
+  // Resolve the first (and only) request
+  resolveApi!({ reply: 'I am here', draft: null });
+  
+  await waitFor(() => {
+    // Waiting state must become false
+    expect(queryByRole('status', { name: /waiting for response/i })).not.toBeInTheDocument();
+  });
+  
+  // Assistant response must appear
+  expect(getAllByText('I am here')).toHaveLength(1);
+});
