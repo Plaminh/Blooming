@@ -116,3 +116,41 @@ def test_roadmap_draft_validation():
     m3 = drafts.MilestoneDraft(title="M3", targetDate=future + timedelta(days=1))
     with pytest.raises(ValidationError, match="after roadmap target date"):
         drafts.RoadmapDraft(type="roadmap", goalTitle="Goal", targetDate=future, milestones=[m3])
+
+def test_ct_010_discriminated_union():
+    # Valid Today -> parsed as TodayDraft
+    chat_today = assistant.ChatResponse.model_validate({
+        "reply": "Today",
+        "draft": {
+            "type": "today",
+            "planDate": "2026-09-20",
+            "windows": [],
+            "tasks": [],
+        }
+    })
+    assert isinstance(chat_today.draft, drafts.TodayDraft)
+
+    # Valid Roadmap -> parsed as RoadmapDraft
+    chat_roadmap = assistant.ChatResponse.model_validate({
+        "reply": "Roadmap",
+        "draft": {
+            "type": "roadmap",
+            "goalTitle": "Goal",
+            "goalDescription": "",
+            "targetDate": "2026-10-01",
+            "milestones": [{"title": "M", "targetDate": "2026-10-01"}],
+        }
+    })
+    assert isinstance(chat_roadmap.draft, drafts.RoadmapDraft)
+
+    # Invalid discriminator -> ValidationError
+    with pytest.raises(ValidationError):
+        assistant.ChatResponse.model_validate({
+            "reply": "Invalid",
+            "draft": {
+                "type": "unknown",
+                "planDate": "2026-09-20",
+                "windows": [],
+                "tasks": [],
+            }
+        })

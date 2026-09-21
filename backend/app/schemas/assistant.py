@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal, Any
+from typing import Literal, Any, Annotated
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -23,7 +23,7 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     session_id: str | None = None
     history: list[ChatTurn] = Field(default_factory=list, max_length=20)
-    current_draft: RoadmapDraft | TodayDraft | None = None
+    current_draft: Annotated[RoadmapDraft | TodayDraft, Field(discriminator="type")] | None = None
     garden: GardenContext | None = None
     tz: str = "UTC"
 
@@ -70,7 +70,7 @@ class ChatResponse(BaseModel):
     intent: str | None = None
     tier: str = "PARSER"
     degraded: str | None = None
-    draft: RoadmapDraft | TodayDraft | None = None
+    draft: Annotated[RoadmapDraft | TodayDraft, Field(discriminator="type")] | None = None
     preview: TodayPreviewResponse | None = None
     goal_created: dict | None = None
     suggestions: list[QuickReply] = Field(default_factory=list, max_length=4)
