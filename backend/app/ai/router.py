@@ -125,10 +125,10 @@ def route(
     if mood and len(words) <= 12:
         return Route("MOOD", 0.9, flags=frozenset(flags))
     if re.search(r"\b(lap|plan|schedule|study|hoc|lam)\b", text) and re.search(
-        r"\b\d+\s*(?:p|phut|min|h|gio|tieng)\b", text
+        r"\b\d+\s*(?:p|phut|minutes?|mins?|h|gio|tieng)\b", text
     ):
         return Route("PLAN_DAY", 0.8, flags=frozenset(flags))
-    if len(re.findall(r"\b\d+\s*(?:p|phut|min|h|gio|tieng)\b", text)) >= 2:
+    if len(re.findall(r"\b\d+\s*(?:p|phut|minutes?|mins?|h|gio|tieng)\b", text)) >= 2:
         return Route("PLAN_DAY", 0.8, flags=frozenset(flags))
     if len(words) <= 6 and re.match(r"^(hi|hello|hey|xin chao|chao|alo)\b", text):
         return Route("GREETING", 0.98, flags=frozenset(flags))
@@ -136,7 +136,7 @@ def route(
         return Route("THANKS", 0.98, flags=frozenset(flags))
     if has_draft:
         return Route("EDIT_DRAFT", 0.5, "fallback", frozenset(flags))
-    if re.search(r"\b\d+\s*(?:p|phut|min|h|gio|tieng)\b", text):
+    if re.search(r"\b\d+\s*(?:p|phut|minutes?|mins?|h|gio|tieng)\b", text):
         return Route("PLAN_DAY", 0.5, "fallback", frozenset(flags))
     return Route("CHITCHAT", 0.5, "fallback", frozenset(flags))
 

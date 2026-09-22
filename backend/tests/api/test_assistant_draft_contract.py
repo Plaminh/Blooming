@@ -56,10 +56,15 @@ async def test_ct_003_canonical_today_draft(async_client: AsyncClient, test_user
     # Task ID must not be the malicious ID
     assert draft["tasks"][0]["id"] != "malicious-id"
     
-    # Derived total exactly matches sum
     preview = data.get("preview")
     assert preview is not None
-    assert preview["total_duration"] == 30
+    assert isinstance(preview.get("blocks"), list)
+    task_blocks = [b for b in preview["blocks"] if b["block_type"] == "TASK"]
+    assert len(task_blocks) > 0
+    assert task_blocks[0]["estimated_duration_minutes"] == 30
+    start = datetime.fromisoformat(task_blocks[0]["planned_start_at"])
+    end = datetime.fromisoformat(task_blocks[0]["planned_end_at"])
+    assert start < end
 
 @pytest.mark.asyncio
 async def test_ct_004_canonical_roadmap_draft(async_client: AsyncClient, auth_headers: dict[str, str], monkeypatch):
