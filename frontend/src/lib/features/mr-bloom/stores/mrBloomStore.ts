@@ -40,6 +40,9 @@ export interface MrBloomState {
   suggestions: AssistantSuggestion[];
   assumptions: AssistantAssumption[];
   needsReplace: boolean;
+  isDraftMutationPending?: boolean;
+  isPreviewPending?: boolean;
+  isSavePending?: boolean;
   error?: string | null;
 }
 
@@ -63,7 +66,9 @@ async function sendMessage(
     update(state => ({
       ...state, isWaitingForResponse: false,
       activeDraft: result.draft ?? state.activeDraft,
-      preview: result.preview ?? (result.draft?.type === 'today' ? null : state.preview),
+      // A newly returned draft is unreviewed. Never carry a preview token from
+      // the previous draft (or expose Save before an explicit preview).
+      preview: result.draft ? null : (result.preview ?? state.preview),
       previewMode: result.draft?.type ?? state.previewMode,
       sessionId: result.session_id ?? state.sessionId,
       degraded: result.degraded ?? null,
@@ -94,7 +99,8 @@ function createMrBloomStore() {
     chatHistory: [{ id: '1', role: 'assistant', content: `${greeting}.\n${greetingBody}`, timestamp: timeLabel() }],
     isWaitingForResponse: false, activeDraft: null, preview: null,
     previewMode: 'placeholder', sessionId: null, degraded: null,
-    suggestions: [], assumptions: [], needsReplace: false, error: null
+    suggestions: [], assumptions: [], needsReplace: false,
+    isDraftMutationPending: false, isPreviewPending: false, isSavePending: false, error: null
   };
   const { subscribe, set, update } = writable<MrBloomState>(initial);
 
@@ -127,8 +133,8 @@ function createMrBloomStore() {
       update(state => ({
         ...state,
         activeDraft: result.draft,
-        preview: result.preview ?? null,
-        previewMode: result.preview ? 'timeline' : result.draft.type,
+        preview: null,
+        previewMode: result.draft.type,
         needsReplace: false
       }));
     } catch (error) {
@@ -136,9 +142,21 @@ function createMrBloomStore() {
     }
   }
   let patchQueue: Promise<void> = Promise.resolve();
+  let pendingPatchCount = 0;
   function applyPatch(ops: Record<string, unknown>[]): Promise<void> {
-    const next = patchQueue.then(() => doApplyPatch(ops));
-    patchQueue = next;
+    // Invalidate the saveable snapshot synchronously, even if another edit is
+    // ahead of this one in the serialized patch queue.
+    pendingPatchCount += 1;
+    update(state => ({
+      ...state, preview: null,
+      previewMode: state.activeDraft?.type ?? 'placeholder',
+      needsReplace: false, isDraftMutationPending: true
+    }));
+    const next = patchQueue.then(() => doApplyPatch(ops)).finally(() => {
+      pendingPatchCount -= 1;
+      update(state => ({ ...state, isDraftMutationPending: pendingPatchCount > 0 }));
+    });
+    patchQueue = next.catch(() => undefined);
     return next;
   }
 
@@ -163,33 +181,37 @@ function createMrBloomStore() {
     await flushPendingDurations();
     await patchQueue;
     ++latestRequestVersion; let snapshot: MrBloomState = initial;
-    update(state => { snapshot = state; return { ...state, error: null }; });
+    update(state => { snapshot = state; return { ...state, error: null, isSavePending: true }; });
     if (snapshot.error) return;
-    if (snapshot.activeDraft?.type !== 'today' || !snapshot.preview) return;
+    if (snapshot.activeDraft?.type !== 'today' || !snapshot.preview) {
+      update(state => ({ ...state, isSavePending: false }));
+      return;
+    }
     const performSave = async (preview: TodayPreviewResponse) =>
       saveTodayPlan(snapshot.sessionId, preview.preview_token, snapshot.activeDraft as TodayDraft, replaceExisting);
     try {
       await performSave(snapshot.preview);
       update(state => ({
-        ...state, activeDraft: null, preview: null, previewMode: 'placeholder', needsReplace: false,
+        ...state, activeDraft: null, preview: null, previewMode: 'placeholder', sessionId: null,
+        needsReplace: false, isSavePending: false,
         suggestions: [], assumptions: [],
         chatHistory: [...state.chatHistory, { id: crypto.randomUUID(), role: 'assistant', content: 'Your schedule was saved to Today.', timestamp: timeLabel() }]
       }));
     } catch (error) {
       if (error instanceof APIError && error.status === 409 && error.detail?.detail?.code === 'PLAN_EXISTS') {
         const message = error.message;
-        update(state => ({ ...state, needsReplace: true, error: message }));
+        update(state => ({ ...state, needsReplace: true, isSavePending: false, error: message }));
         return;
       }
       if (error instanceof APIError && error.status === 409) {
         try {
           const refreshed = await previewTodayPlan(snapshot.activeDraft);
           await performSave(refreshed);
-          update(state => ({ ...state, activeDraft: null, preview: null, previewMode: 'placeholder', needsReplace: false, suggestions: [], assumptions: [] }));
+          update(state => ({ ...state, activeDraft: null, preview: null, previewMode: 'placeholder', sessionId: null, needsReplace: false, isSavePending: false, suggestions: [], assumptions: [] }));
           return;
         } catch (retryError) { error = retryError; }
       }
-      update(state => ({ ...state, error: error instanceof Error ? error.message : 'Save failed.' }));
+      update(state => ({ ...state, isSavePending: false, error: error instanceof Error ? error.message : 'Save failed.' }));
     }
   }
 
@@ -302,11 +324,12 @@ function createMrBloomStore() {
       update(state => { draft = state.activeDraft?.type === 'today' ? state.activeDraft : null; patchError = !!state.error; return { ...state, error: patchError ? state.error : null }; });
       if (patchError) return;
       if (!draft) return;
+      update(state => ({ ...state, preview: null, previewMode: state.activeDraft?.type ?? 'placeholder', isPreviewPending: true }));
       try {
         const preview = await previewTodayPlan(draft);
-        update(state => ({ ...state, preview, previewMode: 'timeline' }));
+        update(state => ({ ...state, preview, previewMode: 'timeline', isPreviewPending: false }));
       } catch (error) {
-        update(state => ({ ...state, error: error instanceof Error ? error.message : 'Preview failed.' }));
+        update(state => ({ ...state, isPreviewPending: false, error: error instanceof Error ? error.message : 'Preview failed.' }));
       }
     },
     saveToday,

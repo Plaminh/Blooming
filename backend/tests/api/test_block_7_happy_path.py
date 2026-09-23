@@ -117,9 +117,12 @@ async def test_sv_001_save_creates_real_plan_and_tasks(async_client: AsyncClient
     
     user_id = test_user.id
     
+    preview_res = await async_client.post("/api/v1/today/preview", headers=auth_headers, json={"draft": data["draft"]})
+    preview_data = preview_res.json()
+    
     save_payload = {
         "draft": data["draft"],
-        "preview_token": data["preview"]["preview_token"],
+        "preview_token": preview_data["preview_token"],
         "session_id": data["session_id"]
     }
     
@@ -147,9 +150,12 @@ async def test_sv_010_repeated_save_idempotency(async_client: AsyncClient, auth_
     data = res.json()
     user_id = test_user.id
     
+    preview_res = await async_client.post("/api/v1/today/preview", headers=auth_headers, json={"draft": data["draft"]})
+    preview_data = preview_res.json()
+    
     save_payload = {
         "draft": data["draft"],
-        "preview_token": data["preview"]["preview_token"],
+        "preview_token": preview_data["preview_token"],
         "session_id": data["session_id"]
     }
     
@@ -174,9 +180,13 @@ async def test_reload_verification(async_client: AsyncClient, auth_headers: dict
     """Assert GET Today returns the exact expected tasks."""
     res = await async_client.post("/api/v1/assistant/chat", headers=auth_headers, json={"message": "Today I need to read chapter 3 for 45 minutes and review flashcards for 30 minutes."})
     data = res.json()
+    
+    preview_res = await async_client.post("/api/v1/today/preview", headers=auth_headers, json={"draft": data["draft"]})
+    preview_data = preview_res.json()
+    
     save_payload = {
         "draft": data["draft"],
-        "preview_token": data["preview"]["preview_token"],
+        "preview_token": preview_data["preview_token"],
         "session_id": data["session_id"]
     }
     await async_client.post("/api/v1/today/save", headers=auth_headers, json=save_payload)

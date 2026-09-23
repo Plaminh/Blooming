@@ -15,7 +15,10 @@ def assemble_today(
     offset = max(plan.plan_date_offset, ctx.default_date_offset)
     plan_date = ctx.now.date() + timedelta(days=offset)
     windows = list(plan.windows or ctx.default_windows)
-    assumptions = []
+    assumptions = [
+        Assumption(id=f"a-parser-{i}", kind="PARSER", text=text)
+        for i, text in enumerate(plan.assumptions)
+    ]
     if not plan.windows:
         assumptions.append(
             Assumption(
@@ -74,7 +77,15 @@ def assemble_today(
                 datetime.strptime(item.fixed_start, "%H:%M").time(),
                 tzinfo=ctx.timezone,
             )
-            fixed_end = fixed_start + timedelta(minutes=duration)
+            item_fixed_end = getattr(item, "fixed_end", None)
+            if item_fixed_end:
+                fixed_end = datetime.combine(
+                    plan_date,
+                    datetime.strptime(item_fixed_end, "%H:%M").time(),
+                    tzinfo=ctx.timezone,
+                )
+            else:
+                fixed_end = fixed_start + timedelta(minutes=duration)
         deadline = (
             datetime.combine(
                 plan_date,

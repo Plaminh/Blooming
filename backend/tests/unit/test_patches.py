@@ -1,5 +1,6 @@
 from copy import deepcopy
 from datetime import date, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from app.ai.patches import PatchOp, apply_patch
@@ -76,3 +77,26 @@ def test_add_scale_split_windows_and_date_are_validated_without_mutating_source(
     assert changed.tasks[3].durationMin == 30
     with pytest.raises(ValueError, match="Task ID"):
         apply_patch(changed, [PatchOp(op="add_task", task=TaskDraft(id="d3", title="Other", durationMin=10))])
+
+
+def test_time_patch_uses_draft_timezone_and_keeps_deadline_flexible():
+    original = draft().model_copy(update={"timezone": "Asia/Ho_Chi_Minh"})
+    changed = apply_patch(original, [PatchOp(
+        op="update_task", task_id="d1", deadline="18:00", scheduling_type="FLEXIBLE"
+    )])
+    assert changed.tasks[0].deadline is not None
+    assert changed.tasks[0].deadline.hour == 18
+    assert changed.tasks[0].deadline.tzinfo == ZoneInfo("Asia/Ho_Chi_Minh")
+    assert changed.tasks[0].schedulingType == "FLEXIBLE"
+
+
+@pytest.mark.parametrize("field", ["fixed_start", "fixed_end", "deadline"])
+def test_time_patch_rejects_invalid_values(field):
+    with pytest.raises(ValueError):
+        PatchOp(op="update_task", task_id="d1", **{field: "25:99"})
+
+
+def test_time_patch_rejects_unknown_timezone():
+    original = draft().model_copy(update={"timezone": "Not/A_Timezone"})
+    with pytest.raises(ValueError, match="Unknown draft timezone"):
+        apply_patch(original, [PatchOp(op="update_task", task_id="d1", fixed_start="14:00")])

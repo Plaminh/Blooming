@@ -62,3 +62,41 @@ def test_ps_004_compound_word_durations(text, expected_minutes):
 ])
 def test_ps_005_decimal_hours(text, expected_minutes):
     assert_deterministic(text, ["Study"], [expected_minutes])
+
+
+def test_ps_006_fixed_start():
+    results = assert_deterministic("Study algorithms at 14:00 for 60 min", ["Study algorithms"], [60])
+    for result in results:
+        task = result.tasks[0]
+        assert task.fixed_start == "14:00"
+        assert task.fixed_end is None
+
+def test_ps_007_fixed_interval():
+    results = assert_deterministic("Practice SQL from 14:00 to 15:30", ["Practice SQL"], [90])
+    for result in results:
+        task = result.tasks[0]
+        assert task.fixed_start == "14:00"
+        assert task.fixed_end == "15:30"
+        assert len(result.windows) == 0
+
+def test_ps_008_deadline():
+    results = assert_deterministic("Finish the report for 60 min before 17:00", ["Finish the report"], [60])
+    for result in results:
+        task = result.tasks[0]
+        assert task.deadline == "17:00"
+        assert task.fixed_start is None
+
+def test_ps_009_explicit_availability():
+    results = assert_deterministic("I am available from 18:00 to 21:00; study algorithms for 60 min", ["study algorithms"], [60])
+    for result in results:
+        assert result.windows == (("18:00", "21:00"),)
+
+def test_ps_010_time_budget_only():
+    results = assert_deterministic("I only have 2 hours available today", [], [])
+    for result in results:
+        assert "Normalized budget: 120 minutes" in result.assumptions
+
+def test_ps_015_tomorrow_offset():
+    results = assert_deterministic("Tomorrow, study algorithms for 60 min", ["study algorithms"], [60])
+    for result in results:
+        assert result.plan_date_offset == 1

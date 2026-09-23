@@ -20,6 +20,10 @@
   let availabilityText = $derived(
     draft?.windows.map(window => `${window.start}–${window.end}`).join(', ') || 'No availability set'
   );
+  let budgetAssumption = $derived($mrBloomStore.assumptions.find(a => a.text.startsWith('Normalized budget:')));
+  let timeBudgetMinutes = $derived(budgetAssumption ? Number.parseInt(budgetAssumption.text.match(/\d+/)?.[0] || '0', 10) : null);
+  let otherAssumptions = $derived($mrBloomStore.assumptions.filter(a => a !== budgetAssumption));
+  let hasTasks = $derived((draft?.tasks?.length || 0) > 0);
 </script>
 
 <div class="today-draft-preview">
@@ -35,17 +39,29 @@
         <span>Available · {availabilityText}</span>
       </div>
 
+      {#if timeBudgetMinutes !== null}
+        <div class="budget-bar">
+          <span class="availability-icon"><AppIcon name="calendar" size="detail" /></span>
+          <span>Time budget · {timeBudgetMinutes} minutes</span>
+        </div>
+      {/if}
+
       <div class="tasks-list">
         {#each draft.tasks as task (task.id)}
           <DraftTaskSummary {task} />
         {/each}
+        {#if !hasTasks}
+          <div class="empty-tasks-prompt">
+            Please add tasks to schedule within your available time.
+          </div>
+        {/if}
       </div>
 
-      {#if $mrBloomStore.assumptions.length}
+      {#if otherAssumptions.length}
         <section class="assumptions" aria-label="Planning assumptions">
           <strong>Assumptions</strong>
           <ul>
-            {#each $mrBloomStore.assumptions as assumption (assumption.id)}
+            {#each otherAssumptions as assumption (assumption.id)}
               <li>{assumption.text}</li>
             {/each}
           </ul>
@@ -69,6 +85,7 @@
       primaryLabel="GENERATE TIMELINE"
       iconSize="control"
       onPrimary={() => mrBloomStore.generateTimeline()}
+      disabled={!hasTasks || $mrBloomStore.isDraftMutationPending || $mrBloomStore.isPreviewPending}
     />
   {/if}
 </div>

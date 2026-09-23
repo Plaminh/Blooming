@@ -129,9 +129,16 @@ async def test_explicit_day_plan_uses_real_preview_with_zero_model_calls(
     data = response.json()
     assert data["tier"] == "PARSER"
     assert data["draft"]["tasks"][0]["title"] == "study"
-    assert data["preview"]["preview_token"]
-    assert any(block["block_type"] == "TASK" for block in data["preview"]["blocks"])
-    assert any(block["block_type"] == "BREAK" for block in data["preview"]["blocks"])
+    
+    preview_response = await async_client.post(
+        "/api/v1/today/preview",
+        headers=auth_headers,
+        json={"draft": data["draft"]}
+    )
+    preview_data = preview_response.json()
+    assert preview_data["preview_token"]
+    assert any(block["block_type"] == "TASK" for block in preview_data["blocks"])
+    assert any(block["block_type"] == "BREAK" for block in preview_data["blocks"])
     provider_call.assert_not_awaited()
 
 
@@ -150,9 +157,15 @@ async def test_overloaded_parser_plan_uses_scheduler_reality_check(
     )
     assert response.status_code == 200, response.text
     data = response.json()
-    assert data["preview"]["reality_check"] == "OVERLOADED"
-    assert data["preview"]["unscheduled_tasks"]
-    assert "Không đủ thời gian" in data["reply"]
+    
+    preview_response = await async_client.post(
+        "/api/v1/today/preview",
+        headers=auth_headers,
+        json={"draft": data["draft"]}
+    )
+    preview_data = preview_response.json()
+    assert preview_data["reality_check"] == "OVERLOADED"
+    assert preview_data["unscheduled_tasks"]
     provider_call.assert_not_awaited()
 
 
@@ -278,12 +291,20 @@ async def test_successful_today_save_completes_planning_session(
         json={"message": "Plan my day: study 60 min"},
     )
     body = chat_response.json()
+    
+    preview_response = await async_client.post(
+        "/api/v1/today/preview",
+        headers=auth_headers,
+        json={"draft": body["draft"]}
+    )
+    preview_data = preview_response.json()
+    
     saved = await async_client.post(
         "/api/v1/today/save",
         headers=auth_headers,
         json={
             "session_id": body["session_id"],
-            "preview_token": body["preview"]["preview_token"],
+            "preview_token": preview_data["preview_token"],
             "draft": body["draft"],
         },
     )

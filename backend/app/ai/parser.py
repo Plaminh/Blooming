@@ -12,7 +12,7 @@ MINUTE = r"(?:p|m|phút|phut|mins?|minutes?)"
 HOUR_MINUTE_RE = re.compile(r"(?<!\w)(\d{1,2})\s*h\s*(\d{1,2})(?!\w)", re.IGNORECASE)
 HOUR_RE = re.compile(rf"(?<!\w)(\d+(?:[.,]\d+)?)\s*{HOUR}\b", re.IGNORECASE)
 MINUTE_RE = re.compile(rf"(?<!\w)(\d+)\s*{MINUTE}\b", re.IGNORECASE)
-TIME_RE = r"(?:[01]?\d|2[0-3])(?::[0-5]\d|h[0-5]?\d|h)?"
+TIME_RE = r"(?:2[0-3]|[01]?\d)(?::[0-5]\d|h[0-5]?\d|h)?"
 WINDOW_RE = re.compile(
     rf"(?:rảnh\s+)?(?:từ|tu|from)\s+({TIME_RE})\s+(?:đến|den|to|tới|toi)\s+({TIME_RE})",
     re.IGNORECASE,
@@ -27,6 +27,10 @@ HARD_SPLIT_RE = re.compile(
 PREFIX_RE = re.compile(
     r"^\s*(?:plan my day|schedule my day|today(?=\s*[:：])|lập lịch|lên kế hoạch|xếp lịch|sắp xếp lịch|plan|hãy|please)\s*[:：-]?\s*",
     re.IGNORECASE,
+)
+BUDGET_RE = re.compile(
+    r"\b(?:i only have|i have|tôi chỉ có|mình chỉ có|chỉ có)\s+(.+?)\s+(?:available|rảnh|để làm|today|hôm nay)\b", 
+    re.IGNORECASE
 )
 
 
@@ -49,6 +53,7 @@ class ParsedTask:
     priority: Literal["LOW", "MEDIUM", "HIGH"] = "MEDIUM"
     category: str | None = None
     fixed_start: str | None = None
+    fixed_end: str | None = None
     deadline: str | None = None
 
 
@@ -123,20 +128,30 @@ def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
         1 if re.search(r"\b(ngày mai|ngay mai|tomorrow)\b", text, re.IGNORECASE) else 0
     )
     text = re.sub(r"\b(ngày mai|ngay mai|tomorrow)\b", " ", text, flags=re.IGNORECASE)
-    windows: list[tuple[str, str]] = []
-    for match in reversed(list(WINDOW_RE.finditer(text))):
-        start, end = _clock(match.group(1)), _clock(match.group(2))
-        if start < end:
-            windows.insert(0, (start, end))
+    
+    assumptions = []
+    for match in reversed(list(BUDGET_RE.finditer(text))):
+        budget_dur, _ = _duration(match.group(1))
+        if budget_dur:
+            assumptions.append(f"Normalized budget: {budget_dur} minutes")
         text = text[: match.start()] + " " + text[match.end() :]
+        
+    windows: list[tuple[str, str]] = []
     tasks: list[ParsedTask] = []
     unresolved = []
-    assumptions = []
+    
     for raw in smart_split(text):
         segment = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", raw).strip(" .:-")
         segment = PREFIX_RE.sub("", segment)
         if not segment:
             continue
+            
+        interval_start, interval_end = None, None
+        window_match = WINDOW_RE.search(segment)
+        if window_match:
+            interval_start, interval_end = _clock(window_match.group(1)), _clock(window_match.group(2))
+            segment = segment[: window_match.start()] + " " + segment[window_match.end() :]
+            
         fixed = FIXED_RE.search(segment)
         fixed_start = _clock(fixed.group(1)) if fixed else None
         if fixed:
@@ -165,16 +180,29 @@ def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
             segment,
             flags=re.IGNORECASE,
         )
-        title = re.sub(r"\s+", " ", segment).strip(" .:-")
-        if len(title) < 2 or normalize(title) in {
-            "hom nay",
-            "today",
-            "toi",
-            "i",
-            "can",
-            "muon",
-        }:
+        title = re.sub(r"\s+", " ", segment).strip(" .:-,")
+        
+        is_avail = normalize(title) in {
+            "i am available", "im available", "my availability is", "toi ranh", "minh ranh", "available", "toi co the lam"
+        }
+        
+        if len(title) < 2 or normalize(title) in {"hom nay", "today", "toi", "i", "can", "muon"} or is_avail:
+            if interval_start and interval_end and interval_start < interval_end:
+                windows.append((interval_start, interval_end))
             continue
+            
+        fixed_end = None
+        if interval_start and interval_end:
+            fixed_start = interval_start
+            fixed_end = interval_end
+            if duration is None:
+                from datetime import datetime
+                t1 = datetime.strptime(interval_start, "%H:%M")
+                t2 = datetime.strptime(interval_end, "%H:%M")
+                duration = int((t2 - t1).total_seconds() / 60)
+                if duration <= 0:
+                    duration = None
+                    
         source: Literal["USER", "RULE"] = "USER" if duration is not None else "RULE"
         guessed = estimate(title) if duration is None else None
         category: str | None
@@ -197,10 +225,11 @@ def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
                 priority="LOW" if optional else "HIGH" if urgent else "MEDIUM",
                 category=category,
                 fixed_start=fixed_start,
+                fixed_end=fixed_end,
                 deadline=deadline_time,
             )
         )
-    confidence = 1.0 if tasks else 0.0
+    confidence = 1.0 if (tasks or windows or assumptions or offset > 0) else 0.0
     if re.search(
         r"\?|\b(giúp|giup|gợi ý|goi y|nên|nen|không biết|khong biet|suggest|maybe)\b",
         message,

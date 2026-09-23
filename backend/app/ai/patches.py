@@ -1,8 +1,9 @@
 """Pure, validated edits for uncommitted assistant drafts."""
 
 from copy import deepcopy
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.schemas.drafts import AvailabilityWindowDraft, RoadmapDraft, TaskDraft, TodayDraft
 from pydantic import BaseModel, Field, model_validator
@@ -25,6 +26,10 @@ class PatchOp(BaseModel):
     window_index: int | None = Field(default=None, ge=0)
     start: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     end: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    fixed_start: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    fixed_end: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    deadline: str | None = Field(default=None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    scheduling_type: Literal["FLEXIBLE", "FIXED"] | None = None
 
     @model_validator(mode="after")
     def validate_target(self) -> "PatchOp":
@@ -40,17 +45,10 @@ class PatchOp(BaseModel):
             raise ValueError("set_windows requires windows")
         if self.op == "set_plan_date" and self.plan_date is None:
             raise ValueError("set_plan_date requires plan_date")
-        if self.op == "update_task" and all(
-            value is None
-            for value in (
-                self.duration_min,
-                self.title,
-                self.importance,
-                self.priority,
-                self.category,
-                self.break_after_min,
-            )
-        ):
+        if self.op == "update_task" and not self.model_fields_set.intersection({
+            "duration_min", "title", "importance", "priority", "category", "break_after_min",
+            "fixed_start", "fixed_end", "deadline", "scheduling_type"
+        }):
             raise ValueError("update_task requires a changed field")
         if self.op == "update_window" and (
             self.window_index is None
@@ -78,6 +76,10 @@ def apply_patch(
     if not isinstance(draft, TodayDraft):
         raise ValueError("Roadmap patch operations are not supported")
     result = deepcopy(draft)
+    try:
+        draft_timezone = ZoneInfo(result.timezone)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError(f"Unknown draft timezone: {result.timezone}") from exc
     for op in ops:
         if op.op == "set_plan_date":
             if op.plan_date is None or op.plan_date < date.today():
@@ -138,19 +140,30 @@ def apply_patch(
             remainder.estimateSource = "USER"
             result.tasks.insert(result.tasks.index(task) + 1, remainder)
         else:
-            if op.duration_min is not None:
+            if "duration_min" in op.model_fields_set:
                 task.durationMin = op.duration_min
                 task.estimateSource = "USER"
-            if op.title is not None:
+            if "title" in op.model_fields_set and op.title is not None:
                 task.title = op.title.strip()
-            if op.importance is not None:
+            if "importance" in op.model_fields_set:
                 task.importance = op.importance
-            if op.priority is not None:
+            if "priority" in op.model_fields_set:
                 task.priority = op.priority
-            if op.category is not None:
+            if "category" in op.model_fields_set:
                 task.category = op.category
-            if op.break_after_min is not None:
+            if "break_after_min" in op.model_fields_set:
                 task.breakAfterMin = op.break_after_min
+            if "scheduling_type" in op.model_fields_set:
+                task.schedulingType = op.scheduling_type
+            
+            for attr, field in [("fixedStart", "fixed_start"), ("fixedEnd", "fixed_end"), ("deadline", "deadline")]:
+                if field in op.model_fields_set:
+                    val = getattr(op, field)
+                    if val is None:
+                        setattr(task, attr, None)
+                    else:
+                        parsed_time = datetime.strptime(val, "%H:%M").time()
+                        setattr(task, attr, datetime.combine(result.planDate, parsed_time, draft_timezone))
     validated = TodayDraft.model_validate(result.model_dump())
     from app.ai.validators import check_today
     issues = check_today(validated)

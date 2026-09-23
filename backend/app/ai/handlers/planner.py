@@ -106,40 +106,20 @@ async def _preview(plan: ParsedPlan, ctx: ChatContext, lang: str, *, tier: str,
     draft, assumptions = assemble_today(plan, ctx)
     if check_today(draft):
         question = "Please clarify the tasks or available time before I schedule them."
-        return ChatResponse(reply=reply or question, question=question, intent="PLAN_DAY", tier=tier, degraded=degraded)
-    try:
-        preview = await today_service.preview_today_draft(ctx.db, ctx.user_id, TodayPreviewRequest(draft=draft))
-    except HTTPException as error:
-        if error.status_code != 422:
-            raise
-        question = "Some fixed tasks overlap. Which time would you like to change?"
-        return ChatResponse(reply=reply or question, question=question, intent="PLAN_DAY", tier=tier, degraded=degraded)
-    if preview.reality_check == "OVERLOADED":
-        coach = f"There isn't enough time for {len(preview.unscheduled_tasks)} tasks. Review the unscheduled work before saving."
-    elif preview.reality_check == "TIGHT":
-        coach = "The schedule is tight. Would you like to keep it or trim it?"
-    else:
-        coach = "The schedule has some breathing room. Review it before saving."
-    if lang == "vi" and reply is None:
-        coach = (
-            f"Không đủ thời gian cho {len(preview.unscheduled_tasks)} việc. Hãy xem các việc chưa xếp được trước khi lưu."
-            if preview.reality_check == "OVERLOADED" else
-            "Lịch hơi sát; hãy xem lại trước khi lưu."
-            if preview.reality_check == "TIGHT" else
-            "Mình đã tạo bản nháp. Hãy xem lịch thực tế trước khi lưu."
+        return ChatResponse(
+            reply=reply or question, question=question, intent="PLAN_DAY", tier=tier, degraded=degraded,
+            draft=draft, assumptions=assumptions
         )
-    suggestions = [QuickReply(label="Save plan", action="SAVE_TODAY")]
-    if preview.reality_check == "OVERLOADED":
-        optional = next((task for task in draft.tasks if task.importance == "OPTIONAL"), None)
-        if optional:
-            suggestions.insert(0, QuickReply(
-                label="Drop an optional task",
-                patch=[PatchOp(op="remove_task", task_id=optional.id)],
-            ))
+    # Do not automatically preview. Let the frontend click "Generate Timeline".
     return ChatResponse(
-        reply=reply or coach, intent="PLAN_DAY", tier=tier, degraded=degraded,
-        draft=draft, preview=preview.model_dump(mode="json"), assumptions=assumptions,
-        suggestions=suggestions,
+        reply=reply or "I've created a draft. Please review your tasks and constraints, then generate the timeline.",
+        intent="PLAN_DAY",
+        tier=tier,
+        degraded=degraded,
+        draft=draft,
+        preview=None,
+        assumptions=assumptions,
+        suggestions=[],
     )
 
 
@@ -152,7 +132,7 @@ async def plan_day(message: str, ctx: ChatContext, lang: str, *,
         parsed = replace(parsed, tasks=tuple(replace(task, importance="OPTIONAL",
             duration_min=min(task.duration_min or 25, 25) if task.source != "USER" else task.duration_min)
             for task in parsed.tasks))
-    if parsed.tasks and parsed.confidence >= 0.8 and not parsed.unresolved:
+    if (parsed.tasks or parsed.windows or parsed.assumptions or parsed.plan_date_offset > 0) and parsed.confidence >= 0.8 and not parsed.unresolved:
         return await _preview(parsed, ctx, lang, tier="PARSER")
     mode = await get_budget_mode(ctx.db, ctx.user_id, "PLANNER", now=ctx.now)
     configured_routes = settings.AI_ROUTE_PLANNER_LITE
@@ -172,7 +152,7 @@ async def plan_day(message: str, ctx: ChatContext, lang: str, *,
                 for task in llm_plan.tasks))
         return await _preview(llm_plan, ctx, lang, tier="LLM", reply=llm_result[1],
                               degraded=mode.value if mode != BudgetMode.NORMAL else None)
-    if parsed.tasks:
+    if parsed.tasks or parsed.windows or parsed.assumptions or parsed.plan_date_offset > 0:
         return await _preview(parse(message, lenient=True), ctx, lang, tier="PARSER", degraded="RULES_ONLY")
     reply = llm_result[1] if llm_result else None
     question = "Bạn muốn làm những việc gì hôm nay?" if lang == "vi" else "Which tasks would you like to plan today?"

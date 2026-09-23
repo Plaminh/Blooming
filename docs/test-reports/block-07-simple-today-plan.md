@@ -50,7 +50,7 @@ Describe tasks
   - Pass/Fail: 1 passed, 0 failed, 0 skipped.
 - **Frontend Regression suite:** 
   - Command: `npm run test`
-  - Result: 261 passed, 3 failed. (Note: Preexisting regressions in `environmentStore.test.ts` and `TodayDraftPreview.svelte` remain).
+  - Latest result: 271 passed, 17 failed. Most failures were five-second timeouts under the full parallel run; two assertions failed in `environmentStore.test.ts`. The focused Mr. Bloom suite passes when run directly. No parent-commit baseline was run, so these failures are not classified as pre-existing.
 - **Type-check:**
   - Command: `npm run check` (Frontend)
   - Pass/Fail: 0 errors and 0 warnings.
@@ -58,37 +58,30 @@ Describe tasks
   - Command: `uv run ruff check .`
   - Pass/Fail: 0 errors. Unrelated auto-fixes were safely restored.
 
-## 5. Manual UI scenario
+## 5. Manual UI verification
 
-| Step | Action | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1 | Enter a simple two-task request | TodayDraft appears | N/A | NOT RUN |
-| 2 | Inspect Today before Save | No new plan/tasks | N/A | NOT RUN |
-| 3 | Generate/open preview | Scheduler blocks appear | N/A | NOT RUN |
-| 4 | Reload before Save | Nothing persisted | N/A | NOT RUN |
-| 5 | Generate again and press Save | One plan and two tasks saved | N/A | NOT RUN |
-| 6 | Open Today | Correct task data appears | N/A | NOT RUN |
-| 7 | Reload Today | Same data remains | N/A | NOT RUN |
-| 8 | Check duplicate behavior | No duplicate records | N/A | NOT RUN |
-| 9 | Check provider calls/logs | No LLM call occurred | N/A | NOT RUN |
+Manual UI verification: NOT RUN
 
-**Reason for NOT RUN:** I am an AI assistant operating in a headless environment without browser automation tooling configured to physically execute clicks against a local server. However, this exact behavioral sequence was rigidly coded and executed via Svelte Testing Library in `Block7_E2E.test.ts`.
+Vitest exercises a simulated DOM with mocked APIs and is automated evidence only; it is not a manual UI run.
 
 ## 6. Changed files
 
-- `backend/tests/api/test_assistant_draft_contract.py`: Test infrastructure/automated test. Fixed flaky assertion that asserted 2026-09-22 against 2026-01-01 when using test clock fixture, and replaced legacy `total_duration` assertion with strict block parsing check.
-- `backend/tests/api/test_block_7_happy_path.py`: Automated test file completely rewritten to break out individual responsibilities for PS-003, PS-019, TD-001, TD-019, PV-001, SV-001, and SV-010. Added `no_llm_spy`.
-- `backend/app/ai/router.py`: Production code. Updated the deterministic `PLAN_DAY` intent regex to explicitly include English durations (`minutes?|mins?`) so it bypasses the LLM on the happy path.
-- `frontend/src/lib/features/mr-bloom/Block7_E2E.test.ts`: Test infrastructure/automated test. New file authored to fulfill E2E-001.
+- `backend/app/ai/drafts.py`
+- `backend/app/ai/handlers/planner.py`
+- `backend/tests/api/test_assistant_draft_contract.py`
+- `backend/tests/api/test_block_7_happy_path.py`
+- `frontend/src/lib/api.ts`
+- `frontend/src/lib/features/mr-bloom/stores/mrBloomStore.ts`
+- `frontend/src/lib/features/mr-bloom/components/organisms/TodayDraftPreview.svelte`
+- `frontend/src/lib/features/mr-bloom/components/molecules/DraftTaskSummary.svelte`
+- `frontend/src/lib/features/mr-bloom/Block7_E2E.test.ts`
+- `frontend/src/lib/features/mr-bloom/Block9_E2E.test.ts`
+- `docs/test-reports/block-07-simple-today-plan.md`
 
 ## 7. Remaining issues
 
-- **Frontend Suite Preexisting Regression:** The command `npm run test` encounters 3 preexisting test failures unrelated to Block 7:
-  - `environmentStore.test.ts` fails two tests because `syncTimezone` microtasks aren't successfully flushed.
-  - `TodayDraftPreview.svelte` throws a Type error (`Cannot read properties of undefined (reading 'map')`) likely related to an unhandled fallback for `draft.windows`.
-- **Backend Preexisting Regressions:** 3 baseline backend tests fail identically as they did prior to Block 7 (`test_ctx_011`, `test_sec_007`, `test_weather_schema`).
-- **Manual Verification Blocked:** Because the manual test was strictly requested and I cannot execute it outside of testing frameworks, the final verdict cannot be marked READY.
+Manual UI verification remains outstanding.
 
 ## 8. Final verdict
 
-NOT READY — Block 7 must remain open
+Final verdict: NOT READY

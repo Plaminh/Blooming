@@ -36,9 +36,29 @@ The test uses an autospecced real `AsyncSession` contract. It does not use the `
 
 No failure is characterized as pre-existing because no parent-commit baseline was run.
 
-## Manual verification
+## Automated frontend verification
 
-NOT RUN.
+| Case | Scenario | Automated Vitest coverage | Result |
+|---|---|---|---|
+| Comma | `Read for 30 min, write notes for 45 min` | Verified via `Block8_E2E.test.ts` | PASS |
+| Semicolon | `Read for 30 min; write notes for 45 min` | Verified via `Block8_E2E.test.ts` | PASS |
+| Newline | `Read for 30 min\nWrite notes for 45 min` | Verified via `Block8_E2E.test.ts` | PASS |
+| Numbered list | `1. Read for 30 min...` | Verified via `Block8_E2E.test.ts` | PASS |
+| Bulleted list | `- Read for 30 min...` | Verified via `Block8_E2E.test.ts` | PASS |
+| Duration formats | `1h`, `90p`, `45 min`, `1h30`, `1.5h` | Verified via `Block8_E2E.test.ts` | PASS |
+
+- **Command:** `npx vitest run src/lib/features/mr-bloom/Block8_E2E.test.ts`
+  - Passed: 12
+  - Failed: 0
+  - Skipped/xfailed: 0
+
+The twelfth case drives a two-task draft through explicit preview and save and asserts that both tasks are present in the preview/save payloads.
+
+## Manual UI verification
+
+Manual UI verification: NOT RUN
+
+The Vitest results above must not be treated as a manual browser/desktop verification.
 
 ## Changed Files
 
@@ -47,8 +67,9 @@ NOT RUN.
 - `backend/tests/api/test_block_7_happy_path.py`
 - `backend/tests/api/test_block_8_daily_plan.py`
 - `backend/tests/unit/test_daily_plan_parser.py`
+- `frontend/src/lib/features/mr-bloom/Block8_E2E.test.ts` (New)
 - `docs/test-reports/block-08-daily-plan-parser.md`
 
 ## Final verdict
 
-NOT READY — Block 8 must remain open
+Final verdict: NOT READY

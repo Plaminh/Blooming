@@ -1,6 +1,6 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { api, type TodayDraft } from '$lib/api';
+import { api, saveTodayPlan, type TodayDraft } from '$lib/api';
 import { mrBloomStore } from './mrBloomStore';
 
 vi.mock('$lib/api', () => ({
@@ -213,4 +213,47 @@ test('MD-008: safely ignores unsupported actions', async () => {
   expect(stateAfter.activeDraft).toBe(initialState.activeDraft);
   expect(stateAfter.sessionId).toBe(initialState.sessionId);
   expect(stateAfter.error).toBeNull();
+});
+
+test('editing a previewed draft immediately invalidates its token and hides Save state', async () => {
+  const draft: TodayDraft = { type: 'today', planDate: '2026-09-20', timezone: 'UTC', windows: [], tasks: [] };
+  mrBloomStore.update(state => ({ ...state, activeDraft: draft, preview: { preview_token: 'stale' } as any, previewMode: 'timeline' }));
+  let resolvePatch!: (value: unknown) => void;
+  vi.mocked(api.post).mockReturnValueOnce(new Promise(resolve => { resolvePatch = resolve; }));
+
+  const pending = mrBloomStore.applyPatch([{ op: 'set_windows', windows: [{ start: '10:00', end: '12:00' }] }]);
+  expect(get(mrBloomStore).preview).toBeNull();
+  expect(get(mrBloomStore).previewMode).toBe('today');
+  expect(get(mrBloomStore).isDraftMutationPending).toBe(true);
+
+  resolvePatch({ draft: { ...draft, windows: [{ start: '10:00', end: '12:00' }] }, preview: { preview_token: 'must-not-be-used' } });
+  await pending;
+  expect(get(mrBloomStore).preview).toBeNull();
+  expect(get(mrBloomStore).previewMode).toBe('today');
+});
+
+test('a new draft clears a stale preview token', async () => {
+  mrBloomStore.update(state => ({ ...state, preview: { preview_token: 'old' } as any, previewMode: 'timeline', sessionId: 'old-session' }));
+  vi.mocked(api.post).mockResolvedValueOnce({
+    reply: 'New draft', session_id: 'new-session',
+    draft: { type: 'today', planDate: '2026-09-21', timezone: 'UTC', windows: [], tasks: [] },
+    preview: { preview_token: 'server-preview-that-still-needs-review' }
+  });
+  await mrBloomStore.submitMessage('Make another plan');
+  expect(get(mrBloomStore).preview).toBeNull();
+  expect(get(mrBloomStore).previewMode).toBe('today');
+});
+
+test('successful save closes the local session and the next planning request starts a new one', async () => {
+  const draft: TodayDraft = { type: 'today', planDate: '2026-09-20', timezone: 'UTC', windows: [], tasks: [] };
+  mrBloomStore.update(state => ({ ...state, activeDraft: draft, preview: { preview_token: 'fresh' } as any, previewMode: 'timeline', sessionId: 'closed-session' }));
+  vi.mocked(saveTodayPlan).mockResolvedValueOnce({} as any);
+  await mrBloomStore.saveToday();
+  expect(get(mrBloomStore).sessionId).toBeNull();
+  expect(get(mrBloomStore).activeDraft).toBeNull();
+
+  vi.mocked(api.post).mockResolvedValueOnce({ reply: 'Started', session_id: 'new-session', draft: null });
+  await mrBloomStore.submitMessage('Plan tomorrow');
+  expect(api.post).toHaveBeenLastCalledWith('/assistant/chat', expect.objectContaining({ session_id: null }));
+  expect(get(mrBloomStore).sessionId).toBe('new-session');
 });

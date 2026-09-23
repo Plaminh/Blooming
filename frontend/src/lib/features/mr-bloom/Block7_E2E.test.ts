@@ -80,7 +80,7 @@ describe('Block 7 E2E-001: Simple Today Plan Happy Path', () => {
     (api.post as any).mockImplementation(async (url: string, payload: any) => {
       if (url === '/assistant/chat') {
         return {
-          reply: 'The schedule has some breathing room. Review it before saving.',
+          reply: 'I have created a draft. Please review.',
           session_id: 's1',
           intent: 'PLAN_DAY',
           tier: 'PARSER',
@@ -94,15 +94,18 @@ describe('Block 7 E2E-001: Simple Today Plan Happy Path', () => {
               { id: 'd2', title: 'review flashcards for', durationMin: 30 }
             ]
           },
-          preview: {
-            preview_token: 'pt1',
-            blocks: [
-              { id: 'b1', title: 'Today I need to read chapter 3 for', block_type: 'TASK', estimated_duration_minutes: 45 },
-              { id: 'b2', title: 'Break', block_type: 'BREAK' },
-              { id: 'b3', title: 'review flashcards for', block_type: 'TASK', estimated_duration_minutes: 30 }
-            ]
-          },
-          suggestions: [{ label: 'Save plan', action: 'SAVE_TODAY' }]
+          preview: null,
+          suggestions: []
+        };
+      }
+      if (url === '/today/preview') {
+        return {
+          preview_token: 'pt1',
+          blocks: [
+            { id: 'b1', draft_task_id: 'd1', title: 'Today I need to read chapter 3 for', block_type: 'TASK', estimated_duration_minutes: 45, planned_start_at: '2026-09-22T06:00:00Z', planned_end_at: '2026-09-22T06:45:00Z' },
+            { id: 'b2', title: 'Break', block_type: 'BREAK', planned_start_at: '2026-09-22T06:45:00Z', planned_end_at: '2026-09-22T06:50:00Z' },
+            { id: 'b3', draft_task_id: 'd2', title: 'review flashcards for', block_type: 'TASK', estimated_duration_minutes: 30, planned_start_at: '2026-09-22T06:50:00Z', planned_end_at: '2026-09-22T07:20:00Z' }
+          ]
         };
       }
       if (url === '/today/save') {
@@ -117,7 +120,7 @@ describe('Block 7 E2E-001: Simple Today Plan Happy Path', () => {
     vi.useRealTimers();
   });
 
-  it('E2E-001: Enter message -> draft/preview -> verify Today empty -> Save -> verify Today tasks', async () => {
+  it('E2E-001: Enter message -> draft -> preview -> Save -> verify Today tasks', async () => {
     // 1. Mount MrBloom Planning Workspace
     const bloom = render(PlanningWorkspace);
     
@@ -129,12 +132,11 @@ describe('Block 7 E2E-001: Simple Today Plan Happy Path', () => {
     await waitFor(() => expect(sendButton).not.toBeDisabled());
     await fireEvent.click(sendButton);
 
-    // See draft/preview
+    // See draft
     await waitFor(() => {
       expect(screen.getByText('Today I need to read chapter 3 for')).toBeInTheDocument();
       expect(screen.getByText('review flashcards for')).toBeInTheDocument();
-      // Should show Save Plan suggestion
-      expect(screen.getByText('Save plan')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /GENERATE TIMELINE/i })).toBeInTheDocument();
     });
 
     // Verify Today is unchanged before Save
@@ -145,8 +147,18 @@ describe('Block 7 E2E-001: Simple Today Plan Happy Path', () => {
     });
     todayBefore.unmount();
 
-    // Click Save inside MrBloom conversation
-    const saveButton = screen.getByText('Save plan');
+    // Click Generate Timeline
+    const generateBtn = screen.getByRole('button', { name: /GENERATE TIMELINE/i });
+    await fireEvent.click(generateBtn);
+
+    // Wait for preview response and SAVE button
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/today/preview', expect.any(Object));
+      expect(screen.getByRole('button', { name: /SAVE TO TODAY/i })).toBeInTheDocument();
+    });
+
+    // Click Save inside MrBloom right panel
+    const saveButton = screen.getByRole('button', { name: /SAVE TO TODAY/i });
     await fireEvent.click(saveButton);
 
     // Wait for the save post request to complete
