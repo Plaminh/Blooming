@@ -21,11 +21,11 @@ FIXED_RE = re.compile(rf"(?:lúc|luc|vào|vao|at)\s+({TIME_RE})", re.IGNORECASE)
 DEADLINE_RE = re.compile(
     rf"(?:trước|truoc|before|deadline)\s+({TIME_RE})", re.IGNORECASE
 )
-SPLIT_RE = re.compile(
-    r"\s*(?:,(?!\d)|;|\n|\s+và\s+|\s+and\s+|\s+rồi\s+|\s+then\s+)\s*", re.IGNORECASE
+HARD_SPLIT_RE = re.compile(
+    r"\s*(?:;|\n|\s+và\s+|\s+and\s+|\s+rồi\s+|\s+then\s+)\s*", re.IGNORECASE
 )
 PREFIX_RE = re.compile(
-    r"^\s*(?:plan my day|schedule my day|lập lịch|lên kế hoạch|xếp lịch|sắp xếp lịch|plan|hãy|please)\s*[:：-]?\s*",
+    r"^\s*(?:plan my day|schedule my day|today(?=\s*[:：])|lập lịch|lên kế hoạch|xếp lịch|sắp xếp lịch|plan|hãy|please)\s*[:：-]?\s*",
     re.IGNORECASE,
 )
 
@@ -66,6 +66,15 @@ def _duration(segment: str) -> tuple[int | None, str]:
     text = segment
     total = 0
     found = False
+    word_duration = re.search(
+        r"\b(?:one-and-a-half hours?|an hour and a half|một tiếng rưỡi|mot tieng ruoi)\b",
+        text,
+        re.IGNORECASE,
+    )
+    if word_duration:
+        total = 90
+        text = text[: word_duration.start()] + " " + text[word_duration.end() :]
+        found = True
     for match in reversed(list(HOUR_MINUTE_RE.finditer(text))):
         total += int(match.group(1)) * 60 + int(match.group(2))
         text = text[: match.start()] + " " + text[match.end() :]
@@ -86,18 +95,26 @@ def _duration(segment: str) -> tuple[int | None, str]:
             r"\b(nửa tiếng|nua tieng|half an hour)\b", " ", text, flags=re.IGNORECASE
         )
         found = True
-    if not found and re.search(
-        r"\b(một tiếng rưỡi|mot tieng ruoi|an hour and a half)\b", text, re.IGNORECASE
-    ):
-        total = 90
-        text = re.sub(
-            r"\b(một tiếng rưỡi|mot tieng ruoi|an hour and a half)\b",
-            " ",
-            text,
-            flags=re.IGNORECASE,
-        )
-        found = True
+    if found:
+        text = re.sub(r"\s+\b(?:for|trong)\b\s*$", "", text, flags=re.IGNORECASE)
     return (total if found else None), text
+
+
+def smart_split(text: str) -> list[str]:
+    """Split task separators without treating descriptive commas as boundaries."""
+    parts: list[str] = []
+    for chunk in HARD_SPLIT_RE.split(text):
+        start = 0
+        for match in re.finditer(r",", chunk):
+            remainder = chunk[match.end() :]
+            if (
+                _duration(chunk[start : match.start()])[0] is not None
+                and _duration(remainder)[0] is not None
+            ):
+                parts.append(chunk[start : match.start()])
+                start = match.end()
+        parts.append(chunk[start:])
+    return parts
 
 
 def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
@@ -115,7 +132,7 @@ def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
     tasks: list[ParsedTask] = []
     unresolved = []
     assumptions = []
-    for raw in SPLIT_RE.split(text):
+    for raw in smart_split(text):
         segment = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", raw).strip(" .:-")
         segment = PREFIX_RE.sub("", segment)
         if not segment:

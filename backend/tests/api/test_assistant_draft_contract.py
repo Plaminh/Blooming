@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock
 from datetime import datetime, timezone
 from app.db.models.users import User, UserSettings
 from app.ai.providers import llm_provider
+from app.ai.parser import ParsedPlan
 
 @pytest.mark.asyncio
 async def test_ct_003_canonical_today_draft(async_client: AsyncClient, test_user: User, auth_headers: dict[str, str], db_session, monkeypatch, clock):
@@ -19,6 +20,8 @@ async def test_ct_003_canonical_today_draft(async_client: AsyncClient, test_user
     }
     provider_call.return_value = raw_output
     monkeypatch.setattr(llm_provider, "call", provider_call)
+    monkeypatch.setattr("app.ai.handlers.planner.parse", lambda _message: ParsedPlan())
+    monkeypatch.setattr("app.services.assistant_service.datetime", clock)
     
     settings = await db_session.scalar(
         __import__("sqlalchemy").select(UserSettings).where(UserSettings.user_id == test_user.id)
@@ -62,8 +65,8 @@ async def test_ct_003_canonical_today_draft(async_client: AsyncClient, test_user
     task_blocks = [b for b in preview["blocks"] if b["block_type"] == "TASK"]
     assert len(task_blocks) > 0
     assert task_blocks[0]["estimated_duration_minutes"] == 30
-    start = datetime.fromisoformat(task_blocks[0]["planned_start_at"])
-    end = datetime.fromisoformat(task_blocks[0]["planned_end_at"])
+    start = datetime.fromisoformat(task_blocks[0]["planned_start_at"].replace("Z", "+00:00"))
+    end = datetime.fromisoformat(task_blocks[0]["planned_end_at"].replace("Z", "+00:00"))
     assert start < end
 
 @pytest.mark.asyncio
@@ -105,6 +108,7 @@ async def test_ctx_011_preserve_reply_when_draft_invalid(async_client: AsyncClie
     }
     provider_call.return_value = raw_output
     monkeypatch.setattr(llm_provider, "call", provider_call)
+    monkeypatch.setattr("app.ai.handlers.planner.parse", lambda _message: ParsedPlan())
     
     response = await async_client.post(
         "/api/v1/assistant/chat",

@@ -97,8 +97,8 @@ async def test_pv_001_preview_returns_scheduler_blocks_no_persistence(async_clie
     assert blocks[0]["estimated_duration_minutes"] == 45
     assert blocks[1]["block_type"] == "BREAK"
     
-    start = datetime.fromisoformat(blocks[0]["planned_start_at"])
-    end = datetime.fromisoformat(blocks[0]["planned_end_at"])
+    start = datetime.fromisoformat(blocks[0]["planned_start_at"].replace("Z", "+00:00"))
+    end = datetime.fromisoformat(blocks[0]["planned_end_at"].replace("Z", "+00:00"))
     diff_minutes = (end - start).total_seconds() / 60
     assert diff_minutes == 45
     
@@ -134,9 +134,9 @@ async def test_sv_001_save_creates_real_plan_and_tasks(async_client: AsyncClient
     assert len(tasks) == 2
     
     assert plans[0].user_id == user_id
-    assert tasks[0].title == "Today I need to read chapter 3 for"
+    assert tasks[0].title == "Today I need to read chapter 3"
     assert tasks[0].estimated_duration_minutes == 45
-    assert tasks[1].title == "review flashcards for"
+    assert tasks[1].title == "review flashcards"
     assert tasks[1].estimated_duration_minutes == 30
 
 
@@ -188,9 +188,9 @@ async def test_reload_verification(async_client: AsyncClient, auth_headers: dict
     blocks = today_data["blocks"]
     task_blocks = [b for b in blocks if b["block_type"] == "TASK"]
     assert len(task_blocks) == 2
-    assert task_blocks[0]["title"] == "Today I need to read chapter 3 for"
+    assert task_blocks[0]["title"] == "Today I need to read chapter 3"
     assert task_blocks[0]["estimated_duration_minutes"] == 45
-    assert task_blocks[1]["title"] == "review flashcards for"
+    assert task_blocks[1]["title"] == "review flashcards"
     assert task_blocks[1]["estimated_duration_minutes"] == 30
     
     assert today_data["plan_date"] == data["draft"]["planDate"]
