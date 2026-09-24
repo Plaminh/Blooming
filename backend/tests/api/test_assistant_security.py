@@ -41,6 +41,8 @@ async def test_sec_007_cross_user_session_isolation(
     session_a = PlanningSession(user_id=test_user.id, session_type="DAILY_PLAN", status="OPEN")
     db_session.add(session_a)
     await db_session.commit()
+    session_a_id = session_a.id
+    user_a_id = test_user.id
     
     # State before
     before_sessions = await db_session.scalar(select(func.count(PlanningSession.id)))
@@ -51,11 +53,11 @@ async def test_sec_007_cross_user_session_isolation(
     headers = auth_headers_two
     
     # 1. POST /chat with session_a id
-    response1 = await async_client.post("/api/v1/assistant/chat", json={"message": "hello", "session_id": str(session_a.id)}, headers=headers)
+    response1 = await async_client.post("/api/v1/assistant/chat", json={"message": "hello", "session_id": str(session_a_id)}, headers=headers)
     assert response1.status_code == 404
     
     # 2. GET /sessions/{session_id}
-    response2 = await async_client.get(f"/api/v1/assistant/sessions/{session_a.id}", headers=headers)
+    response2 = await async_client.get(f"/api/v1/assistant/sessions/{session_a_id}", headers=headers)
     assert response2.status_code == 404
     
     # State after
@@ -72,9 +74,9 @@ async def test_sec_007_cross_user_session_isolation(
     provider_call.assert_not_awaited()
 
     # Assert Session A still belongs to User A
-    final_session = await db_session.scalar(select(PlanningSession).where(PlanningSession.id == session_a.id))
+    final_session = await db_session.scalar(select(PlanningSession).where(PlanningSession.id == session_a_id))
     assert final_session is not None
-    assert final_session.user_id == test_user.id
+    assert final_session.user_id == user_a_id
 
 @pytest.mark.asyncio
 async def test_ss_003_unauthorized_request_creates_no_side_effects(

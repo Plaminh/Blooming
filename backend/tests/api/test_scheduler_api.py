@@ -19,7 +19,8 @@ def test_scheduler_pure_logic():
         created_at=datetime.now(timezone.utc)
     )
     result = scheduler.schedule([task1], windows)
-    assert len(result.blocks) == 1
-    assert result.blocks[0].title == "Test Task"
-    assert result.blocks[0].block_type == "TASK"
+    task_blocks = [block for block in result.blocks if block.block_type == "TASK"]
+    assert len(task_blocks) == 1
+    assert task_blocks[0].title == "Test Task"
+    assert any(block.block_type == "BUFFER" for block in result.blocks)
     assert not result.unscheduled_tasks

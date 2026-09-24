@@ -1,5 +1,7 @@
 from datetime import datetime, time, timezone
+import hashlib
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +27,42 @@ class GoalsService:
     ) -> Goal:
         """Create the full hierarchy in the caller's single transaction."""
         draft = obj_in.draft
+        settings_row = await db.scalar(
+            select(UserSettings).where(UserSettings.user_id == user_id)
+        )
+        try:
+            user_timezone = ZoneInfo(settings_row.timezone if settings_row else "UTC")
+        except ZoneInfoNotFoundError:
+            user_timezone = ZoneInfo("UTC")
+        if draft.targetDate < datetime.now(user_timezone).date():
+            raise ValueError("Roadmap target date cannot be in the past")
+        await db.execute(select(User.id).where(User.id == user_id).with_for_update())
+        key = obj_in.idempotency_key or (
+            str(obj_in.session_id)
+            if obj_in.session_id
+            else hashlib.sha256(draft.model_dump_json().encode()).hexdigest()
+        )
+        existing = await db.scalar(
+            select(Goal).where(
+                Goal.user_id == user_id,
+                Goal.source_idempotency_key == key,
+            )
+        )
+        if existing is not None:
+            return await self.get_goal(db, existing.id, user_id)
+
+        session: PlanningSession | None = None
+        if obj_in.session_id:
+            session = await db.scalar(
+                select(PlanningSession).where(
+                    PlanningSession.id == obj_in.session_id,
+                    PlanningSession.user_id == user_id,
+                )
+            )
+            if session is None:
+                raise ResourceNotFoundError("Planning session not found")
+            if session.status not in {"OPEN", "AWAITING_CLARIFICATION"}:
+                raise ValueError("Planning session is not open for saving")
         goal = Goal(
             user_id=user_id,
             title=draft.goalTitle,
@@ -32,6 +70,7 @@ class GoalsService:
             roadmap_summary=draft.goalDescription or None,
             target_date=draft.targetDate,
             status="ACTIVE",
+            source_idempotency_key=key,
         )
         db.add(goal)
         await db.flush()
@@ -40,7 +79,9 @@ class GoalsService:
         user_settings = await db.scalar(
             select(UserSettings).where(UserSettings.user_id == user_id)
         )
-        user_timezone = safe_timezone(user_settings.timezone if user_settings else "UTC")
+        user_timezone = safe_timezone(
+            user_settings.timezone if user_settings else "UTC"
+        )
 
         for position, item in enumerate(draft.milestones):
             due_at = datetime.combine(item.targetDate, time.max, tzinfo=user_timezone)
@@ -63,15 +104,7 @@ class GoalsService:
                 milestone.due_at,
                 milestone.status,
             )
-        if obj_in.session_id:
-            session = await db.scalar(
-                select(PlanningSession).where(
-                    PlanningSession.id == obj_in.session_id,
-                    PlanningSession.user_id == user_id,
-                )
-            )
-            if session is None:
-                raise ResourceNotFoundError("Planning session not found")
+        if session is not None:
             session.status = "COMPLETED"
             session.closed_at = datetime.now(timezone.utc)
         await db.flush()

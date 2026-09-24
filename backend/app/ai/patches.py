@@ -1,14 +1,11 @@
-import logging
-from datetime import date
-from typing import Literal
-from uuid import UUID
+from copy import deepcopy
+from datetime import date, datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, Field
+from app.schemas.drafts import RoadmapDraft, TodayDraft
+from app.schemas.patches import PatchOp
 
-from app.schemas.drafts import AvailabilityWindowDraft, RoadmapDraft, TaskDraft, TodayDraft
-from app.schemas.patches import *
 
-from app.schemas.patches import *
 def apply_patch(
     draft: TodayDraft | RoadmapDraft, ops: list[PatchOp]
 ) -> TodayDraft | RoadmapDraft:
@@ -27,8 +24,15 @@ def apply_patch(
                 for field_name in ("deadline", "fixedStart", "fixedEnd"):
                     old_value = getattr(item, field_name)
                     if old_value is not None:
-                        setattr(item, field_name, old_value.replace(year=op.plan_date.year,
-                            month=op.plan_date.month, day=op.plan_date.day))
+                        setattr(
+                            item,
+                            field_name,
+                            old_value.replace(
+                                year=op.plan_date.year,
+                                month=op.plan_date.month,
+                                day=op.plan_date.day,
+                            ),
+                        )
             result.planDate = op.plan_date
             continue
         if op.op == "set_windows":
@@ -40,11 +44,15 @@ def apply_patch(
             result.tasks.append(deepcopy(op.task))
             continue
         if op.op == "scale_durations":
-            if op.task_id is not None and not any(item.id == op.task_id for item in result.tasks):
+            if op.task_id is not None and not any(
+                item.id == op.task_id for item in result.tasks
+            ):
                 raise ValueError("Task not found")
             for item in result.tasks:
                 if op.task_id is None or item.id == op.task_id:
-                    item.durationMin = min(480, max(5, round(item.durationMin * (op.factor or 1) / 5) * 5))
+                    item.durationMin = min(
+                        480, max(5, round(item.durationMin * (op.factor or 1) / 5) * 5)
+                    )
                     item.estimateSource = "USER"
             continue
         if op.op == "update_window":
@@ -63,13 +71,20 @@ def apply_patch(
         if task is None:
             raise ValueError("Task not found")
         if op.op == "remove_task" or op.op == "move_task_to_date":
-            if any(task.id in item.dependencies for item in result.tasks if item.id != task.id):
+            if any(
+                task.id in item.dependencies
+                for item in result.tasks
+                if item.id != task.id
+            ):
                 raise ValueError("Cannot remove a task required by another task")
             result.tasks = [item for item in result.tasks if item.id != task.id]
             if op.op == "move_task_to_date":
                 target_date = datetime.strptime(op.target_date, "%Y-%m-%d").date()
                 from app.schemas.drafts import DeferredTaskDraft
-                result.deferred_tasks.append(DeferredTaskDraft(task=task, targetDate=target_date))
+
+                result.deferred_tasks.append(
+                    DeferredTaskDraft(task=task, targetDate=target_date)
+                )
         elif op.op == "split_task":
             first = op.split_minutes or 0
             if not 5 <= first <= task.durationMin - 5:
@@ -106,17 +121,28 @@ def apply_patch(
                 task.schedulingType = op.scheduling_type
             if "splittable" in op.model_dump(exclude_unset=True):
                 task.splittable = bool(op.splittable)
-            
-            for attr, field in [("fixedStart", "fixed_start"), ("fixedEnd", "fixed_end"), ("deadline", "deadline")]:
+
+            for attr, field in [
+                ("fixedStart", "fixed_start"),
+                ("fixedEnd", "fixed_end"),
+                ("deadline", "deadline"),
+            ]:
                 if field in op.model_dump(exclude_unset=True):
                     val = getattr(op, field)
                     if val is None:
                         setattr(task, attr, None)
                     else:
                         parsed_time = datetime.strptime(val, "%H:%M").time()
-                        setattr(task, attr, datetime.combine(result.planDate, parsed_time, draft_timezone))
+                        setattr(
+                            task,
+                            attr,
+                            datetime.combine(
+                                result.planDate, parsed_time, draft_timezone
+                            ),
+                        )
     validated = TodayDraft.model_validate(result.model_dump())
     from app.ai.validators import check_today
+
     issues = check_today(validated)
     if issues:
         raise ValueError(", ".join(issues))

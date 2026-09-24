@@ -61,6 +61,7 @@ class Goal(Base):
     description: Mapped[str | None] = mapped_column(Text)
     roadmap_summary: Mapped[str | None] = mapped_column(Text)
     target_date: Mapped[date | None] = mapped_column(Date)
+    source_idempotency_key: Mapped[str | None] = mapped_column(String(200))
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default=text("'DRAFT'")
     )

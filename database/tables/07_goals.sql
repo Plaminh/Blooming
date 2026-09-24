@@ -6,6 +6,7 @@ CREATE TABLE goals (
 	description TEXT, 
 	roadmap_summary TEXT, 
 	target_date DATE, 
+	source_idempotency_key VARCHAR(200),
 	status VARCHAR(20) DEFAULT 'DRAFT' NOT NULL, 
 	completed_at TIMESTAMP WITH TIME ZONE, 
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
@@ -17,6 +18,8 @@ CREATE TABLE goals (
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 CREATE INDEX goals_user_status_idx ON goals (user_id, status, target_date);
+CREATE UNIQUE INDEX goals_user_idempotency_idx ON goals (user_id, source_idempotency_key)
+    WHERE source_idempotency_key IS NOT NULL;
 DROP TRIGGER IF EXISTS goals_set_updated_at ON goals;
 CREATE TRIGGER goals_set_updated_at
     BEFORE UPDATE ON goals

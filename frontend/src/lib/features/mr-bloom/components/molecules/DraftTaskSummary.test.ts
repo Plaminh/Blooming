@@ -18,7 +18,7 @@ test('groups primary controls in the main row and collapses unused time actions'
 
   expect(mainRow).not.toBeNull();
   expect(constraints).not.toBeNull();
-  expect(mainRow?.contains(screen.getByText(task.title))).toBe(true);
+  expect(within(mainRow as HTMLElement).getByDisplayValue(task.title)).toBeInTheDocument();
   expect(within(mainRow as HTMLElement).getByDisplayValue('45')).toBeInTheDocument();
   expect(within(mainRow as HTMLElement).getByRole('combobox')).toHaveValue('CORE');
   expect(within(mainRow as HTMLElement).getByRole('button', { name: `Remove ${task.title}` })).toBeInTheDocument();

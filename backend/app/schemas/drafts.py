@@ -25,15 +25,16 @@ class RoadmapDraft(BaseModel):
         if len(self.milestones) > 12:
             raise ValueError("Roadmap must have at most 12 milestones")
 
-        self.milestones.sort(key=lambda m: m.targetDate)
-
         if self.milestones[-1].targetDate > self.targetDate:
             raise ValueError(
                 "Milestone target date cannot be after roadmap target date"
             )
 
-        if self.targetDate < date.today():
-            raise ValueError("Roadmap target date cannot be in the past")
+        if any(
+            current.targetDate > following.targetDate
+            for current, following in zip(self.milestones, self.milestones[1:])
+        ):
+            raise ValueError("Milestone target dates must be ordered")
 
         return self
 
@@ -70,8 +71,8 @@ class DeferredTaskDraft(BaseModel):
     task: TaskDraft
     targetDate: date
 
-class TodayDraft(BaseModel):
 
+class TodayDraft(BaseModel):
     @model_validator(mode="after")
     def validate_deferred_tasks(self) -> "TodayDraft":
         if self.deferred_tasks:
@@ -79,18 +80,26 @@ class TodayDraft(BaseModel):
             def_ids = set()
             for dt in self.deferred_tasks:
                 if dt.targetDate < self.planDate:
-                    raise ValueError(f"Deferred task '{dt.task.title}' cannot target a date before the plan date.")
+                    raise ValueError(
+                        f"Deferred task '{dt.task.title}' cannot target a date before the plan date."
+                    )
                 if dt.task.id in seen_ids or dt.task.id in def_ids:
-                    raise ValueError(f"Deferred task ID '{dt.task.id}' is duplicated or overlaps with today tasks.")
+                    raise ValueError(
+                        f"Deferred task ID '{dt.task.id}' is duplicated or overlaps with today tasks."
+                    )
                 def_ids.add(dt.task.id)
-            
+
             allowed_ids = seen_ids | def_ids
             for dt in self.deferred_tasks:
                 for dep in dt.task.dependencies:
                     if dep not in allowed_ids:
-                        raise ValueError(f"Dangling dependency '{dep}' in deferred task '{dt.task.id}'.")
+                        raise ValueError(
+                            f"Dangling dependency '{dep}' in deferred task '{dt.task.id}'."
+                        )
                     if dep == dt.task.id:
-                        raise ValueError(f"Self-dependency '{dep}' in deferred task '{dt.task.id}'.")
+                        raise ValueError(
+                            f"Self-dependency '{dep}' in deferred task '{dt.task.id}'."
+                        )
         return self
 
     type: Literal["today"] = "today"

@@ -3,8 +3,6 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import UUID
-
 from app.db.models.users import User, UserSettings
 from app.schemas.user_settings import UserSettingsUpdate
 

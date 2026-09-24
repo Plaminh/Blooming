@@ -7,6 +7,7 @@
   import PlanDraftPreview from './PlanDraftPreview.svelte';
   import TodayDraftPreview from './TodayDraftPreview.svelte';
   import TimelineDraftPreview from './TimelineDraftPreview.svelte';
+  import ReplacePlanDialog from '../molecules/ReplacePlanDialog.svelte';
   onMount(() => {
     let unlisten = () => {};
     void mrBloomStore.restoreLatestSession();
@@ -31,6 +32,7 @@
     {/if}
   </div>
 </div>
+<ReplacePlanDialog />
 
 <style>
   .planning-workspace {

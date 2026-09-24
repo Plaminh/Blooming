@@ -42,7 +42,7 @@
 <article class="draft-task-row">
   <div class="main-row">
     <span class="task-icon"><AppIcon name="document" size="task-type" /></span>
-    <strong class="task-title" title={task.title}>{task.title}</strong>
+    <input class="task-title" value={task.title} title={task.title} aria-label="Title" oninput={(e) => mrBloomStore.updateTaskTitle(task.id, e.currentTarget.value)} />
 
     <div class="duration-editor">
       <span class="sr-only">Duration for {task.title}</span>

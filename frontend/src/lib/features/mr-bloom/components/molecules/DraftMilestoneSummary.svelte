@@ -1,19 +1,36 @@
 <script lang="ts">
-  import type { Milestone } from '../../stores/mrBloomStore';
-  import TargetDateLabel from '$lib/features/goals/components/atoms/TargetDateLabel.svelte';
+  import { mrBloomStore, type Milestone } from '../../stores/mrBloomStore';
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
 
   let { milestone }: { milestone: Milestone } = $props();
+  const id = $derived(milestone.id ?? '');
 </script>
 
 <article class="draft-milestone-summary">
   <div class="milestone-copy">
-    <strong>{milestone.title}</strong>
-    <TargetDateLabel date={milestone.targetDate} />
+    <input
+      class="title-input"
+      aria-label="Milestone title"
+      value={milestone.title}
+      oninput={(event) => mrBloomStore.updateMilestone(id, { title: event.currentTarget.value })}
+    />
+    <input
+      class="date-input"
+      aria-label={`Target date for ${milestone.title}`}
+      type="date"
+      value={milestone.targetDate}
+      oninput={(event) => mrBloomStore.updateMilestone(id, { targetDate: event.currentTarget.value })}
+    />
+    <input
+      class="outcome-input"
+      aria-label={`Expected outcome for ${milestone.title}`}
+      placeholder="Expected outcome"
+      value={milestone.expectedOutcome ?? ''}
+      oninput={(event) => mrBloomStore.updateMilestone(id, { expectedOutcome: event.currentTarget.value || null })}
+    />
   </div>
   <div class="milestone-actions">
-    <button aria-label="Edit {milestone.title}"><AppIcon name="pencil" scale={1.15} /></button>
-    <button aria-label="Remove {milestone.title}"><AppIcon name="close" scale={1.2} /></button>
+    <button type="button" aria-label="Remove {milestone.title}" onclick={() => mrBloomStore.removeMilestone(id)}><AppIcon name="close" scale={1.2} /></button>
   </div>
 </article>
 
@@ -21,7 +38,7 @@
   .draft-milestone-summary {
     display: flex;
     width: 100%;
-    height: 64px;
+    min-height: 76px;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
@@ -38,16 +55,10 @@
     gap: 4px;
   }
 
-  .milestone-copy strong {
-    overflow: hidden;
-    color: #06459a;
-    font-family: var(--bloom-body-font);
-    font-size: 17px;
-    font-weight: 600;
-    line-height: 1.1;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  .title-input, .date-input, .outcome-input { min-width:0; border:0; border-bottom:1px solid transparent; background:transparent; color:#06459a; font:inherit; }
+  .title-input { font-size:17px; font-weight:600; }
+  .outcome-input { font-size:13px; }
+  .title-input:focus, .date-input:focus, .outcome-input:focus { border-bottom-color:#00aeea; outline:none; }
 
   .milestone-copy :global(.target-date) { font-size: 14px; }
 

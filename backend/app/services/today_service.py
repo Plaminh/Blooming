@@ -35,10 +35,18 @@ USABLE_PLAN_STATUSES = {"CONFIRMED", "ACTIVE", "COMPLETED"}
 
 
 class TodayService:
+    async def _get_plan_for_preview_validation(
+        self, db: AsyncSession, user_id: UUID, plan_date: date
+    ):
+        """Ownership-scoped lookup used when restoring a persisted preview."""
+        return await crud_daily_plan.get_by_date(db, user_id, plan_date)
+
     async def get_today(
         self, db: AsyncSession, user_id: UUID, local_date: date | None = None
     ) -> dict:
-        settings = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+        settings = await db.scalar(
+            select(UserSettings).where(UserSettings.user_id == user_id)
+        )
         tz = safe_timezone(settings.timezone if settings else "UTC")
         if local_date is None:
             local_date = datetime.now(tz).date()
@@ -47,7 +55,12 @@ class TodayService:
         if not plan or plan.status not in USABLE_PLAN_STATUSES:
             return {"plan_date": local_date, "status": "NO_PLAN", "timezone": str(tz)}
 
-        revision = await db.scalar(select(PlanRevision).where(PlanRevision.daily_plan_id == plan.id).order_by(PlanRevision.revision_number.desc()).limit(1))
+        revision = await db.scalar(
+            select(PlanRevision)
+            .where(PlanRevision.daily_plan_id == plan.id)
+            .order_by(PlanRevision.revision_number.desc())
+            .limit(1)
+        )
         scheduling = revision.after_snapshot if revision else {}
         task_draft_map = scheduling.get("task_draft_map", {})
         blocks = sorted(plan.plan_blocks, key=lambda b: b.planned_start_at)
@@ -58,7 +71,9 @@ class TodayService:
                 "id": b.id,
                 "block_type": b.block_type,
                 "task_id": b.task_id,
-                "draft_task_id": task_draft_map.get(str(b.task_id)) if b.task_id else None,
+                "draft_task_id": task_draft_map.get(str(b.task_id))
+                if b.task_id
+                else None,
                 "title": b.title,
                 "planned_start_at": b.planned_start_at,
                 "planned_end_at": b.planned_end_at,
@@ -201,7 +216,12 @@ class TodayService:
             return {"plan_date": local_date, "status": "NO_PLAN"}
         await db.refresh(plan, ["plan_blocks", "availability_windows"])
         blocks = list(plan.plan_blocks)
-        previous = await db.scalar(select(PlanRevision).where(PlanRevision.daily_plan_id == plan.id).order_by(PlanRevision.revision_number.desc()).limit(1))
+        previous = await db.scalar(
+            select(PlanRevision)
+            .where(PlanRevision.daily_plan_id == plan.id)
+            .order_by(PlanRevision.revision_number.desc())
+            .limit(1)
+        )
         pending_ids = set()
         if previous:
             for ut in previous.after_snapshot.get("unscheduled_tasks", []):
@@ -221,13 +241,32 @@ class TodayService:
             ).all()
         }
         from app.db.models.focus import FocusRun
-        active_task_ids = set((await db.scalars(select(FocusRun.task_id).where(FocusRun.user_id == user_id, FocusRun.status.in_(("READY", "FOCUSING", "PAUSED"))))).all())
+
+        active_task_ids = set(
+            (
+                await db.scalars(
+                    select(FocusRun.task_id).where(
+                        FocusRun.user_id == user_id,
+                        FocusRun.status.in_(("READY", "FOCUSING", "PAUSED")),
+                    )
+                )
+            ).all()
+        )
         preserved, eligible = [], []
         for block in blocks:
             task = tasks.get(block.task_id) if block.task_id is not None else None
-            terminal = block.status in ("COMPLETED", "SKIPPED", "CANCELLED") or (task and task.status in ("COMPLETED", "SKIPPED", "CANCELLED"))
-            fixed_remaining = block.planned_end_at > now and (block.is_locked or block.status == "ACTIVE" or block.task_id in active_task_ids or block.block_type == "FIXED_EVENT" or (task and task.scheduling_type == "FIXED"))
-            if terminal or fixed_remaining:
+            terminal = block.status in ("COMPLETED", "SKIPPED", "CANCELLED") or (
+                task and task.status in ("COMPLETED", "SKIPPED", "CANCELLED")
+            )
+            historical = block.planned_start_at < now
+            fixed_remaining = block.planned_end_at > now and (
+                block.is_locked
+                or block.status == "ACTIVE"
+                or block.task_id in active_task_ids
+                or block.block_type == "FIXED_EVENT"
+                or (task and task.scheduling_type == "FIXED")
+            )
+            if terminal or historical or fixed_remaining:
                 preserved.append(block)
             else:
                 eligible.append(block)
@@ -240,7 +279,10 @@ class TodayService:
         ]
         for block in preserved:
             task = tasks.get(block.task_id) if block.task_id is not None else None
-            if block.status in ("COMPLETED", "SKIPPED", "CANCELLED") or (task is not None and task.status in ("COMPLETED", "SKIPPED", "CANCELLED")):
+            if block.status in ("COMPLETED", "SKIPPED", "CANCELLED") or (
+                task is not None
+                and task.status in ("COMPLETED", "SKIPPED", "CANCELLED")
+            ):
                 continue
             gaps = []
             for window in windows:
@@ -274,7 +316,20 @@ class TodayService:
             if not task or task.status not in ("DRAFT", "PENDING", "IN_PROGRESS"):
                 continue
             reserved_minutes = sum(
-                max(0, int((b.planned_end_at - (b.planned_start_at if b.status == "COMPLETED" else max(b.planned_start_at, now))).total_seconds() // 60))
+                max(
+                    0,
+                    int(
+                        (
+                            b.planned_end_at
+                            - (
+                                b.planned_start_at
+                                if b.status == "COMPLETED"
+                                else max(b.planned_start_at, now)
+                            )
+                        ).total_seconds()
+                        // 60
+                    ),
+                )
                 for b in preserved
                 if b.task_id == task_id
             )
@@ -303,9 +358,18 @@ class TodayService:
             )
         reserved_ends: dict[UUID, datetime] = {}
         for block in preserved:
-            if block.task_id and block.task_id not in completed_ids and block.planned_end_at > now and block.status not in ("SKIPPED", "CANCELLED"):
-                reserved_ends[block.task_id] = max(reserved_ends.get(block.task_id, now), block.planned_end_at)
-        result = DeterministicScheduler().schedule(schedule_tasks, windows, satisfied_dependencies=reserved_ends)
+            if (
+                block.task_id
+                and block.task_id not in completed_ids
+                and block.planned_end_at > now
+                and block.status not in ("SKIPPED", "CANCELLED")
+            ):
+                reserved_ends[block.task_id] = max(
+                    reserved_ends.get(block.task_id, now), block.planned_end_at
+                )
+        result = DeterministicScheduler().schedule(
+            schedule_tasks, windows, satisfied_dependencies=reserved_ends
+        )
         for block in eligible:
             await db.delete(block)
         await db.flush()
@@ -325,58 +389,111 @@ class TodayService:
                     created_by="SCHEDULER",
                 )
             )
-        plan.reality_check = "OVERLOADED" if result.unscheduled_tasks else ("COMFORTABLE" if result.workload_minutes <= result.available_minutes * 0.8 else "TIGHT")
-        db.add(PlanRevision(daily_plan_id=plan.id, revision_number=(previous.revision_number if previous else 0) + 1, reason="Replan unfinished work", trigger_type="RECOVERY", generated_by="SYSTEM", before_snapshot={"block_ids": [str(b.id) for b in blocks]}, after_snapshot=jsonable_encoder({"unscheduled_tasks": result.unscheduled_tasks, "reasons": result.reasons})))
+        plan.reality_check = (
+            "OVERLOADED"
+            if result.unscheduled_tasks
+            else (
+                "COMFORTABLE"
+                if result.workload_minutes <= result.available_minutes * 0.8
+                else "TIGHT"
+            )
+        )
+        db.add(
+            PlanRevision(
+                daily_plan_id=plan.id,
+                revision_number=(previous.revision_number if previous else 0) + 1,
+                reason="Replan unfinished work",
+                trigger_type="RECOVERY",
+                generated_by="SYSTEM",
+                before_snapshot={"block_ids": [str(b.id) for b in blocks]},
+                after_snapshot=jsonable_encoder(
+                    {
+                        "unscheduled_tasks": result.unscheduled_tasks,
+                        "reasons": result.reasons,
+                    }
+                ),
+            )
+        )
         await db.flush()
         await db.refresh(plan, ["plan_blocks"])
         if commit:
             await db.commit()
-        logger.info("replan_result", extra={"unscheduled_count": len(result.unscheduled_tasks), "scheduled_count": len(result.blocks), "committed": commit})
+        logger.info(
+            "replan_result",
+            extra={
+                "unscheduled_count": len(result.unscheduled_tasks),
+                "scheduled_count": len(result.blocks),
+                "committed": commit,
+            },
+        )
         return await self.get_today(db, user_id, local_date)
 
-
-
-    
-    
-    def _generate_hmac_token(self, user_id: UUID, draft_json: str) -> str:
+    def _generate_hmac_token(
+        self, user_id: UUID, draft_json: str, plan_version: str | None = None
+    ) -> str:
         import base64
         import json
         import time
-        
+
         secret = settings.SECRET_KEY.get_secret_value().encode()
-        expiry = int(time.time()) + 3600 * 24 # 24 hours
+        expiry = int(time.time()) + 3600 * 24  # 24 hours
         purpose = "today_preview"
-        
-        msg = f"{user_id}:{purpose}:{expiry}:{draft_json}".encode()
+
+        # A preview is a capability for one user, one canonical draft and the
+        # plan revision that existed when scheduling ran.  Binding the revision
+        # prevents a confirmation dialog left open in one tab from silently
+        # replacing a newer plan saved in another tab.
+        version = plan_version or "none"
+        msg = f"{user_id}:{purpose}:{expiry}:{version}:{draft_json}".encode()
         signature = hmac.new(secret, msg, hashlib.sha256).hexdigest()
-        
-        token_data = {"exp": expiry, "sig": signature}
+
+        token_data = {"exp": expiry, "sig": signature, "plan_version": version}
         return base64.urlsafe_b64encode(json.dumps(token_data).encode()).decode()
 
-    def _verify_hmac_token(self, user_id: UUID, draft_json: str, token: str) -> bool:
+    def _preview_token_claims(
+        self, user_id: UUID, draft_json: str, token: str
+    ) -> dict[str, str | int] | None:
         import base64
         import json
         import time
-        
+
         try:
             token_data = json.loads(base64.urlsafe_b64decode(token.encode()).decode())
             expiry = token_data["exp"]
             signature = token_data["sig"]
+            version = str(token_data.get("plan_version", "none"))
         except Exception:
-            return False
-            
+            return None
+
         if time.time() > expiry:
-            return False
-            
+            return None
+
         secret = settings.SECRET_KEY.get_secret_value().encode()
         purpose = "today_preview"
-        msg = f"{user_id}:{purpose}:{expiry}:{draft_json}".encode()
+        msg = f"{user_id}:{purpose}:{expiry}:{version}:{draft_json}".encode()
         expected = hmac.new(secret, msg, hashlib.sha256).hexdigest()
-        
-        return hmac.compare_digest(expected, signature)
+        if not hmac.compare_digest(expected, signature):
+            return None
+        return {"exp": int(expiry), "plan_version": version}
+
+    def _verify_hmac_token(self, user_id: UUID, draft_json: str, token: str) -> bool:
+        return self._preview_token_claims(user_id, draft_json, token) is not None
+
+    @staticmethod
+    async def _plan_version(db: AsyncSession, plan_id: UUID | None) -> str:
+        if plan_id is None:
+            return "none"
+        revision = await db.scalar(
+            select(PlanRevision)
+            .where(PlanRevision.daily_plan_id == plan_id)
+            .order_by(PlanRevision.revision_number.desc())
+            .limit(1)
+        )
+        return f"{plan_id}:{revision.revision_number if revision else 0}"
 
     def _normalize_dt(self, dt, tz):
         from datetime import date, datetime, time
+
         if not isinstance(dt, date) and not isinstance(dt, datetime):
             return dt
         if not isinstance(dt, datetime):
@@ -395,102 +512,157 @@ class TodayService:
             ScheduleTask,
             ScheduleWindow,
         )
-        
+
         windows = []
         for w in draft.windows:
-            start_dt = datetime.strptime(w.start, "%H:%M").replace(year=local_date.year, month=local_date.month, day=local_date.day, tzinfo=tz)
-            end_dt = datetime.strptime(w.end, "%H:%M").replace(year=local_date.year, month=local_date.month, day=local_date.day, tzinfo=tz)
+            start_dt = datetime.strptime(w.start, "%H:%M").replace(
+                year=local_date.year,
+                month=local_date.month,
+                day=local_date.day,
+                tzinfo=tz,
+            )
+            end_dt = datetime.strptime(w.end, "%H:%M").replace(
+                year=local_date.year,
+                month=local_date.month,
+                day=local_date.day,
+                tzinfo=tz,
+            )
             windows.append(ScheduleWindow(start_at=start_dt, end_at=end_dt))
-        
+
         tasks = []
         # Generate deterministic UUIDs from user_id and draft task ID
         draft_to_uuid = {t.id: uuid.uuid5(user_id, t.id) for t in draft.tasks}
-        
+
         base_time = datetime(2000, 1, 1, tzinfo=tz)
         for i, t in enumerate(draft.tasks):
             sched_priority = t.priority
             if sched_priority not in ("URGENT", "HIGH", "MEDIUM", "LOW"):
                 sched_priority = "MEDIUM"
-                
-            tasks.append(ScheduleTask(
-                id=draft_to_uuid[t.id],
-                title=t.title,
-                estimated_duration_minutes=t.durationMin,
-                priority=sched_priority,
-                scheduling_type=t.schedulingType,
-                created_at=base_time + timedelta(seconds=i),
-                is_splittable=t.splittable,
-                preferred_break_duration_minutes=t.breakAfterMin,
-                fixed_start_at=self._normalize_dt(t.fixedStart, tz) if t.fixedStart else None,
-                fixed_end_at=self._normalize_dt(t.fixedEnd, tz) if t.fixedEnd else None,
-                dependencies=[draft_to_uuid[d] for d in t.dependencies if d in draft_to_uuid]
-            ))
-            
+
+            tasks.append(
+                ScheduleTask(
+                    id=draft_to_uuid[t.id],
+                    title=t.title,
+                    estimated_duration_minutes=t.durationMin,
+                    priority=sched_priority,
+                    scheduling_type=t.schedulingType,
+                    created_at=base_time + timedelta(seconds=i),
+                    is_splittable=t.splittable,
+                    preferred_break_duration_minutes=t.breakAfterMin,
+                    fixed_start_at=self._normalize_dt(t.fixedStart, tz)
+                    if t.fixedStart
+                    else None,
+                    fixed_end_at=self._normalize_dt(t.fixedEnd, tz)
+                    if t.fixedEnd
+                    else None,
+                    dependencies=[
+                        draft_to_uuid[d] for d in t.dependencies if d in draft_to_uuid
+                    ],
+                )
+            )
+
         result = DeterministicScheduler().schedule(tasks, windows)
         if any(reason["code"] == "FIXED_TASK_OVERLAP" for reason in result.reasons):
             from fastapi import HTTPException
 
             raise HTTPException(status_code=422, detail="Fixed tasks overlap.")
-        reality_check = "OVERLOADED" if result.unscheduled_tasks else ("COMFORTABLE" if result.workload_minutes <= result.available_minutes * 0.8 else "TIGHT")
-        
+        reality_check = (
+            "OVERLOADED"
+            if result.unscheduled_tasks
+            else (
+                "COMFORTABLE"
+                if result.workload_minutes <= result.available_minutes * 0.8
+                else "TIGHT"
+            )
+        )
+
         return result, reality_check, draft_to_uuid
 
-    async def preview_today_draft(self, db: AsyncSession, user_id: UUID, request: TodayPreviewRequest) -> TodayPreviewResponse:
+    async def preview_today_draft(
+        self, db: AsyncSession, user_id: UUID, request: TodayPreviewRequest
+    ) -> TodayPreviewResponse:
         from fastapi import HTTPException
 
         from app.db.models.users import UserSettings
-        
-        user_settings = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+
+        user_settings = await db.scalar(
+            select(UserSettings).where(UserSettings.user_id == user_id)
+        )
         from app.ai.validators import check_today
+
         issues = check_today(request.draft)
         if issues:
-            raise HTTPException(status_code=422, detail=[{"loc": ["body", "draft"], "msg": issue, "type": "value_error", "code": issue} for issue in issues])
+            raise HTTPException(
+                status_code=422,
+                detail=[
+                    {
+                        "loc": ["body", "draft"],
+                        "msg": issue,
+                        "type": "value_error",
+                        "code": issue,
+                    }
+                    for issue in issues
+                ],
+            )
         user_tz = safe_timezone(user_settings.timezone if user_settings else "UTC")
-        
+
         if request.draft.timezone != str(user_tz):
-            raise HTTPException(status_code=422, detail="Draft timezone must match user timezone exactly.")
-            
+            raise HTTPException(
+                status_code=422,
+                detail="Draft timezone must match user timezone exactly.",
+            )
+
         tz = user_tz
         current_local_date = datetime.now(tz).date()
         local_date = request.draft.planDate
-        
+
         if local_date < current_local_date:
             raise HTTPException(status_code=422, detail="Cannot plan for a past date.")
-            
-        result, reality_check, draft_to_uuid = self._normalize_and_schedule(request.draft, tz, local_date, user_id)
+
+        result, reality_check, draft_to_uuid = self._normalize_and_schedule(
+            request.draft, tz, local_date, user_id
+        )
         uuid_to_draft = {v: k for k, v in draft_to_uuid.items()}
-        
+
         blocks = []
         draft_tasks = {task.id: task for task in request.draft.tasks}
         for i, b in enumerate(result.blocks):
             draft_task_id = uuid_to_draft.get(b.task_id) if b.task_id else None
             draft_task = draft_tasks.get(draft_task_id) if draft_task_id else None
-            blocks.append(TodayBlock(
-                id=uuid4(),
-                block_type="TASK" if b.task_id and b.block_type == "FIXED_EVENT" else b.block_type,
-                task_id=b.task_id, 
-                title=b.title,
-                planned_start_at=b.start_at,
-                planned_end_at=b.end_at,
-                position=i,
-                status="PLANNED",
-                is_locked=False,
-                draft_task_id=draft_task_id,
-                category=cast(TaskCategory | None, draft_task.category if draft_task else None),
-                estimated_duration_minutes=(
-                    draft_task.durationMin if draft_task else None
-                ),
-                importance=draft_task.importance if draft_task else None,
-                preferred_break_duration_minutes=(
-                    draft_task.breakAfterMin if draft_task else None
-                ),
-                source=(
-                    "MANUAL"
-                    if draft_task and draft_task.estimateSource == "USER"
-                    else "AI" if draft_task else None
-                ),
-            ))
-            
+            blocks.append(
+                TodayBlock(
+                    id=uuid4(),
+                    block_type="TASK"
+                    if b.task_id and b.block_type == "FIXED_EVENT"
+                    else b.block_type,
+                    task_id=b.task_id,
+                    title=b.title,
+                    planned_start_at=b.start_at,
+                    planned_end_at=b.end_at,
+                    position=i,
+                    status="PLANNED",
+                    is_locked=False,
+                    draft_task_id=draft_task_id,
+                    category=cast(
+                        TaskCategory | None, draft_task.category if draft_task else None
+                    ),
+                    estimated_duration_minutes=(
+                        draft_task.durationMin if draft_task else None
+                    ),
+                    importance=draft_task.importance if draft_task else None,
+                    preferred_break_duration_minutes=(
+                        draft_task.breakAfterMin if draft_task else None
+                    ),
+                    source=(
+                        "MANUAL"
+                        if draft_task and draft_task.estimateSource == "USER"
+                        else "AI"
+                        if draft_task
+                        else None
+                    ),
+                )
+            )
+
         unscheduled = []
         for ut_id in result.unscheduled_tasks:
             draft_tid = uuid_to_draft.get(ut_id) if ut_id else None
@@ -500,31 +672,39 @@ class TodayService:
                     if t.id == draft_tid:
                         title = t.title
                         break
-            
+
             reason_code = None
             for r in result.reasons:
-                if r.get('task_id') == ut_id:
-                    reason_code = r.get('code')
+                if r.get("task_id") == ut_id:
+                    reason_code = r.get("code")
                     break
-                    
+
             from app.schemas.today import UnscheduledTaskInfo
-            unscheduled.append(UnscheduledTaskInfo(
-                draft_task_id=draft_tid,
-                reason=reason_code,
-                title=title
-            ))
-            
+
+            unscheduled.append(
+                UnscheduledTaskInfo(
+                    draft_task_id=draft_tid, reason=reason_code, title=title
+                )
+            )
+
         draft_json = request.draft.model_dump_json()
-        token = self._generate_hmac_token(user_id, draft_json)
-            
+        existing_plan = await crud_daily_plan.get_by_date(db, user_id, local_date)
+        plan_version = await self._plan_version(
+            db, existing_plan.id if existing_plan is not None else None
+        )
+        token = self._generate_hmac_token(user_id, draft_json, plan_version)
+
         suggestions = []
         if reality_check == "OVERLOADED":
             from app.ai.context import build_context
             from app.ai.coach import generate_overloaded_suggestions
             from datetime import datetime as dt, timezone as dt_timezone
+
             ctx = await build_context(db, user_id, dt.now(dt_timezone.utc))
             unsched_ids = [u.draft_task_id for u in unscheduled if u.draft_task_id]
-            suggestions = generate_overloaded_suggestions(request.draft, ctx, unsched_ids)
+            suggestions = generate_overloaded_suggestions(
+                request.draft, ctx, unsched_ids
+            )
 
         return TodayPreviewResponse(
             plan_date=local_date,
@@ -534,62 +714,157 @@ class TodayService:
             blocks=blocks,
             unscheduled_tasks=unscheduled,
             reasons=result.reasons,
-            suggestions=suggestions
+            suggestions=suggestions,
         )
 
-    async def save_today_draft(self, db: AsyncSession, user_id: UUID, request: TodaySaveRequest) -> dict:
+    async def save_today_draft(
+        self, db: AsyncSession, user_id: UUID, request: TodaySaveRequest
+    ) -> dict:
         import hashlib
 
         from fastapi import HTTPException
 
-        from app.db.models.daily_plans import DailyPlan, PlanBlock, PlanRevision
+        from app.db.models.daily_plans import (
+            AvailabilityWindow,
+            DailyPlan,
+            PlanBlock,
+            PlanRevision,
+        )
         from app.db.models.tasks import Task, TaskDependency
         from app.db.models.users import UserSettings
-        
+
         draft_json = request.draft.model_dump_json()
-        if not self._verify_hmac_token(user_id, draft_json, request.preview_token):
-            raise HTTPException(status_code=409, detail="Draft has changed since last preview. Please preview again.")
-            
+        token_claims = self._preview_token_claims(
+            user_id, draft_json, request.preview_token
+        )
+        if token_claims is None:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "PREVIEW_STALE",
+                    "message": "Draft has changed since last preview. Please preview again.",
+                },
+            )
+
         draft_hash = hashlib.sha256(draft_json.encode()).hexdigest()
-        
-        session: PlanningSession | None = None
-        if request.session_id:
-            session = await db.scalar(select(PlanningSession).where(
-                PlanningSession.id == request.session_id, PlanningSession.user_id == user_id))
-            if not session:
-                raise HTTPException(status_code=404, detail="Planning session not found")
-            if session.user_id != user_id:
-                raise HTTPException(status_code=403, detail="Unauthorized")
-            if session.status != "OPEN":
-                raise HTTPException(status_code=409, detail="Session is not open for saving")
-        
-        user_settings = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+        idempotency_key = (
+            request.idempotency_key
+            or hashlib.sha256(request.preview_token.encode()).hexdigest()
+        )
+
+        user_settings = await db.scalar(
+            select(UserSettings).where(UserSettings.user_id == user_id)
+        )
         from app.ai.validators import check_today
+
         issues = check_today(request.draft)
         if issues:
-            raise HTTPException(status_code=422, detail=[{"loc": ["body", "draft"], "msg": issue, "type": "value_error", "code": issue} for issue in issues])
+            raise HTTPException(
+                status_code=422,
+                detail=[
+                    {
+                        "loc": ["body", "draft"],
+                        "msg": issue,
+                        "type": "value_error",
+                        "code": issue,
+                    }
+                    for issue in issues
+                ],
+            )
         user_tz = safe_timezone(user_settings.timezone if user_settings else "UTC")
         if request.draft.timezone != str(user_tz):
-            raise HTTPException(status_code=422, detail="Draft timezone must match user timezone exactly.")
-            
+            raise HTTPException(
+                status_code=422,
+                detail="Draft timezone must match user timezone exactly.",
+            )
+
         tz = user_tz
         current_local_date = datetime.now(tz).date()
         local_date = request.draft.planDate
         if local_date < current_local_date:
             raise HTTPException(status_code=422, detail="Cannot plan for a past date.")
 
-        result, reality_check, draft_to_uuid = self._normalize_and_schedule(request.draft, tz, local_date, user_id)
+        # Serialize all save attempts for this user.  The unique plan index is a
+        # final database guard, while this lock makes duplicate requests return
+        # the already-committed result instead of racing into an IntegrityError.
+        from app.db.models.users import User
+
+        await db.execute(select(User.id).where(User.id == user_id).with_for_update())
+
+        result, reality_check, draft_to_uuid = self._normalize_and_schedule(
+            request.draft, tz, local_date, user_id
+        )
         uuid_to_draft = {v: k for k, v in draft_to_uuid.items()}
-        
+
         existing_plan = await crud_daily_plan.get_by_date(db, user_id, local_date)
-        
+        revision = None
+        if existing_plan:
+            revision = await db.scalar(
+                select(PlanRevision)
+                .where(PlanRevision.daily_plan_id == existing_plan.id)
+                .order_by(PlanRevision.revision_number.desc())
+                .limit(1)
+            )
+        current_version = (
+            f"{existing_plan.id}:{revision.revision_number if revision else 0}"
+            if existing_plan
+            else "none"
+        )
+        idempotent_retry = bool(
+            revision
+            and revision.after_snapshot.get("draft_hash") == draft_hash
+            and (
+                revision.after_snapshot.get("idempotency_key", idempotency_key)
+                == idempotency_key
+                or token_claims["plan_version"] == current_version
+            )
+        )
+        if (
+            revision
+            and revision.after_snapshot.get("idempotency_key") == idempotency_key
+            and revision.after_snapshot.get("draft_hash") != draft_hash
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "IDEMPOTENCY_KEY_REUSED",
+                    "message": "This save key was already used for a different draft.",
+                },
+            )
+        if token_claims["plan_version"] != current_version and not idempotent_retry:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "PREVIEW_STALE",
+                    "message": "The saved plan changed after this preview. Generate a new preview before saving.",
+                },
+            )
+
+        session: PlanningSession | None = None
+        if request.session_id:
+            session = await db.scalar(
+                select(PlanningSession).where(
+                    PlanningSession.id == request.session_id,
+                    PlanningSession.user_id == user_id,
+                )
+            )
+            if not session:
+                raise HTTPException(
+                    status_code=404, detail="Planning session not found"
+                )
+            if session.status not in {"OPEN", "AWAITING_CLARIFICATION"} and not (
+                session.status == "COMPLETED" and idempotent_retry
+            ):
+                raise HTTPException(
+                    status_code=409, detail="Session is not open for saving"
+                )
+
         # Idempotency Check
         if existing_plan:
-            revision = await db.scalar(select(PlanRevision).where(PlanRevision.daily_plan_id == existing_plan.id).order_by(PlanRevision.revision_number.desc()).limit(1))
-            if revision and revision.after_snapshot.get("draft_hash") == draft_hash:
+            if idempotent_retry:
                 if session is not None:
                     session.status = "COMPLETED"
-                    session.closed_at = datetime.now(timezone.utc)
+                    session.closed_at = session.closed_at or datetime.now(timezone.utc)
                     await db.commit()
                 return await self.get_today(db, user_id, local_date)
             if not request.replace_existing:
@@ -600,29 +875,54 @@ class TodayService:
                         "message": "A plan already exists for this date. Confirm replacement before saving.",
                     },
                 )
-                
-            # Delete old blocks explicitly
-            blocks_result = await db.execute(select(PlanBlock).where(PlanBlock.daily_plan_id == existing_plan.id))
+
+            # Completed and elapsed history is immutable. Replacement only
+            # removes the unfinished future schedule.
+            preserved_blocks = []
+            blocks_result = await db.execute(
+                select(PlanBlock).where(PlanBlock.daily_plan_id == existing_plan.id)
+            )
             for block in blocks_result.scalars():
-                await db.delete(block)
+                if block.status == "COMPLETED" or block.planned_end_at <= datetime.now(
+                    timezone.utc
+                ):
+                    preserved_blocks.append(block)
+                else:
+                    await db.delete(block)
+
+            windows_result = await db.execute(
+                select(AvailabilityWindow).where(
+                    AvailabilityWindow.daily_plan_id == existing_plan.id
+                )
+            )
+            for window in windows_result.scalars():
+                await db.delete(window)
 
             # Delete AI tasks from previous save if not completed
             if revision and "created_task_ids" in revision.after_snapshot:
                 prev_task_ids_str = revision.after_snapshot["created_task_ids"]
                 if prev_task_ids_str:
                     from uuid import UUID
-                    prev_task_ids = [UUID(pid) if isinstance(pid, str) else pid for pid in prev_task_ids_str]
-                    tasks_res = await db.execute(select(Task).where(Task.id.in_(prev_task_ids)))
+
+                    prev_task_ids = [
+                        UUID(pid) if isinstance(pid, str) else pid
+                        for pid in prev_task_ids_str
+                    ]
+                    tasks_res = await db.execute(
+                        select(Task).where(Task.id.in_(prev_task_ids))
+                    )
                     for t in tasks_res.scalars():
                         if t.status != "COMPLETED":
-                            deps_res = await db.execute(select(TaskDependency).where(
-                                (TaskDependency.task_id == t.id) | 
-                                (TaskDependency.depends_on_task_id == t.id)
-                            ))
+                            deps_res = await db.execute(
+                                select(TaskDependency).where(
+                                    (TaskDependency.task_id == t.id)
+                                    | (TaskDependency.depends_on_task_id == t.id)
+                                )
+                            )
                             for dep in deps_res.scalars():
                                 await db.delete(dep)
                             await db.delete(t)
-            
+
             existing_plan.reality_check = reality_check
             existing_plan.timezone_snapshot = str(tz)
             if request.session_id:
@@ -630,6 +930,7 @@ class TodayService:
             plan = existing_plan
         else:
             revision = None
+            preserved_blocks = []
             plan = DailyPlan(
                 user_id=user_id,
                 plan_date=local_date,
@@ -637,12 +938,33 @@ class TodayService:
                 confirmed_at=datetime.now(timezone.utc),
                 planning_session_id=request.session_id,
                 reality_check=reality_check,
-                timezone_snapshot=str(tz)
+                timezone_snapshot=str(tz),
             )
             db.add(plan)
-            
+
         await db.flush()
-            
+
+        for window in request.draft.windows:
+            start_at = datetime.strptime(window.start, "%H:%M").replace(
+                year=local_date.year,
+                month=local_date.month,
+                day=local_date.day,
+                tzinfo=tz,
+            )
+            end_at = datetime.strptime(window.end, "%H:%M").replace(
+                year=local_date.year,
+                month=local_date.month,
+                day=local_date.day,
+                tzinfo=tz,
+            )
+            db.add(
+                AvailabilityWindow(
+                    daily_plan_id=plan.id,
+                    available_start_at=start_at,
+                    available_end_at=end_at,
+                )
+            )
+
         task_id_map = {}
         new_tasks = []
         for t_draft in request.draft.tasks:
@@ -654,28 +976,39 @@ class TodayService:
                 scheduling_type=t_draft.schedulingType,
                 importance=t_draft.importance,
                 category=t_draft.category,
-                deadline_at=self._normalize_dt(t_draft.deadline, tz) if t_draft.deadline else None,
-                fixed_start_at=self._normalize_dt(t_draft.fixedStart, tz) if t_draft.fixedStart else None,
-                fixed_end_at=self._normalize_dt(t_draft.fixedEnd, tz) if t_draft.fixedEnd else None,
+                deadline_at=self._normalize_dt(t_draft.deadline, tz)
+                if t_draft.deadline
+                else None,
+                fixed_start_at=self._normalize_dt(t_draft.fixedStart, tz)
+                if t_draft.fixedStart
+                else None,
+                fixed_end_at=self._normalize_dt(t_draft.fixedEnd, tz)
+                if t_draft.fixedEnd
+                else None,
                 is_splittable=t_draft.splittable,
                 preferred_break_duration_minutes=t_draft.breakAfterMin,
-                source="MANUAL" if t_draft.estimateSource == "USER" else "AI"
+                source="MANUAL" if t_draft.estimateSource == "USER" else "AI",
             )
             db.add(new_task)
             new_tasks.append((t_draft, new_task))
-            
+
         await db.flush()
-        
+
         for t_draft, new_task in new_tasks:
             task_id_map[t_draft.id] = new_task.id
-            
+
         for t_draft, new_task in new_tasks:
             for dep_draft_id in t_draft.dependencies:
                 if dep_draft_id in task_id_map:
-                    db.add(TaskDependency(task_id=new_task.id, depends_on_task_id=task_id_map[dep_draft_id]))
+                    db.add(
+                        TaskDependency(
+                            task_id=new_task.id,
+                            depends_on_task_id=task_id_map[dep_draft_id],
+                        )
+                    )
 
         await db.flush()
-        
+
         unscheduled = []
         for ut_id in result.unscheduled_tasks:
             draft_tid = uuid_to_draft.get(ut_id) if ut_id else None
@@ -685,19 +1018,20 @@ class TodayService:
                     if candidate_draft_task.id == draft_tid:
                         title = candidate_draft_task.title
                         break
-            
+
             reason_code = None
             for r in result.reasons:
-                if r.get('task_id') == ut_id:
-                    reason_code = r.get('code')
+                if r.get("task_id") == ut_id:
+                    reason_code = r.get("code")
                     break
-                    
+
             from app.schemas.today import UnscheduledTaskInfo
-            unscheduled.append(UnscheduledTaskInfo(
-                draft_task_id=draft_tid,
-                reason=reason_code,
-                title=title
-            ))
+
+            unscheduled.append(
+                UnscheduledTaskInfo(
+                    draft_task_id=draft_tid, reason=reason_code, title=title
+                )
+            )
 
         # --- Process deferred_tasks ---
         deferred_by_date = {}
@@ -708,104 +1042,181 @@ class TodayService:
             t_plan = await crud_daily_plan.get_by_date(db, user_id, t_date)
             if not t_plan:
                 t_plan = DailyPlan(
-                    user_id=user_id, plan_date=t_date, status="ACTIVE",
+                    user_id=user_id,
+                    plan_date=t_date,
+                    status="ACTIVE",
                     confirmed_at=datetime.now(timezone.utc),
-                    reality_check="COMFORTABLE", timezone_snapshot=str(tz)
+                    reality_check="COMFORTABLE",
+                    timezone_snapshot=str(tz),
                 )
                 db.add(t_plan)
                 await db.flush()
 
-            t_last_rev = await db.scalar(select(func.max(PlanRevision.revision_number)).where(PlanRevision.daily_plan_id == t_plan.id))
+            t_last_rev = await db.scalar(
+                select(func.max(PlanRevision.revision_number)).where(
+                    PlanRevision.daily_plan_id == t_plan.id
+                )
+            )
             t_rev_num = (t_last_rev or 0) + 1
-            t_prev_rev = await db.scalar(select(PlanRevision).where(PlanRevision.daily_plan_id == t_plan.id, PlanRevision.revision_number == (t_last_rev or 0)))
-            
+            t_prev_rev = await db.scalar(
+                select(PlanRevision).where(
+                    PlanRevision.daily_plan_id == t_plan.id,
+                    PlanRevision.revision_number == (t_last_rev or 0),
+                )
+            )
+
             import copy
             import hashlib
-            
-            t_unscheduled = copy.deepcopy(t_prev_rev.after_snapshot.get("unscheduled_tasks", [])) if t_prev_rev else []
-            t_created_ids = copy.deepcopy(t_prev_rev.after_snapshot.get("created_task_ids", [])) if t_prev_rev else []
-            t_task_draft_map = copy.deepcopy(t_prev_rev.after_snapshot.get("task_draft_map", {})) if t_prev_rev else {}
+
+            t_unscheduled = (
+                copy.deepcopy(t_prev_rev.after_snapshot.get("unscheduled_tasks", []))
+                if t_prev_rev
+                else []
+            )
+            t_created_ids = (
+                copy.deepcopy(t_prev_rev.after_snapshot.get("created_task_ids", []))
+                if t_prev_rev
+                else []
+            )
+            t_task_draft_map = (
+                copy.deepcopy(t_prev_rev.after_snapshot.get("task_draft_map", {}))
+                if t_prev_rev
+                else {}
+            )
             t_draft_hash = hashlib.sha256(request.preview_token.encode()).hexdigest()
 
             # Before saving, check if we already saved this exact preview token for this target date
-            if t_prev_rev and t_prev_rev.after_snapshot.get("draft_hash") == t_draft_hash:
-                continue # Idempotent retry, skip
+            if (
+                t_prev_rev
+                and t_prev_rev.after_snapshot.get("draft_hash") == t_draft_hash
+            ):
+                continue  # Idempotent retry, skip
 
             for t_draft in t_drafts:
                 # Use a specific deterministic key for the deferred task ID mapping
                 idempotent_key = f"deferred_{t_draft.id}_{request.preview_token}"
                 existing_tid = t_task_draft_map.get(idempotent_key)
-                
+
                 if existing_tid:
-                    continue # already exists in mapping
+                    continue  # already exists in mapping
 
                 t_task = Task(
-                    user_id=user_id, title=t_draft.title, estimated_duration_minutes=t_draft.durationMin,
-                    priority=t_draft.priority, scheduling_type=t_draft.schedulingType,
-                    importance=t_draft.importance, category=t_draft.category,
-                    deadline_at=self._normalize_dt(t_draft.deadline, tz) if t_draft.deadline else None,
-                    fixed_start_at=self._normalize_dt(t_draft.fixedStart, tz) if t_draft.fixedStart else None,
-                    fixed_end_at=self._normalize_dt(t_draft.fixedEnd, tz) if t_draft.fixedEnd else None,
-                    is_splittable=t_draft.splittable, preferred_break_duration_minutes=t_draft.breakAfterMin,
-                    source="MANUAL" if t_draft.estimateSource == "USER" else "AI"
+                    user_id=user_id,
+                    title=t_draft.title,
+                    estimated_duration_minutes=t_draft.durationMin,
+                    priority=t_draft.priority,
+                    scheduling_type=t_draft.schedulingType,
+                    importance=t_draft.importance,
+                    category=t_draft.category,
+                    deadline_at=self._normalize_dt(t_draft.deadline, tz)
+                    if t_draft.deadline
+                    else None,
+                    fixed_start_at=self._normalize_dt(t_draft.fixedStart, tz)
+                    if t_draft.fixedStart
+                    else None,
+                    fixed_end_at=self._normalize_dt(t_draft.fixedEnd, tz)
+                    if t_draft.fixedEnd
+                    else None,
+                    is_splittable=t_draft.splittable,
+                    preferred_break_duration_minutes=t_draft.breakAfterMin,
+                    source="MANUAL" if t_draft.estimateSource == "USER" else "AI",
                 )
                 db.add(t_task)
                 await db.flush()
-                
-                t_unscheduled.append({
-                    "draft_task_id": t_draft.id,
-                    "task_id": str(t_task.id),
-                    "reason": "DEFERRED",
-                    "title": t_draft.title
-                })
+
+                t_unscheduled.append(
+                    {
+                        "draft_task_id": t_draft.id,
+                        "task_id": str(t_task.id),
+                        "reason": "DEFERRED",
+                        "title": t_draft.title,
+                    }
+                )
                 t_created_ids.append(str(t_task.id))
                 t_task_draft_map[idempotent_key] = str(t_task.id)
 
             t_rev = PlanRevision(
-                daily_plan_id=t_plan.id, revision_number=t_rev_num,
-                reason="AI_DRAFT_APPLIED", trigger_type="MANUAL_EDIT", generated_by="AI",
-                before_snapshot=copy.deepcopy(t_prev_rev.after_snapshot) if t_prev_rev else {},
+                daily_plan_id=t_plan.id,
+                revision_number=t_rev_num,
+                reason="AI_DRAFT_APPLIED",
+                trigger_type="MANUAL_EDIT",
+                generated_by="AI",
+                before_snapshot=copy.deepcopy(t_prev_rev.after_snapshot)
+                if t_prev_rev
+                else {},
                 after_snapshot={
                     "blocks": len(t_plan.plan_blocks) if t_last_rev else 0,
                     "draft_hash": t_draft_hash,
                     "created_task_ids": t_created_ids,
                     "task_draft_map": t_task_draft_map,
                     "unscheduled_tasks": t_unscheduled,
-                    "reasons": copy.deepcopy(t_prev_rev.after_snapshot.get("reasons", [])) if t_prev_rev else []
-                }
+                    "reasons": copy.deepcopy(
+                        t_prev_rev.after_snapshot.get("reasons", [])
+                    )
+                    if t_prev_rev
+                    else [],
+                },
             )
             db.add(t_rev)
             await db.flush()
         # ------------------------------
 
-
-            
         blocks_created = []
+        first_position = (
+            max((block.position for block in preserved_blocks), default=-1) + 1
+        )
         for idx, block_item in enumerate(result.blocks):
             t_id = None
             if block_item.task_id:
                 draft_task_id = uuid_to_draft.get(block_item.task_id)
-                t_id = task_id_map.get(draft_task_id) if draft_task_id is not None else None
-            
+                t_id = (
+                    task_id_map.get(draft_task_id)
+                    if draft_task_id is not None
+                    else None
+                )
+
             block = PlanBlock(
                 daily_plan_id=plan.id,
-                block_type="TASK" if t_id and block_item.block_type == "FIXED_EVENT" else block_item.block_type,
+                block_type="TASK"
+                if t_id and block_item.block_type == "FIXED_EVENT"
+                else block_item.block_type,
                 planned_start_at=block_item.start_at,
                 planned_end_at=block_item.end_at,
                 task_id=t_id,
                 title=block_item.title,
-                position=idx,
-                is_locked=False
+                position=first_position + idx,
+                is_locked=False,
             )
             db.add(block)
             blocks_created.append(block)
-            
-        last_rev = await db.scalar(select(func.max(PlanRevision.revision_number)).where(PlanRevision.daily_plan_id == plan.id))
+
+        last_rev = await db.scalar(
+            select(func.max(PlanRevision.revision_number)).where(
+                PlanRevision.daily_plan_id == plan.id
+            )
+        )
         rev_num = (last_rev or 0) + 1
-        
-        created_task_ids = [str(new_task.id) for _, new_task in new_tasks]
-        task_draft_map = {str(new_task.id): t_draft.id for t_draft, new_task in new_tasks}
-        
+
+        preserved_ids = {
+            str(block.task_id) for block in preserved_blocks if block.task_id
+        }
+        previous_created_ids = (
+            revision.after_snapshot.get("created_task_ids", []) if revision else []
+        )
+        previous_draft_map = (
+            revision.after_snapshot.get("task_draft_map", {}) if revision else {}
+        )
+        created_task_ids = [pid for pid in previous_created_ids if pid in preserved_ids]
+        created_task_ids.extend(str(new_task.id) for _, new_task in new_tasks)
+        task_draft_map = {
+            task_id: draft_id
+            for task_id, draft_id in previous_draft_map.items()
+            if task_id in preserved_ids
+        }
+        task_draft_map.update(
+            {str(new_task.id): t_draft.id for t_draft, new_task in new_tasks}
+        )
+
         rev = PlanRevision(
             daily_plan_id=plan.id,
             revision_number=rev_num,
@@ -816,23 +1227,23 @@ class TodayService:
             after_snapshot={
                 "blocks": len(blocks_created),
                 "draft_hash": draft_hash,
+                "idempotency_key": idempotency_key,
                 "created_task_ids": created_task_ids,
                 "task_draft_map": task_draft_map,
                 "unscheduled_tasks": [u.model_dump(mode="json") for u in unscheduled],
-                "reasons": jsonable_encoder(result.reasons)
-            }
+                "reasons": jsonable_encoder(result.reasons),
+            },
         )
         db.add(rev)
 
         if session is not None:
             session.status = "COMPLETED"
             session.closed_at = datetime.now(timezone.utc)
-        
+
         await db.commit()
 
         db.expire(plan, ["plan_blocks"])
         return await self.get_today(db, user_id, local_date)
-
 
 
 today_service = TodayService()

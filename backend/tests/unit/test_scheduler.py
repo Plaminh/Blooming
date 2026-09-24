@@ -51,13 +51,15 @@ def test_valid_flexible_scheduling():
     res = schedule_tasks([t1, t2], windows, {})
 
     assert len(res.unscheduled_tasks) == 0
-    assert len(res.blocks) == 2
-    assert res.blocks[0].task_id == uuid.UUID(int=1)
-    assert res.blocks[0].start_at == datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc)
-    assert res.blocks[0].end_at == datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc)
-    assert res.blocks[1].task_id == uuid.UUID(int=2)
-    assert res.blocks[1].start_at == datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc)
-    assert res.blocks[1].end_at == datetime(2026, 1, 1, 10, 30, tzinfo=timezone.utc)
+    task_blocks = [block for block in res.blocks if block.block_type == "TASK"]
+    assert len(task_blocks) == 2
+    assert task_blocks[0].task_id == uuid.UUID(int=1)
+    assert task_blocks[0].start_at == datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc)
+    assert task_blocks[0].end_at == datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc)
+    assert task_blocks[1].task_id == uuid.UUID(int=2)
+    assert task_blocks[1].start_at == datetime(2026, 1, 1, 10, 5, tzinfo=timezone.utc)
+    assert task_blocks[1].end_at == datetime(2026, 1, 1, 10, 35, tzinfo=timezone.utc)
+    assert len([block for block in res.blocks if block.block_type == "BUFFER"]) == 2
     assert res.workload_minutes == 90
 
 
@@ -291,10 +293,11 @@ def test_prerequisite_scheduling_order():
     ]
 
     res = schedule_tasks([t1, t2], windows, {})
-    assert len(res.blocks) == 2
-    assert res.blocks[0].task_id == uuid.UUID(int=2)
-    assert res.blocks[1].task_id == uuid.UUID(int=1)
-    assert res.blocks[0].end_at <= res.blocks[1].start_at
+    task_blocks = [block for block in res.blocks if block.block_type == "TASK"]
+    assert len(task_blocks) == 2
+    assert task_blocks[0].task_id == uuid.UUID(int=2)
+    assert task_blocks[1].task_id == uuid.UUID(int=1)
+    assert task_blocks[0].end_at <= task_blocks[1].start_at
 
 
 @pytest.mark.unit

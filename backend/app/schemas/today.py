@@ -97,6 +97,7 @@ class TodayPreviewResponse(BaseModel):
 
 class TodaySaveRequest(BaseModel):
     preview_token: str
+    idempotency_key: str | None = Field(default=None, min_length=8, max_length=512)
     draft: TodayDraft
     session_id: UUID | None = None
     replace_existing: bool = False

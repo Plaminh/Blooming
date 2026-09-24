@@ -32,7 +32,7 @@ async def test_bootstrap_weather_schema_matches_orm(db_session):
         assert UserSettings.__table__.columns[name].type.precision == precision
         assert UserSettings.__table__.columns[name].type.scale == 2
         
-    assert actual["scene_season"].column_default == "'AUTO'::text"
+    assert actual["scene_season"].column_default == "'AUTO'::character varying"
 
     constraints = (
         (

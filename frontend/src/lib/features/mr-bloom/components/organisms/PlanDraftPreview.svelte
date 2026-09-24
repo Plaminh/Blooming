@@ -5,7 +5,6 @@
   import DraftReviewHeader from './DraftReviewHeader.svelte';
   import DraftAddButton from '../molecules/DraftAddButton.svelte';
   import RoadmapNode from '$lib/features/goals/components/atoms/RoadmapNode.svelte';
-  import TargetDateLabel from '$lib/features/goals/components/atoms/TargetDateLabel.svelte';
   import { goto } from '$app/navigation';
 
   const draft = $derived($mrBloomStore.activeDraft as RoadmapDraft);
@@ -42,12 +41,12 @@
       {/if}
       <div class="goal-summary-row">
         <div class="goal-copy">
-          <strong>{draft.goalTitle}</strong>
-          <span>{draft.goalDescription}</span>
+          <input aria-label="Goal title" value={draft.goalTitle} oninput={(event) => mrBloomStore.updateRoadmap({ goalTitle: event.currentTarget.value })} />
+          <input aria-label="Goal description" value={draft.goalDescription} oninput={(event) => mrBloomStore.updateRoadmap({ goalDescription: event.currentTarget.value })} />
         </div>
         <div class="target-date-box">
           <span>Target date</span>
-          <TargetDateLabel date={draft.targetDate} />
+          <input aria-label="Goal target date" type="date" value={draft.targetDate} oninput={(event) => mrBloomStore.updateRoadmap({ targetDate: event.currentTarget.value })} />
         </div>
       </div>
 
@@ -68,7 +67,7 @@
           {/each}
         </div>
 
-        <DraftAddButton label="ADD MILESTONE" variant="milestone" disabled={true} />
+        <DraftAddButton label="ADD MILESTONE" variant="milestone" disabled={draft.milestones.length >= 12} onclick={() => mrBloomStore.addMilestone()} />
       </div>
     </div>
 
@@ -136,23 +135,9 @@
     font-family: var(--bloom-body-font);
   }
 
-  .goal-copy strong {
-    overflow: hidden;
-    color: #06459a;
-    font-size: 18px;
-    font-weight: 600;
-    line-height: 1.15;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .goal-copy span {
-    overflow: hidden;
-    font-size: 14px;
-    line-height: 1.2;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  .goal-copy input, .target-date-box input { min-width:0; border:0; border-bottom:1px solid transparent; background:transparent; color:inherit; font:inherit; }
+  .goal-copy input:first-child { font-size:18px; font-weight:600; }
+  .goal-copy input:focus, .target-date-box input:focus { border-bottom-color:#00aeea; outline:none; }
 
   .target-date-box {
     display: flex;
@@ -185,7 +170,7 @@
   .timeline-row {
     display: flex;
     min-width: 0;
-    height: 70px;
+    min-height: 82px;
     align-items: flex-start;
     gap: 13px;
   }
@@ -193,7 +178,7 @@
   .node-column {
     display: flex;
     width: 48px;
-    height: 70px;
+    min-height: 82px;
     flex: 0 0 48px;
   }
 </style>

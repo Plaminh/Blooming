@@ -14,6 +14,7 @@ from app.ai.handlers.planner import plan_day
 from app.ai.handlers.roadmap import roadmap
 from app.ai.handlers.rules import handle as handle_rule
 from app.ai.router import Intent, Route, classify_low_confidence, detect_lang, route
+from app.ai.router import normalize
 from typing import cast
 from app.db.models.tasks import Task
 from app.ai.parser import ParsedPlan, ParsedTask
@@ -30,18 +31,25 @@ async def chat(
     user_id: UUID | None = None,
     history: list[dict] | None = None,
     pending_intent: str | None = None,
+    pending_message: str | None = None,
 ) -> ChatResponse:
     try:
         tz = ZoneInfo(timezone)
     except ZoneInfoNotFoundError:
         tz = ZoneInfo("UTC")
     now = datetime.now(tz)
+    if pending_intent and normalize(request.message) in {
+        "cancel", "cancel that", "never mind", "nevermind", "huy", "thoi"
+    }:
+        return ChatResponse(
+            reply="Đã hủy câu hỏi đang chờ." if detect_lang(request.message) == "vi"
+            else "Okay, I cancelled that clarification.",
+            intent=cast(Intent, pending_intent),
+            tier="RULES",
+        )
     effective_message = request.message
-    if pending_intent in {"PLAN_DAY", "CREATE_GOAL"} and history:
-        previous_user = next((item["content"] for item in reversed(history)
-                              if item.get("role") == "user"), None)
-        if previous_user:
-            effective_message = f"{previous_user}\n{request.message}"
+    if pending_intent in {"PLAN_DAY", "CREATE_GOAL"} and pending_message:
+        effective_message = f"{pending_message}\n{request.message}"
     selected = route(request.message, has_draft=request.current_draft is not None,
                      awaiting_answer=bool(pending_intent))
     if pending_intent in {"PLAN_DAY", "CREATE_GOAL", "EDIT_DRAFT"} and selected.confidence < 0.7:

@@ -76,4 +76,5 @@ class GoalResponse(GoalBase):
 
 class RoadmapSave(BaseModel):
     session_id: UUID | None = None
+    idempotency_key: str | None = Field(default=None, min_length=8, max_length=200)
     draft: RoadmapDraft

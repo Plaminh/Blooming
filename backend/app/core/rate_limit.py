@@ -3,15 +3,16 @@ from collections import deque
 from threading import Lock
 
 class SlidingWindowRateLimiter:
-    def __init__(self, limit: int, window_seconds: float = 60.0, max_users: int = 10000):
+    def __init__(self, limit: int, window_seconds: float = 60.0, max_users: int = 10000, clock=None):
         self.limit = limit
         self.window_seconds = window_seconds
         self.max_users = max_users
         self.store: dict[str, deque[float]] = {}
         self.lock = Lock()
+        self.clock = clock
 
     def is_allowed(self, user_id: str) -> bool:
-        now = time.monotonic()
+        now = self.clock() if self.clock is not None else time.monotonic()
         with self.lock:
             if len(self.store) >= self.max_users and user_id not in self.store:
                 self._evict_stale(now)

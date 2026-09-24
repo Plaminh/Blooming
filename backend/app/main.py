@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,11 +9,25 @@ from app.api.main import api_router
 from app.ai.providers import llm_provider
 from app.core.config import settings
 from app.db.session import engine
+from app.db.session import AsyncSessionLocal
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     llm_provider.init_client()
+    try:
+        from app.ai.budget import cleanup_usage_logs
+
+        async with AsyncSessionLocal() as cleanup_session:
+            await cleanup_usage_logs(cleanup_session)
+            await cleanup_session.commit()
+    except Exception as exc:
+        # Retention maintenance is best-effort and must not make the API
+        # unavailable. Only the exception type is logged; no payload exists in
+        # this table and no database URL is exposed.
+        logging.getLogger(__name__).warning(
+            "ai_usage_cleanup_failed", extra={"error_type": type(exc).__name__}
+        )
     try:
         yield
     finally:
@@ -21,8 +36,6 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
-
-import logging
 
 from fastapi import Request
 from fastapi.responses import JSONResponse

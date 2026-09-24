@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import CurrentUser, SessionDep
 from app.schemas.goals import (
@@ -25,7 +25,10 @@ async def create_goal_from_roadmap(
     db: SessionDep,
     current_user: CurrentUser,
 ):
-    goal = await goals_service.create_from_roadmap(db, roadmap, current_user.id)
+    try:
+        goal = await goals_service.create_from_roadmap(db, roadmap, current_user.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     await db.commit()
     return goal
 

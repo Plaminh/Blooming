@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -159,3 +159,24 @@ async def record_usage(
         )
     )
     await db.flush()
+
+
+async def cleanup_usage_logs(
+    db: AsyncSession,
+    *,
+    now: datetime | None = None,
+    retention_days: int = 30,
+    limit: int = 1000,
+) -> int:
+    """Delete one bounded batch of expired operational rows."""
+    now = now or datetime.now(timezone.utc)
+    expired_ids = (
+        select(AiUsageLog.id)
+        .where(AiUsageLog.created_at < now - timedelta(days=retention_days))
+        .order_by(AiUsageLog.created_at, AiUsageLog.id)
+        .limit(max(1, min(limit, 10_000)))
+    )
+    result = await db.execute(
+        delete(AiUsageLog).where(AiUsageLog.id.in_(expired_ids))
+    )
+    return int(result.rowcount or 0)

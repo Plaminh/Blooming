@@ -49,7 +49,8 @@ async def test_deterministic_editor_returns_fresh_preview_without_llm(monkeypatc
     )
     result = await editor.edit("change task 1 to 45 min", draft, _context())
     assert result.draft.tasks[0].durationMin == 45
-    assert result.preview["preview_token"] == "token"
+    assert result.preview is not None
+    assert result.preview.preview_token == "token"
     assert result.degraded == "LEAN"
     provider.assert_not_awaited()
 

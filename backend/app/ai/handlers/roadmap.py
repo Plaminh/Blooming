@@ -4,7 +4,7 @@ import re
 from datetime import date, timedelta
 
 from app.ai.handlers.clarify import missing_goal_target_date
-from app.schemas.assistant import ChatResponse, QuickReply
+from app.schemas.assistant import Assumption, ChatResponse, QuickReply
 from app.schemas.drafts import MilestoneDraft, RoadmapDraft
 
 
@@ -22,12 +22,8 @@ def roadmap(message: str, lang: str, *, today: date) -> ChatResponse:
     title = re.sub(r"(?i)\b(i want to|create|goal|roadmap|target|by|mục tiêu|tạo|đến ngày)\b", " ", title)
     title = re.sub(r"\s+", " ", title).strip(" .,:-") or ("Mục tiêu mới" if lang == "vi" else "New goal")
     total_days = max(0, (target - today).days)
-    milestone_count = min(3, max(1, total_days))
-    labels = (
-        ["Complete"]
-        if milestone_count == 1
-        else ["Define scope", "Build momentum", "Complete"][-milestone_count:]
-    )
+    milestone_count = 3
+    labels = ["Define scope", "Build momentum", "Complete"]
     milestones = []
     for index in range(1, milestone_count + 1):
         offset = round(total_days * index / milestone_count)
@@ -50,5 +46,11 @@ def roadmap(message: str, lang: str, *, today: date) -> ChatResponse:
     return ChatResponse(
         reply="I created a roadmap draft. Review it before saving.",
         intent="CREATE_GOAL", tier="RULES", draft=draft,
+        degraded="RULES_ONLY",
+        assumptions=[Assumption(
+            id="roadmap-default-framework",
+            kind="ROADMAP_FRAMEWORK",
+            text="This is a default three-milestone framework; edit every milestone before saving if needed.",
+        )],
         suggestions=[QuickReply(label="Save to goals", action="SAVE_ROADMAP")],
     )

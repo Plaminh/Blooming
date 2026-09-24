@@ -3,24 +3,30 @@ import { browser } from '$app/environment';
 
 export class APIError extends Error {
   public status: number;
-  public detail: any;
+  public detail: { detail?: unknown; message?: unknown } | null;
 
-  constructor(status: number, detail: any) {
+  constructor(status: number, detail: unknown) {
     let message = 'API Error';
     if (typeof detail === 'string') {
       message = detail;
     } else if (detail && typeof detail === 'object') {
-      if (typeof detail.detail === 'string') {
-        message = detail.detail;
-      } else if (Array.isArray(detail.detail) && detail.detail.length > 0) {
-        message = detail.detail[0].msg || 'Validation Error';
-      } else if (detail.message) {
-        message = detail.message;
+      const body = detail as { detail?: unknown; message?: unknown };
+      if (typeof body.detail === 'string') {
+        message = body.detail;
+      } else if (body.detail && typeof body.detail === 'object' && 'message' in body.detail && typeof body.detail.message === 'string') {
+        message = body.detail.message;
+      } else if (Array.isArray(body.detail) && body.detail.length > 0) {
+        const issue = body.detail[0] as { msg?: unknown };
+        message = typeof issue.msg === 'string' ? issue.msg : 'Validation Error';
+      } else if (typeof body.message === 'string') {
+        message = body.message;
       }
     }
     super(message);
     this.status = status;
-    this.detail = detail;
+    this.detail = detail && typeof detail === 'object'
+      ? detail as { detail?: unknown; message?: unknown }
+      : null;
     this.name = 'APIError';
   }
 }
@@ -231,7 +237,13 @@ export interface AssistantAssumption {
 export interface AssistantSessionMessage {
   role: 'user' | 'assistant';
   content: string;
-  structured_payload: Record<string, any> | null;
+  structured_payload: {
+    draft?: AssistantDraft | null;
+    preview?: TodayPreviewResponse | null;
+    degraded?: string | null;
+    suggestions?: AssistantSuggestion[];
+    assumptions?: AssistantAssumption[];
+  } | null;
   created_at: string;
 }
 
@@ -296,12 +308,19 @@ export const saveTodayPlan = async (
   sessionId: string | null, previewToken: string, draft: TodayDraft, replaceExisting = false
 ): Promise<TodayResponse> => {
   return await api.post('/today/save', {
-    session_id: sessionId, preview_token: previewToken, draft, replace_existing: replaceExisting
+    session_id: sessionId, preview_token: previewToken, idempotency_key: previewToken,
+    draft, replace_existing: replaceExisting
   });
 };
 
-export const saveRoadmap = async (sessionId: string | null, draft: RoadmapDraft): Promise<any> => {
-  return await api.post('/goals/from-roadmap', { session_id: sessionId, draft });
+export const saveRoadmap = async (
+  sessionId: string | null, draft: RoadmapDraft, idempotencyKey: string
+): Promise<unknown> => {
+  return await api.post('/goals/from-roadmap', {
+    session_id: sessionId,
+    idempotency_key: idempotencyKey,
+    draft
+  });
 };
 
 export interface ChatResponse {

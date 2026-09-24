@@ -138,10 +138,13 @@ async def test_replan_only_when_requested(
     revisions = (await db_session.scalars(select(PlanRevision))).all()
     blocks = (await db_session.scalars(select(PlanBlock))).all()
     assert len(revisions) == int(should_replan)
-    assert len(blocks) == 1
+    task_blocks = [block for block in blocks if block.block_type == "TASK"]
+    assert len(task_blocks) == 1
     if should_replan:
         spy.assert_awaited_once_with(db_session, test_user.id, commit=False)
-        assert blocks[0].planned_start_at == clock.instant
+        # The elapsed block is immutable history; replanning only replaces
+        # unfinished future work.
+        assert task_blocks[0].planned_start_at < clock.instant
         assert run.replan is not None
         event = await db_session.scalar(
             select(FocusRunEvent).where(FocusRunEvent.event_type == "ENDED")

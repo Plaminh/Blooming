@@ -191,7 +191,7 @@ async def test_invalid_token(async_client: AsyncClient, auth_headers: dict[str, 
         planDate=date.today().isoformat(),
         timezone="UTC",
         windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
-        tasks=[]
+        tasks=[TaskDraft(id="valid", title="Valid task", durationMin=30)]
     )
     draft_dict = draft.model_dump(mode="json")
     
@@ -272,7 +272,7 @@ async def test_edited_draft_in_same_session(async_client: AsyncClient, auth_head
         json={"preview_token": token2, "draft": draft_dict2, "replace_existing": True},
     )
     assert save_resp.status_code == 200
-    assert [block["title"] for block in save_resp.json()["blocks"]] == ["Task 2"]
+    assert [block["title"] for block in save_resp.json()["blocks"] if block["block_type"] == "TASK"] == ["Task 2"]
     
     tasks_res = await db_session.execute(select(Task).where(Task.title == "Task 1"))
     assert tasks_res.scalars().first() is None

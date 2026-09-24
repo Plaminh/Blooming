@@ -1,16 +1,11 @@
 """Pure, validated edits for uncommitted assistant drafts."""
 
-from copy import deepcopy
-from datetime import date, datetime
-from typing import Literal
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from datetime import date
+from typing import Annotated, Literal, Union
 
 from app.schemas.drafts import AvailabilityWindowDraft, RoadmapDraft, TaskDraft, TodayDraft
 from pydantic import BaseModel, Field, model_validator
 
-
-from typing import Annotated, Union
-from pydantic import Field
 
 class RemoveTaskOp(BaseModel):
     op: Literal["remove_task"]

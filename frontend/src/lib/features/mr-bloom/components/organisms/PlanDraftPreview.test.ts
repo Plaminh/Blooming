@@ -38,7 +38,9 @@ describe('PlanDraftPreview save to goals', () => {
     await fireEvent.click(getByRole('button', { name: /SAVE TO GOALS/i }));
     
     await waitFor(() => {
-      expect(saveRoadmapMock).toHaveBeenCalledWith(null, expect.objectContaining({ goalTitle: 'Test Goal' }));
+      expect(saveRoadmapMock).toHaveBeenCalledWith(
+        null, expect.objectContaining({ goalTitle: 'Test Goal' }), expect.any(String)
+      );
     });
 
     expect(navigation.goto).toHaveBeenCalledWith('/goals');

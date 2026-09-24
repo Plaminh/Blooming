@@ -52,8 +52,8 @@
     </div>
     <DraftReviewActionBar
       secondaryLabel="BACK TO TASKS" onSecondary={() => mrBloomStore.backToTasks()}
-      primaryLabel={$mrBloomStore.needsReplace ? "REPLACE TODAY PLAN" : "SAVE TO TODAY"}
-      iconSize="control" onPrimary={() => mrBloomStore.saveToday($mrBloomStore.needsReplace)}
+      primaryLabel="SAVE TO TODAY"
+      iconSize="control" onPrimary={() => mrBloomStore.saveToday()}
       disabled={$mrBloomStore.isSavePending || $mrBloomStore.isDraftMutationPending || $mrBloomStore.isPreviewPending}
       balanced
     />

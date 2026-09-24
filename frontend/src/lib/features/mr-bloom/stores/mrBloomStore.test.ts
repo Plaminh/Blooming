@@ -4,11 +4,18 @@ import { api, saveTodayPlan, type TodayDraft } from '$lib/api';
 import { mrBloomStore } from './mrBloomStore';
 
 vi.mock('$lib/api', () => ({
+  APIError: class APIError extends Error {
+    constructor(public status: number, public detail: unknown) { super('API error'); }
+  },
   api: { post: vi.fn(), get: vi.fn() },
   previewTodayPlan: vi.fn(),
   saveTodayPlan: vi.fn(),
   saveRoadmap: vi.fn()
 }));
+
+const saveableDraft: TodayDraft = {
+  type: 'today', planDate: '2026-09-20', timezone: 'UTC', windows: [], tasks: []
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -156,7 +163,8 @@ test('duration edits debounce into one preview request', async () => {
     await vi.advanceTimersByTimeAsync(300);
     expect(api.post).toHaveBeenCalledTimes(1);
     expect(api.post).toHaveBeenCalledWith('/assistant/apply-patch', {
-      draft, ops: [{ op: 'update_task', task_id: 'd1', duration_min: 40 }]
+      draft: { ...draft, tasks: [{ ...draft.tasks[0], durationMin: 40 }] },
+      ops: [{ op: 'update_task', task_id: 'd1', duration_min: 40 }]
     });
   } finally {
     vi.useRealTimers();
@@ -256,4 +264,79 @@ test('successful save closes the local session and the next planning request sta
   await mrBloomStore.submitMessage('Plan tomorrow');
   expect(api.post).toHaveBeenLastCalledWith('/assistant/chat', expect.objectContaining({ session_id: null }));
   expect(get(mrBloomStore).sessionId).toBe('new-session');
+});
+
+test('a previous error does not block save retry and pending is always cleared', async () => {
+  mrBloomStore.update(state => ({
+    ...state, activeDraft: saveableDraft, preview: { preview_token: 'fresh' } as never,
+    previewMode: 'timeline', error: 'old failure'
+  }));
+  vi.mocked(saveTodayPlan).mockRejectedValueOnce(new Error('network down'));
+  await mrBloomStore.saveToday();
+  expect(get(mrBloomStore).error).toBe('network down');
+  expect(get(mrBloomStore).isSavePending).toBe(false);
+  expect(get(mrBloomStore).activeDraft).toEqual(saveableDraft);
+
+  vi.mocked(saveTodayPlan).mockResolvedValueOnce({} as never);
+  await mrBloomStore.saveToday();
+  expect(saveTodayPlan).toHaveBeenCalledTimes(2);
+  expect(get(mrBloomStore).activeDraft).toBeNull();
+});
+
+test('duplicate save clicks make one request', async () => {
+  let resolveSave!: (value: unknown) => void;
+  vi.mocked(saveTodayPlan).mockReturnValueOnce(new Promise(resolve => { resolveSave = resolve; }) as never);
+  mrBloomStore.update(state => ({
+    ...state, activeDraft: saveableDraft, preview: { preview_token: 'fresh' } as never,
+    previewMode: 'timeline'
+  }));
+  const first = mrBloomStore.saveToday();
+  const second = mrBloomStore.saveToday();
+  await vi.waitFor(() => expect(saveTodayPlan).toHaveBeenCalledTimes(1));
+  resolveSave({});
+  await Promise.all([first, second]);
+});
+
+test('PLAN_EXISTS opens confirmation; cancel preserves state; confirm replaces once', async () => {
+  const { APIError } = await import('$lib/api');
+  vi.mocked(saveTodayPlan)
+    .mockRejectedValueOnce(new APIError(409, { detail: { code: 'PLAN_EXISTS' } }))
+    .mockResolvedValueOnce({} as never);
+  mrBloomStore.update(state => ({
+    ...state, activeDraft: saveableDraft, preview: { preview_token: 'reviewed' } as never,
+    previewMode: 'timeline'
+  }));
+
+  await mrBloomStore.saveToday();
+  expect(get(mrBloomStore).needsReplace).toBe(true);
+  expect(get(mrBloomStore).activeDraft).toEqual(saveableDraft);
+  expect(get(mrBloomStore).preview?.preview_token).toBe('reviewed');
+
+  mrBloomStore.cancelReplace();
+  expect(get(mrBloomStore).needsReplace).toBe(false);
+  expect(get(mrBloomStore).activeDraft).toEqual(saveableDraft);
+
+  await mrBloomStore.confirmReplace();
+  expect(saveTodayPlan).toHaveBeenLastCalledWith(null, 'reviewed', saveableDraft, true);
+  expect(saveTodayPlan).toHaveBeenCalledTimes(2);
+});
+
+test('milestone add uses the next free deterministic ID and edits preserve it', () => {
+  mrBloomStore.update(state => ({
+    ...state,
+    activeDraft: {
+      type: 'roadmap', goalTitle: 'Goal', goalDescription: '', targetDate: '2026-12-31',
+      milestones: [
+        { id: 'm1', title: 'One', targetDate: '2026-10-01' },
+        { id: 'm3', title: 'Three', targetDate: '2026-12-01' }
+      ]
+    },
+    previewMode: 'roadmap'
+  }));
+  mrBloomStore.addMilestone();
+  let roadmap = get(mrBloomStore).activeDraft;
+  expect(roadmap?.type === 'roadmap' && roadmap.milestones.at(-1)?.id).toBe('m2');
+  mrBloomStore.updateMilestone('m2', { title: 'Two' });
+  roadmap = get(mrBloomStore).activeDraft;
+  expect(roadmap?.type === 'roadmap' && roadmap.milestones.at(-1)).toMatchObject({ id: 'm2', title: 'Two' });
 });

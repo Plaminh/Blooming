@@ -50,6 +50,14 @@ function timeLabel() {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function apiErrorCode(error: APIError): string | null {
+  if (!error.detail || typeof error.detail !== 'object' || !('detail' in error.detail)) return null;
+  const detail = error.detail.detail;
+  return detail && typeof detail === 'object' && 'code' in detail && typeof detail.code === 'string'
+    ? detail.code
+    : null;
+}
+
 let latestRequestVersion = 0;
 
 async function sendMessage(
@@ -66,10 +74,14 @@ async function sendMessage(
     update(state => ({
       ...state, isWaitingForResponse: false,
       activeDraft: result.draft ?? state.activeDraft,
-      // A newly returned draft is unreviewed. Never carry a preview token from
-      // the previous draft (or expose Save before an explicit preview).
-      preview: result.draft ? null : (result.preview ?? state.preview),
-      previewMode: result.draft?.type ?? state.previewMode,
+      // A draft-edit response may include a scheduler-issued fresh preview.
+      // A newly generated draft has no preview and must still be reviewed.
+      preview: result.draft
+        ? (result.intent === 'EDIT_DRAFT' ? (result.preview ?? null) : null)
+        : (result.preview ?? state.preview),
+      previewMode: result.intent === 'EDIT_DRAFT' && result.preview
+        ? 'timeline'
+        : (result.draft?.type ?? state.previewMode),
       sessionId: result.session_id ?? state.sessionId,
       degraded: result.degraded ?? null,
       suggestions: result.suggestions ?? [],
@@ -103,6 +115,9 @@ function createMrBloomStore() {
     isDraftMutationPending: false, isPreviewPending: false, isSavePending: false, error: null
   };
   const { subscribe, set, update } = writable<MrBloomState>(initial);
+  let draftRevision = 0;
+  let previewSequence = 0;
+  let roadmapSaveKey: string | null = null;
 
   async function submit(content: string, retryId?: string) {
     const message = content.trim();
@@ -200,6 +215,7 @@ function createMrBloomStore() {
     // Invalidate the saveable snapshot synchronously, even if another edit is
     // ahead of this one in the serialized patch queue.
     pendingPatchCount += 1;
+    draftRevision += 1;
     update(state => ({
       ...state, preview: null,
       previewMode: state.activeDraft?.type ?? 'placeholder',
@@ -214,36 +230,78 @@ function createMrBloomStore() {
   }
 
   const pendingDuration = new Map<string, number>();
+  const pendingTitle = new Map<string, string>();
   let previewTimer: ReturnType<typeof setTimeout> | undefined;
   async function flushPendingDurations() {
     if (previewTimer) clearTimeout(previewTimer);
     previewTimer = undefined;
-    if (!pendingDuration.size) return;
-    const ops = [...pendingDuration].map(([task_id, duration_min]) =>
-      ({ op: 'update_task' as const, task_id, duration_min }));
+    if (!pendingDuration.size && !pendingTitle.size) return;
+    const ops: import('$lib/api').PatchOp[] = [];
+    const taskIds = new Set([...pendingDuration.keys(), ...pendingTitle.keys()]);
+    for (const task_id of taskIds) {
+      const title = pendingTitle.get(task_id);
+      const duration_min = pendingDuration.get(task_id);
+      const op: Extract<import('$lib/api').PatchOp, { op: 'update_task' }> = {
+        op: 'update_task', task_id
+      };
+      if (title !== undefined) op.title = title;
+      if (duration_min !== undefined) op.duration_min = duration_min;
+      ops.push(op);
+    }
     pendingDuration.clear();
+    pendingTitle.clear();
     await applyPatch(ops);
+    void store.generateTimeline();
   }
   function scheduleDuration(taskId: string, durationMin: number) {
     pendingDuration.set(taskId, durationMin);
+    draftRevision += 1;
+    update(state => ({
+      ...state,
+      activeDraft: state.activeDraft?.type === 'today'
+        ? { ...state.activeDraft, tasks: state.activeDraft.tasks.map(task =>
+            task.id === taskId ? { ...task, durationMin } : task) }
+        : state.activeDraft,
+      preview: null, previewMode: state.activeDraft?.type ?? 'placeholder',
+      needsReplace: false, isDraftMutationPending: true, error: null
+    }));
+    if (previewTimer) clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => { void flushPendingDurations(); }, 300);
+  }
+  function scheduleTitle(taskId: string, title: string) {
+    pendingTitle.set(taskId, title);
+    draftRevision += 1;
+    update(state => ({
+      ...state,
+      activeDraft: state.activeDraft?.type === 'today'
+        ? { ...state.activeDraft, tasks: state.activeDraft.tasks.map(task =>
+            task.id === taskId ? { ...task, title } : task) }
+        : state.activeDraft,
+      preview: null, previewMode: state.activeDraft?.type ?? 'placeholder',
+      needsReplace: false, isDraftMutationPending: true, error: null
+    }));
     if (previewTimer) clearTimeout(previewTimer);
     previewTimer = setTimeout(() => { void flushPendingDurations(); }, 300);
   }
 
   async function saveToday(replaceExisting = false) {
-    await flushPendingDurations();
-    await patchQueue;
-    ++latestRequestVersion; let snapshot: MrBloomState = initial;
-    update(state => { snapshot = state; return { ...state, error: null, isSavePending: true }; });
-    if (snapshot.error) return;
-    if (snapshot.activeDraft?.type !== 'today' || !snapshot.preview) {
-      update(state => ({ ...state, isSavePending: false }));
-      return;
-    }
-    const performSave = async (preview: TodayPreviewResponse) =>
-      saveTodayPlan(snapshot.sessionId, preview.preview_token, snapshot.activeDraft as TodayDraft, replaceExisting);
+    let accepted = false;
+    update(state => {
+      if (state.isSavePending) return state;
+      accepted = true;
+      return { ...state, error: null, isSavePending: true };
+    });
+    if (!accepted) return;
+    ++latestRequestVersion;
     try {
-      await performSave(snapshot.preview);
+      await flushPendingDurations();
+      await patchQueue;
+      let snapshot = initial;
+      update(state => { snapshot = state; return state; });
+      if (snapshot.activeDraft?.type !== 'today' || !snapshot.preview) return;
+      await saveTodayPlan(
+        snapshot.sessionId, snapshot.preview.preview_token, snapshot.activeDraft, replaceExisting
+      );
       update(state => ({
         ...state, activeDraft: null, preview: null, previewMode: 'placeholder', sessionId: null,
         needsReplace: false, isSavePending: false,
@@ -251,29 +309,45 @@ function createMrBloomStore() {
         chatHistory: [...state.chatHistory, { id: crypto.randomUUID(), role: 'assistant', content: 'Your schedule was saved to Today.', timestamp: timeLabel() }]
       }));
     } catch (error) {
-      if (error instanceof APIError && error.status === 409 && error.detail?.detail?.code === 'PLAN_EXISTS') {
-        const message = error.message;
-        update(state => ({ ...state, needsReplace: true, isSavePending: false, error: message }));
+      if (error instanceof APIError && error.status === 409 && apiErrorCode(error) === 'PLAN_EXISTS') {
+        update(state => ({ ...state, needsReplace: true, error: null }));
         return;
       }
-      if (error instanceof APIError && error.status === 409) {
-        try {
-          const refreshed = await previewTodayPlan(snapshot.activeDraft);
-          await performSave(refreshed);
-          update(state => ({ ...state, activeDraft: null, preview: null, previewMode: 'placeholder', sessionId: null, needsReplace: false, isSavePending: false, suggestions: [], assumptions: [] }));
-          return;
-        } catch (retryError) { error = retryError; }
+      if (error instanceof APIError && error.status === 409 && apiErrorCode(error) === 'PREVIEW_STALE') {
+        // Never turn a stale/conflicting preview into an implicit save.  Keep
+        // every user edit, invalidate the capability, and require the user to
+        // review a fresh scheduler result.
+        update(state => ({
+          ...state,
+          preview: null,
+          previewMode: state.activeDraft?.type ?? 'placeholder',
+          needsReplace: false,
+          error: error instanceof Error ? error.message : 'Preview is stale. Generate it again before saving.'
+        }));
+        return;
       }
-      update(state => ({ ...state, isSavePending: false, error: error instanceof Error ? error.message : 'Save failed.' }));
+      update(state => ({ ...state, error: error instanceof Error ? error.message : 'Save failed.' }));
+    } finally {
+      update(state => ({ ...state, isSavePending: false }));
     }
   }
 
   async function persistRoadmap() {
-    ++latestRequestVersion; let snapshot = initial;
-    update(state => { snapshot = state; return { ...state, error: null }; });
-    if (snapshot.activeDraft?.type !== 'roadmap') return false;
+    ++latestRequestVersion; let snapshot = initial; let accepted = false;
+    update(state => {
+      snapshot = state;
+      if (state.isSavePending) return state;
+      accepted = true;
+      return { ...state, error: null, isSavePending: true };
+    });
+    if (!accepted) return false;
+    if (snapshot.activeDraft?.type !== 'roadmap') {
+      update(state => ({ ...state, isSavePending: false }));
+      return false;
+    }
     try {
-      await saveRoadmap(snapshot.sessionId, snapshot.activeDraft);
+      roadmapSaveKey ??= crypto.randomUUID();
+      await saveRoadmap(snapshot.sessionId, snapshot.activeDraft, roadmapSaveKey);
       update(state => ({
         ...state,
         activeDraft: null,
@@ -281,11 +355,13 @@ function createMrBloomStore() {
         previewMode: 'placeholder',
         suggestions: [],
         assumptions: [],
+        isSavePending: false,
         chatHistory: [...state.chatHistory, { id: crypto.randomUUID(), role: 'assistant', content: 'Your roadmap was saved to Goals.', timestamp: timeLabel() }]
       }));
+      roadmapSaveKey = null;
       return true;
     } catch (error) {
-      update(state => ({ ...state, error: error instanceof Error ? error.message : 'Failed to save goal.' }));
+      update(state => ({ ...state, isSavePending: false, error: error instanceof Error ? error.message : 'Failed to save goal.' }));
       return false;
     }
   }
@@ -326,6 +402,8 @@ function createMrBloomStore() {
             timestamp: new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           })),
           activeDraft: draft,
+          // The sessions endpoint removes expired/stale capabilities before
+          // returning structured payloads, so a remaining preview is trusted.
           preview: (latestPayload?.preview ?? null) as TodayPreviewResponse | null,
           previewMode: draft?.type ?? 'placeholder',
           degraded: (latestPayload?.degraded ?? null) as string | null,
@@ -352,8 +430,48 @@ function createMrBloomStore() {
       }));
     },
     applyPatch,
-      applySuggestionAndRepreview,
-      updateTaskDuration: scheduleDuration,
+    applySuggestionAndRepreview,
+    updateRoadmap: (changes: Partial<Pick<RoadmapDraft, 'goalTitle' | 'goalDescription' | 'targetDate'>>) =>
+      update(state => state.activeDraft?.type === 'roadmap'
+        ? { ...state, activeDraft: { ...state.activeDraft, ...changes }, error: null }
+        : state),
+    updateMilestone: (milestoneId: string, changes: Partial<MilestoneDraft>) =>
+      update(state => state.activeDraft?.type === 'roadmap'
+        ? {
+            ...state,
+            activeDraft: {
+              ...state.activeDraft,
+              milestones: state.activeDraft.milestones.map(item =>
+                item.id === milestoneId ? { ...item, ...changes, id: item.id } : item
+              )
+            },
+            error: null
+          }
+        : state),
+    removeMilestone: (milestoneId: string) =>
+      update(state => state.activeDraft?.type === 'roadmap'
+        ? { ...state, activeDraft: { ...state.activeDraft, milestones: state.activeDraft.milestones.filter(item => item.id !== milestoneId) } }
+        : state),
+    addMilestone: () => update(state => {
+      if (state.activeDraft?.type !== 'roadmap' || state.activeDraft.milestones.length >= 12) return state;
+      return {
+        ...state,
+        activeDraft: {
+          ...state.activeDraft,
+          milestones: [...state.activeDraft.milestones, {
+            id: (() => {
+              const used = new Set(state.activeDraft.milestones.map(item => item.id));
+              let number = 1;
+              while (used.has(`m${number}`)) number += 1;
+              return `m${number}`;
+            })(), title: 'New milestone',
+            targetDate: state.activeDraft.targetDate, expectedOutcome: null
+          }]
+        }
+      };
+    }),
+    updateTaskDuration: scheduleDuration,
+    updateTaskTitle: scheduleTitle,
     addTask: (title: string, durationMin: number) => {
       const clean = title.trim();
       if (!clean || !Number.isFinite(durationMin) || durationMin < 5 || durationMin > 480) return;
@@ -364,12 +482,12 @@ function createMrBloomStore() {
         schedulingType: 'FLEXIBLE', fixedStart: null, fixedEnd: null,
         dependencies: [], splittable: false
       };
-      return flushPendingDurations().then(() => applyPatch([{ op: 'add_task' as const, task }]));
+      return flushPendingDurations().then(() => applyPatch([{ op: 'add_task' as const, task }])).then(() => { void store.generateTimeline(); });
     },
     updateTaskImportance: (taskId: string, importance: Importance) =>
-      flushPendingDurations().then(() => applyPatch([{ op: 'update_task' as const, task_id: taskId, importance: importance as 'CORE' | 'OPTIONAL' }])),
+      flushPendingDurations().then(() => applyPatch([{ op: 'update_task' as const, task_id: taskId, importance: importance as 'CORE' | 'OPTIONAL' }])).then(() => { void store.generateTimeline(); }),
     removeTask: (taskId: string) =>
-      flushPendingDurations().then(() => applyPatch([{ op: 'remove_task' as const, task_id: taskId }])),
+      flushPendingDurations().then(() => applyPatch([{ op: 'remove_task' as const, task_id: taskId }])).then(() => { void store.generateTimeline(); }),
     generateTimeline: async () => {
       await flushPendingDurations();
       await patchQueue;
@@ -378,15 +496,27 @@ function createMrBloomStore() {
       update(state => { draft = state.activeDraft?.type === 'today' ? state.activeDraft : null; patchError = !!state.error; return { ...state, error: patchError ? state.error : null }; });
       if (patchError) return;
       if (!draft) return;
+      const revision = draftRevision;
+      const requestSequence = ++previewSequence;
       update(state => ({ ...state, preview: null, previewMode: state.activeDraft?.type ?? 'placeholder', isPreviewPending: true }));
       try {
         const preview = await previewTodayPlan(draft);
-        update(state => ({ ...state, preview, previewMode: 'timeline', isPreviewPending: false }));
+        update(state => {
+          if (requestSequence !== previewSequence) return state;
+          if (revision !== draftRevision) return { ...state, isPreviewPending: false };
+          return { ...state, preview, previewMode: 'timeline', isPreviewPending: false };
+        });
       } catch (error) {
-        update(state => ({ ...state, isPreviewPending: false, error: error instanceof Error ? error.message : 'Preview failed.' }));
+        update(state => {
+          if (requestSequence !== previewSequence) return state;
+          if (revision !== draftRevision) return { ...state, isPreviewPending: false };
+          return { ...state, isPreviewPending: false, error: error instanceof Error ? error.message : 'Preview failed.' };
+        });
       }
     },
     saveToday,
+    cancelReplace: () => update(state => ({ ...state, needsReplace: false, error: null })),
+    confirmReplace: () => saveToday(true),
     receiveNudge: (nudge: { message: string; action: string }) => update(state => ({
       ...state,
       chatHistory: [...state.chatHistory, { id: crypto.randomUUID(), role: 'assistant', content: nudge.message, timestamp: timeLabel() }],

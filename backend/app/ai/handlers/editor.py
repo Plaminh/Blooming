@@ -1,5 +1,7 @@
 """Draft editor: deterministic commands first, budgeted LLM fallback second."""
 
+from datetime import timedelta
+
 from pydantic import BaseModel, Field, ValidationError
 
 from app.ai.budget import BudgetMode, available_routes, get_budget_mode
@@ -15,14 +17,28 @@ from app.services.today_service import today_service
 
 
 class EditorOutput(BaseModel):
-    ops: list[PatchOp] = Field(min_length=1, max_length=3)
+    ops: list[PatchOp] = Field(min_length=1, max_length=10)
 
 
-async def edit(message: str, draft: TodayDraft, ctx, *, history: list[dict] | None = None) -> ChatResponse:
-    ops = parse_edit(message, draft)
+async def edit(
+    message: str, draft: TodayDraft, ctx, *, history: list[dict] | None = None
+) -> ChatResponse:
     tier = "RULES"
     mode = await get_budget_mode(ctx.db, ctx.user_id, "EDITOR", now=ctx.now)
     routes = ""
+    tomorrow_date = (ctx.now.astimezone(ctx.timezone) + timedelta(days=1)).date()
+    try:
+        ops = parse_edit(message, draft, ctx_date=tomorrow_date)
+    except ValueError as exc:
+        question = str(exc)
+        return ChatResponse(
+            reply=question,
+            question=question,
+            intent="EDIT_DRAFT",
+            tier="RULES",
+            draft=draft,
+        )
+
     if ops is None and mode == BudgetMode.NORMAL:
         routes = await available_routes(ctx.db, settings.AI_ROUTE_EDITOR, now=ctx.now)
     if ops is None and mode == BudgetMode.NORMAL and routes:
@@ -30,12 +46,24 @@ async def edit(message: str, draft: TodayDraft, ctx, *, history: list[dict] | No
         try:
             raw = await llm_provider.call(
                 routes,
-                [{"role": "system", "content": "Return only safe patch operations for the supplied draft. Never save it."},
-                 *(history or [])[-4:],
-                 {"role": "user", "content": message + "\nDraft: " + draft.model_dump_json()}],
-                temperature=0, max_tokens=500, require_json=True,
-                json_schema=EditorOutput.model_json_schema(), db=ctx.db,
-                user_id=ctx.user_id, purpose="EDITOR",
+                [
+                    {
+                        "role": "system",
+                        "content": "Return only safe patch operations for the supplied draft. Never save it.",
+                    },
+                    *(history or [])[-4:],
+                    {
+                        "role": "user",
+                        "content": message + "\nDraft: " + draft.model_dump_json(),
+                    },
+                ],
+                temperature=0,
+                max_tokens=500,
+                require_json=True,
+                json_schema=EditorOutput.model_json_schema(),
+                db=ctx.db,
+                user_id=ctx.user_id,
+                purpose="EDITOR",
             )
             ops = EditorOutput.model_validate(raw).ops
             tier = "LLM"
@@ -43,13 +71,25 @@ async def edit(message: str, draft: TodayDraft, ctx, *, history: list[dict] | No
             ops = None
     if not ops:
         question = "Which task should I change, and what should change?"
-        return ChatResponse(reply=question, question=question, intent="EDIT_DRAFT", tier="RULES",
-                            draft=draft, degraded=mode.value if mode != BudgetMode.NORMAL else None)
+        return ChatResponse(
+            reply=question,
+            question=question,
+            intent="EDIT_DRAFT",
+            tier="RULES",
+            draft=draft,
+            degraded=mode.value if mode != BudgetMode.NORMAL else None,
+        )
     try:
         changed = apply_patch(draft, ops)
     except ValueError as exc:
         question = str(exc)
-        return ChatResponse(reply=question, question=question, intent="EDIT_DRAFT", tier=tier, draft=draft)
+        return ChatResponse(
+            reply=question,
+            question=question,
+            intent="EDIT_DRAFT",
+            tier=tier,
+            draft=draft,
+        )
     assert isinstance(changed, TodayDraft)
     preview = await today_service.preview_today_draft(
         ctx.db, ctx.user_id, TodayPreviewRequest(draft=changed)
