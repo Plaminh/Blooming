@@ -32,15 +32,33 @@ def assemble_today(
         windows = [
             (max(start, current_hm), end) for start, end in windows if end > current_hm
         ]
-    if not windows:
+    # Shift to tomorrow if all windows have expired OR remaining time is < 30 minutes
+    def _total_minutes(wins: list[tuple[str, str]]) -> int:
+        total = 0
+        for s, e in wins:
+            try:
+                sh, sm = map(int, s.split(":"))
+                eh, em = map(int, e.split(":"))
+                total += max(0, (eh * 60 + em) - (sh * 60 + sm))
+            except (ValueError, AttributeError):
+                pass
+        return total
+
+    if not windows or _total_minutes(windows) < 30:
+        had_windows_before = bool(windows)
         offset = 1
         plan_date = ctx.now.date() + timedelta(days=1)
         windows = list(plan.windows or ctx.default_windows)
+        reason = (
+            "Moved to tomorrow because remaining time today is very short"
+            if had_windows_before
+            else "Moved to tomorrow because the window has passed"
+        )
         assumptions.append(
             Assumption(
                 id="a-date",
                 kind="DATE",
-                text="Moved to tomorrow because the window has passed",
+                text=reason,
             )
         )
     tasks = []

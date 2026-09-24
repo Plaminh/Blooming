@@ -6,7 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.ai.patches import ApplyPatchRequest, ApplyPatchResponse, apply_patch
+from app.ai.patches import apply_patch
+from app.schemas.patches import ApplyPatchRequest, ApplyPatchResponse
 from app.ai.proactive import nudge_gate
 from app.api.deps import CurrentUser, get_db_session
 from app.core.config import settings

@@ -10,7 +10,7 @@ from app.ai.budget import BudgetMode, available_routes, get_budget_mode
 from app.ai.context import ChatContext
 from app.ai.drafts import assemble_today
 from app.ai.parser import ParsedPlan, ParsedTask, parse
-from app.ai.patches import PatchOp
+from app.schemas.patches import PatchOp
 from app.ai.providers import LLMError, llm_provider
 from app.ai.router import normalize
 from app.ai.validators import check_today
@@ -38,21 +38,66 @@ class LLMDayPlan(BaseModel):
 
 
 def _parsed_from_llm(value: LLMDayPlan, ctx: ChatContext, message: str) -> ParsedPlan:
-    explicit = {
-        normalize(task.title)
-        for task in parse(message).tasks
-        if task.source == "USER" and task.duration_min is not None
-    }
-    tasks = tuple(ParsedTask(
-        title=item.title,
-        duration_min=item.duration_min,
-        source="USER" if normalize(item.title) in explicit else "AI",
-        importance=item.importance,
-        priority="HIGH" if item.priority == "URGENT" else item.priority,
-        category=item.category, fixed_start=item.fixed_start, deadline=item.deadline,
-    ) for item in value.tasks)
-    return ParsedPlan(tasks=tasks, windows=tuple(value.windows), plan_date_offset=ctx.default_date_offset,
-                      confidence=1.0, assumptions=tuple(value.assumptions))
+    parser_plan = parse(message)
+    parser_tasks = {normalize(t.title): t for t in parser_plan.tasks}
+    llm_tasks = {normalize(t.title): t for t in value.tasks}
+    
+    final_tasks = []
+    seen = set()
+    
+    # 1. Start with parser tasks to preserve deterministic order
+    for p_task in parser_plan.tasks:
+        norm_title = normalize(p_task.title)
+        if norm_title in seen:
+            continue
+        seen.add(norm_title)
+        
+        # Merge LLM info if available
+        if norm_title in llm_tasks:
+            l_task = llm_tasks[norm_title]
+            
+            # Preserve USER explicit duration/source.
+            is_user_explicit = p_task.source == "USER" and p_task.duration_min is not None
+            final_source = "USER" if is_user_explicit else p_task.source
+            final_duration = p_task.duration_min if is_user_explicit else (l_task.duration_min or p_task.duration_min)
+            
+            final_tasks.append(ParsedTask(
+                title=p_task.title,
+                duration_min=final_duration,
+                source=final_source,
+                importance=l_task.importance,
+                priority="HIGH" if l_task.priority == "URGENT" else l_task.priority,
+                category=l_task.category or p_task.category,
+                fixed_start=l_task.fixed_start or p_task.fixed_start,
+                deadline=l_task.deadline or p_task.deadline
+            ))
+        else:
+            # LLM omitted it, restore it completely
+            final_tasks.append(p_task)
+            
+    # 2. Append LLM-only tasks
+    for l_task in value.tasks:
+        norm_title = normalize(l_task.title)
+        if norm_title not in seen:
+            seen.add(norm_title)
+            final_tasks.append(ParsedTask(
+                title=l_task.title,
+                duration_min=l_task.duration_min,
+                source="AI",
+                importance=l_task.importance,
+                priority="HIGH" if l_task.priority == "URGENT" else l_task.priority,
+                category=l_task.category,
+                fixed_start=l_task.fixed_start,
+                deadline=l_task.deadline
+            ))
+
+    return ParsedPlan(
+        tasks=tuple(final_tasks), 
+        windows=tuple(value.windows) if value.windows else parser_plan.windows, 
+        plan_date_offset=max(ctx.default_date_offset, parser_plan.plan_date_offset),
+        confidence=1.0, 
+        assumptions=tuple(value.assumptions)
+    )
 
 
 async def _llm_plan(

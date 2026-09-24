@@ -235,7 +235,7 @@ test('UI-014: send_text quick reply uses normal submitMessage flow', async () =>
 
 test('UI-015: patch quick reply invokes applyPatch without calling chat endpoint', async () => {
   const { getByText } = render(MrBloomConversationPanel);
-  const patchOp = { op: 'remove_task', task_id: '1' };
+  const patchOp: import('$lib/api').PatchOp = { op: 'remove_task', task_id: '1' };
   
   mrBloomStore.update(state => ({
     ...state,

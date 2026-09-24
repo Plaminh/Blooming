@@ -218,7 +218,7 @@ class DeterministicScheduler:
             earliest_start = max(dep_end_times) if dep_end_times else windows[0].start_at
 
             remaining_duration = timedelta(minutes=task.estimated_duration_minutes)
-            min_split = timedelta(minutes=task.min_split_duration_minutes or task.estimated_duration_minutes)
+            min_split = timedelta(minutes=task.min_split_duration_minutes if task.min_split_duration_minutes else (15 if task.is_splittable else task.estimated_duration_minutes))
             if not task.is_splittable:
                 min_split = remaining_duration
 
@@ -252,17 +252,24 @@ class DeterministicScheduler:
                 earliest_start = gap_start + duration_to_use
                 blocks.append(task_blocks[-1])
 
-                if remaining_duration.total_seconds() == 0 and task.preferred_break_duration_minutes:
-                    break_duration = timedelta(minutes=task.preferred_break_duration_minutes)
+                if remaining_duration.total_seconds() == 0:
+                    if task.preferred_break_duration_minutes:
+                        break_duration = timedelta(minutes=task.preferred_break_duration_minutes)
+                        block_type = "BREAK"
+                        title = "Break"
+                    else:
+                        break_duration = timedelta(minutes=5)
+                        block_type = "BUFFER"
+                        title = "Buffer"
                     break_gaps = find_gaps(earliest_start)
                     if break_gaps and (break_gaps[0][1] - break_gaps[0][0]) >= break_duration:
                         bg_start = break_gaps[0][0]
                         blocks.append(ScheduleBlock(
-                            block_type="BREAK",
+                            block_type=block_type,
                             start_at=bg_start,
                             end_at=bg_start + break_duration,
                             task_id=None,
-                            title="Break"
+                            title=title
                         ))
 
             if remaining_duration.total_seconds() > 0:

@@ -27,6 +27,19 @@
     <DraftReviewHeader title="TIMELINE PREVIEW" subtitle="This is the scheduler result that will be saved to Today." />
     <div class="content">
       {#if $mrBloomStore.error}<p class="error" role="alert">{$mrBloomStore.error}</p>{/if}
+      {#if $mrBloomStore.preview?.reality_check === 'OVERLOADED' && ($mrBloomStore.preview?.suggestions?.length || 0) > 0}
+        <div class="repair-suggestions">
+          <strong>Overloaded Plan</strong>
+          {#each $mrBloomStore.preview.suggestions as suggestion}
+            <button class="repair-btn" 
+              onclick={() => mrBloomStore.applySuggestionAndRepreview(suggestion)}
+              disabled={$mrBloomStore.isDraftMutationPending || $mrBloomStore.isPreviewPending}
+            >
+              {suggestion.label}
+            </button>
+          {/each}
+        </div>
+      {/if}
       <div class="timeline-container">
         <span class="timeline-rail" aria-hidden="true"></span>
         {#each entries as entry, index (entry.id)}
@@ -56,4 +69,8 @@
   .timeline-row { position:relative; min-height:61px; margin-bottom:7px; }
   .time-anchor { position:absolute; top:18px; left:0; z-index:2; width:var(--timeline-hour-column-width); height:24px; }
   .card-column { min-width:0; margin-left:var(--timeline-hour-column-width); }
+.repair-suggestions { padding: 12px; margin-bottom: 12px; border: 2px solid #ed8a70; border-radius: 5px; background: #fff4f1; }
+  .repair-suggestions strong { display: block; color: #b13939; margin-bottom: 8px; font-family: var(--bloom-body-font); }
+  .repair-btn { display: block; width: 100%; text-align: left; padding: 8px; margin-bottom: 6px; background: white; border: 1px solid #ed8a70; border-radius: 4px; cursor: pointer; color: #b13939; font-family: var(--bloom-body-font); }
+  .repair-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

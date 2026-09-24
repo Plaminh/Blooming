@@ -10,8 +10,9 @@ from app.schemas.drafts import TodayDraft
 
 class TodayBlock(BaseModel):
     id: UUID
-    block_type: Literal["TASK", "BREAK", "BUFFER", "FIXED_EVENT"]
     task_id: UUID | None = None
+    block_type: Literal["TASK", "BREAK", "BUFFER", "FIXED_EVENT"]
+    
     title: str | None = None
     description: str | None = None
     category: TaskCategory | None = None
@@ -34,6 +35,7 @@ class UnscheduledReason(BaseModel):
 
 
 class UnscheduledTaskInfo(BaseModel):
+    task_id: str | None = None
     draft_task_id: str | None = None
     title: str | None = None
     reason: str | None = None
@@ -76,6 +78,12 @@ class TodayPreviewRequest(BaseModel):
 
 
 
+from app.schemas.patches import PatchOp
+
+class RepairSuggestion(BaseModel):
+    label: str
+    patch: list[PatchOp]
+
 class TodayPreviewResponse(BaseModel):
     plan_date: date
     status: Literal["PREVIEW"] = "PREVIEW"
@@ -85,6 +93,7 @@ class TodayPreviewResponse(BaseModel):
     blocks: list[TodayBlock] = Field(default_factory=list)
     unscheduled_tasks: list[UnscheduledTaskInfo] = Field(default_factory=list)
     reasons: list[dict[str, Any]] = Field(default_factory=list)
+    suggestions: list[RepairSuggestion] = Field(default_factory=list)
 
 class TodaySaveRequest(BaseModel):
     preview_token: str

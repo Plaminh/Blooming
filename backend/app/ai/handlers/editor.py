@@ -4,7 +4,8 @@ from pydantic import BaseModel, Field, ValidationError
 
 from app.ai.budget import BudgetMode, available_routes, get_budget_mode
 from app.ai.editor_rules import parse_edit
-from app.ai.patches import PatchOp, apply_patch
+from app.schemas.patches import PatchOp
+from app.ai.patches import apply_patch
 from app.ai.providers import LLMError, llm_provider
 from app.core.config import settings
 from app.schemas.assistant import ChatResponse

@@ -3,7 +3,7 @@ from typing import Literal, Any, Annotated
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.ai.patches import PatchOp
+from app.schemas.patches import PatchOp
 from app.schemas.drafts import RoadmapDraft, TodayDraft
 from app.schemas.today import TodayPreviewResponse
 

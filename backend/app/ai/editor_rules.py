@@ -1,12 +1,10 @@
-"""Deterministic edit commands for the current draft."""
-
 import re
 from typing import Literal, cast
 
-from app.ai.patches import PatchOp
+from app.schemas.patches import PatchOp
 from app.ai.router import normalize
 from app.schemas.drafts import TodayDraft
-
+from pydantic import TypeAdapter
 
 def parse_edit(message: str, draft: TodayDraft) -> list[PatchOp] | None:
     text = normalize(message)
@@ -22,23 +20,23 @@ def parse_edit(message: str, draft: TodayDraft) -> list[PatchOp] | None:
             return None
         task_id = matches[0].id
     if re.search(r"\b(remove|delete|drop|bo|xoa)\b", text):
-        return [PatchOp(op="remove_task", task_id=task_id)]
+        return [TypeAdapter(PatchOp).validate_python(dict(op="remove_task", task_id=task_id))]
     duration = re.search(r"\b(\d+)\s*(?:p|phut|min|minutes?)\b", text)
     if duration:
         return [
-            PatchOp(
+            TypeAdapter(PatchOp).validate_python(dict(
                 op="update_task", task_id=task_id, duration_min=int(duration.group(1))
-            )
+            ))
         ]
     if re.search(r"\b(optional|khong bat buoc)\b", text):
-        return [PatchOp(op="update_task", task_id=task_id, importance="OPTIONAL")]
+        return [TypeAdapter(PatchOp).validate_python(dict(op="update_task", task_id=task_id, importance="OPTIONAL"))]
     priority = re.search(r"\b(low|medium|high|urgent)\s+priority\b", text)
     if priority:
         return [
-            PatchOp(
+            TypeAdapter(PatchOp).validate_python(dict(
                 op="update_task",
                 task_id=task_id,
                 priority=cast(Literal["LOW", "MEDIUM", "HIGH", "URGENT"], priority.group(1).upper()),
-            )
+            ))
         ]
     return None

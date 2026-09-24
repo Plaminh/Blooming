@@ -135,7 +135,7 @@ test('send-text and patch quick replies use their explicit payloads', async () =
     windows: [{ start: '09:00', end: '12:00' }], tasks: [] };
   mrBloomStore.update(state => ({ ...state, activeDraft: draft }));
   vi.mocked(api.post).mockResolvedValueOnce({ draft, preview: null });
-  const patch = [{ op: 'set_windows', windows: [{ start: '10:00', end: '12:00' }] }];
+  const patch: import('$lib/api').PatchOp[] = [{ op: 'set_windows' as const, windows: [{ start: '10:00', end: '12:00' }] }];
   await mrBloomStore.handleSuggestion({ label: 'Start later', patch });
   expect(api.post).toHaveBeenLastCalledWith('/assistant/apply-patch', { draft, ops: patch });
 });

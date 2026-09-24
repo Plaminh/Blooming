@@ -164,7 +164,8 @@ def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
         plain = normalize(segment)
         optional = bool(
             re.search(
-                r"\b(nếu còn thời gian|neu con thoi gian|nếu kịp|neu kip|optional|if time|not urgent)\b",
+                r"\b(nếu còn thời gian|neu con thoi gian|nếu kịp|neu kip|optional|if time|not urgent)\b"
+                r"|if there is time|if i have time|when time permits|time permitting",
                 plain,
             )
         )

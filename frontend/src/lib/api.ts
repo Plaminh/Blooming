@@ -155,24 +155,30 @@ export interface TaskDraft {
   title: string;
   durationMin: number;
   priority: 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW';
-  importance: 'CORE' | 'OPTIONAL';
-  category: string | null;
-  estimateSource: 'USER' | 'RULE' | 'AI' | 'HISTORY';
-  breakAfterMin: number | null;
-  deadline: string | null;
   schedulingType: 'FLEXIBLE' | 'FIXED';
-  fixedStart: string | null;
-  fixedEnd: string | null;
+  importance: 'CORE' | 'OPTIONAL';
+  estimateSource: 'USER' | 'RULE' | 'AI' | 'HISTORY';
+  category?: string | null;
+  fixedStart?: string | null;
+  fixedEnd?: string | null;
+  deadline?: string | null;
   dependencies: string[];
   splittable: boolean;
+  breakAfterMin?: number | null;
+}
+
+export interface DeferredTaskDraft {
+  task: TaskDraft;
+  targetDate: string;
 }
 
 export interface TodayDraft {
   type: 'today';
   planDate: string;
   timezone: string;
-  windows: AvailabilityWindowDraft[];
+  windows: { start: string; end: string }[];
   tasks: TaskDraft[];
+  deferred_tasks?: DeferredTaskDraft[];
 }
 
 export interface MilestoneDraft {
@@ -192,11 +198,27 @@ export interface RoadmapDraft {
 
 export type AssistantDraft = TodayDraft | RoadmapDraft;
 
+export type PatchOp = 
+  | { op: "remove_task"; task_id: string }
+  | { op: "move_task_to_date"; task_id: string; target_date: string; timezone?: string | null }
+  | { op: "update_window"; window_index: number; start?: string | null; end?: string | null }
+  | { op: "update_task"; task_id: string; duration_min?: number | null; title?: string | null; importance?: "CORE" | "OPTIONAL" | null; priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT" | null; category?: "Learning" | "Work" | "Personal" | null; break_after_min?: number | null; splittable?: boolean | null; fixed_start?: string | null; fixed_end?: string | null; deadline?: string | null; scheduling_type?: "FLEXIBLE" | "FIXED" | null }
+  | { op: "split_task"; task_id: string; split_minutes: number }
+  | { op: "add_task"; task: TaskDraft }
+  | { op: "scale_durations"; factor: number; task_id?: string | null }
+  | { op: "set_windows"; windows: AvailabilityWindowDraft[] }
+  | { op: "set_plan_date"; plan_date: string };
+
+export interface RepairSuggestion {
+  label: string;
+  patch: PatchOp[];
+}
+
 export interface AssistantSuggestion {
   label: string;
   action?: string | null;
   send_text?: string | null;
-  patch?: Record<string, unknown>[] | null;
+  patch?: PatchOp[] | null;
 }
 
 export interface AssistantAssumption {
@@ -259,6 +281,7 @@ export interface TodayResponse {
   reasons: UnscheduledReason[];
   reality_check: string | null;
   blocks: TodayBlock[];
+  suggestions?: RepairSuggestion[];
 }
 
 export interface TodayPreviewResponse extends TodayResponse {

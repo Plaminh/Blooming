@@ -202,7 +202,13 @@ class TodayService:
         await db.refresh(plan, ["plan_blocks", "availability_windows"])
         blocks = list(plan.plan_blocks)
         previous = await db.scalar(select(PlanRevision).where(PlanRevision.daily_plan_id == plan.id).order_by(PlanRevision.revision_number.desc()).limit(1))
-        pending_ids = {UUID(tid) for tid in previous.after_snapshot.get("unscheduled_tasks", [])} if previous else set()
+        pending_ids = set()
+        if previous:
+            for ut in previous.after_snapshot.get("unscheduled_tasks", []):
+                tid = ut.get("task_id")
+                if tid:
+                    pending_ids.add(UUID(tid))
+
         task_ids = {b.task_id for b in blocks if b.task_id} | pending_ids
         tasks = {
             t.id: t
@@ -435,6 +441,10 @@ class TodayService:
         from app.db.models.users import UserSettings
         
         user_settings = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+        from app.ai.validators import check_today
+        issues = check_today(request.draft)
+        if issues:
+            raise HTTPException(status_code=422, detail=[{"loc": ["body", "draft"], "msg": issue, "type": "value_error", "code": issue} for issue in issues])
         user_tz = safe_timezone(user_settings.timezone if user_settings else "UTC")
         
         if request.draft.timezone != str(user_tz):
@@ -507,6 +517,15 @@ class TodayService:
         draft_json = request.draft.model_dump_json()
         token = self._generate_hmac_token(user_id, draft_json)
             
+        suggestions = []
+        if reality_check == "OVERLOADED":
+            from app.ai.context import build_context
+            from app.ai.coach import generate_overloaded_suggestions
+            from datetime import datetime as dt, timezone as dt_timezone
+            ctx = await build_context(db, user_id, dt.now(dt_timezone.utc))
+            unsched_ids = [u.draft_task_id for u in unscheduled if u.draft_task_id]
+            suggestions = generate_overloaded_suggestions(request.draft, ctx, unsched_ids)
+
         return TodayPreviewResponse(
             plan_date=local_date,
             timezone=str(tz),
@@ -514,7 +533,8 @@ class TodayService:
             reality_check=reality_check,
             blocks=blocks,
             unscheduled_tasks=unscheduled,
-            reasons=result.reasons
+            reasons=result.reasons,
+            suggestions=suggestions
         )
 
     async def save_today_draft(self, db: AsyncSession, user_id: UUID, request: TodaySaveRequest) -> dict:
@@ -544,6 +564,10 @@ class TodayService:
                 raise HTTPException(status_code=409, detail="Session is not open for saving")
         
         user_settings = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+        from app.ai.validators import check_today
+        issues = check_today(request.draft)
+        if issues:
+            raise HTTPException(status_code=422, detail=[{"loc": ["body", "draft"], "msg": issue, "type": "value_error", "code": issue} for issue in issues])
         user_tz = safe_timezone(user_settings.timezone if user_settings else "UTC")
         if request.draft.timezone != str(user_tz):
             raise HTTPException(status_code=422, detail="Draft timezone must match user timezone exactly.")
@@ -674,6 +698,87 @@ class TodayService:
                 reason=reason_code,
                 title=title
             ))
+
+        # --- Process deferred_tasks ---
+        deferred_by_date = {}
+        for dt in request.draft.deferred_tasks:
+            deferred_by_date.setdefault(dt.targetDate, []).append(dt.task)
+
+        for t_date, t_drafts in deferred_by_date.items():
+            t_plan = await crud_daily_plan.get_by_date(db, user_id, t_date)
+            if not t_plan:
+                t_plan = DailyPlan(
+                    user_id=user_id, plan_date=t_date, status="ACTIVE",
+                    confirmed_at=datetime.now(timezone.utc),
+                    reality_check="COMFORTABLE", timezone_snapshot=str(tz)
+                )
+                db.add(t_plan)
+                await db.flush()
+
+            t_last_rev = await db.scalar(select(func.max(PlanRevision.revision_number)).where(PlanRevision.daily_plan_id == t_plan.id))
+            t_rev_num = (t_last_rev or 0) + 1
+            t_prev_rev = await db.scalar(select(PlanRevision).where(PlanRevision.daily_plan_id == t_plan.id, PlanRevision.revision_number == (t_last_rev or 0)))
+            
+            import copy
+            import hashlib
+            
+            t_unscheduled = copy.deepcopy(t_prev_rev.after_snapshot.get("unscheduled_tasks", [])) if t_prev_rev else []
+            t_created_ids = copy.deepcopy(t_prev_rev.after_snapshot.get("created_task_ids", [])) if t_prev_rev else []
+            t_task_draft_map = copy.deepcopy(t_prev_rev.after_snapshot.get("task_draft_map", {})) if t_prev_rev else {}
+            t_draft_hash = hashlib.sha256(request.preview_token.encode()).hexdigest()
+
+            # Before saving, check if we already saved this exact preview token for this target date
+            if t_prev_rev and t_prev_rev.after_snapshot.get("draft_hash") == t_draft_hash:
+                continue # Idempotent retry, skip
+
+            for t_draft in t_drafts:
+                # Use a specific deterministic key for the deferred task ID mapping
+                idempotent_key = f"deferred_{t_draft.id}_{request.preview_token}"
+                existing_tid = t_task_draft_map.get(idempotent_key)
+                
+                if existing_tid:
+                    continue # already exists in mapping
+
+                t_task = Task(
+                    user_id=user_id, title=t_draft.title, estimated_duration_minutes=t_draft.durationMin,
+                    priority=t_draft.priority, scheduling_type=t_draft.schedulingType,
+                    importance=t_draft.importance, category=t_draft.category,
+                    deadline_at=self._normalize_dt(t_draft.deadline, tz) if t_draft.deadline else None,
+                    fixed_start_at=self._normalize_dt(t_draft.fixedStart, tz) if t_draft.fixedStart else None,
+                    fixed_end_at=self._normalize_dt(t_draft.fixedEnd, tz) if t_draft.fixedEnd else None,
+                    is_splittable=t_draft.splittable, preferred_break_duration_minutes=t_draft.breakAfterMin,
+                    source="MANUAL" if t_draft.estimateSource == "USER" else "AI"
+                )
+                db.add(t_task)
+                await db.flush()
+                
+                t_unscheduled.append({
+                    "draft_task_id": t_draft.id,
+                    "task_id": str(t_task.id),
+                    "reason": "DEFERRED",
+                    "title": t_draft.title
+                })
+                t_created_ids.append(str(t_task.id))
+                t_task_draft_map[idempotent_key] = str(t_task.id)
+
+            t_rev = PlanRevision(
+                daily_plan_id=t_plan.id, revision_number=t_rev_num,
+                reason="AI_DRAFT_APPLIED", trigger_type="MANUAL_EDIT", generated_by="AI",
+                before_snapshot=copy.deepcopy(t_prev_rev.after_snapshot) if t_prev_rev else {},
+                after_snapshot={
+                    "blocks": len(t_plan.plan_blocks) if t_last_rev else 0,
+                    "draft_hash": t_draft_hash,
+                    "created_task_ids": t_created_ids,
+                    "task_draft_map": t_task_draft_map,
+                    "unscheduled_tasks": t_unscheduled,
+                    "reasons": copy.deepcopy(t_prev_rev.after_snapshot.get("reasons", [])) if t_prev_rev else []
+                }
+            )
+            db.add(t_rev)
+            await db.flush()
+        # ------------------------------
+
+
             
         blocks_created = []
         for idx, block_item in enumerate(result.blocks):

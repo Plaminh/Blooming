@@ -124,7 +124,7 @@ function createMrBloomStore() {
     if (accepted) await sendMessage(message, msgId, update, snapshot);
   }
 
-  async function doApplyPatch(ops: Record<string, unknown>[]) {
+  async function doApplyPatch(ops: import('$lib/api').PatchOp[]) {
     let draft: AssistantDraft | null = null;
     update(state => { draft = state.activeDraft; return { ...state, error: null }; });
     if (!draft) return;
@@ -141,9 +141,62 @@ function createMrBloomStore() {
       update(state => ({ ...state, error: error instanceof Error ? error.message : 'Edit failed.' }));
     }
   }
+    async function applySuggestionAndRepreview(suggestion: import('$lib/api').RepairSuggestion) {
+      if (!suggestion?.patch) return;
+      let draft: import('$lib/api').TodayDraft | null = null;
+      let currentPreviewToken: string | null = null;
+      let isBusy = false;
+      
+      update(state => {
+        draft = state.activeDraft?.type === 'today' ? state.activeDraft : null;
+        currentPreviewToken = state.preview?.preview_token ?? null;
+        isBusy = !!state.isDraftMutationPending || !!state.isPreviewPending;
+        if (!isBusy) {
+          return { ...state, isDraftMutationPending: true, error: null };
+        }
+        return state;
+      });
+      
+      if (isBusy || !draft) return;
+      
+      try {
+        const result: { draft: import('$lib/api').TodayDraft } = await api.post('/assistant/apply-patch', { draft, ops: suggestion.patch });
+        update(state => ({
+          ...state,
+          activeDraft: result.draft,
+          preview: null,
+          previewMode: result.draft.type,
+          isDraftMutationPending: false,
+          isPreviewPending: true
+        }));
+        
+        let newDraft: import('$lib/api').TodayDraft | null = null;
+        update(state => { newDraft = state.activeDraft?.type === 'today' ? state.activeDraft : null; return state; });
+        if (!newDraft) throw new Error("Draft invalid");
+        
+        const previewResponse = await api.post('/today/preview', { draft: newDraft });
+        if (!previewResponse?.preview_token || previewResponse.preview_token === currentPreviewToken) {
+           throw new Error("Stale preview token received.");
+        }
+        
+        update(state => {
+          return {
+            ...state,
+            preview: previewResponse,
+            previewMode: 'timeline',
+            needsReplace: false
+          };
+        });
+      } catch (err: unknown) {
+        const e = err as Error;
+        update(state => ({ ...state, error: e.message ?? String(e) }));
+      } finally {
+        update(state => ({ ...state, isDraftMutationPending: false, isPreviewPending: false }));
+      }
+    }
   let patchQueue: Promise<void> = Promise.resolve();
   let pendingPatchCount = 0;
-  function applyPatch(ops: Record<string, unknown>[]): Promise<void> {
+  function applyPatch(ops: import('$lib/api').PatchOp[]): Promise<void> {
     // Invalidate the saveable snapshot synchronously, even if another edit is
     // ahead of this one in the serialized patch queue.
     pendingPatchCount += 1;
@@ -167,7 +220,7 @@ function createMrBloomStore() {
     previewTimer = undefined;
     if (!pendingDuration.size) return;
     const ops = [...pendingDuration].map(([task_id, duration_min]) =>
-      ({ op: 'update_task', task_id, duration_min }));
+      ({ op: 'update_task' as const, task_id, duration_min }));
     pendingDuration.clear();
     await applyPatch(ops);
   }
@@ -299,7 +352,8 @@ function createMrBloomStore() {
       }));
     },
     applyPatch,
-    updateTaskDuration: scheduleDuration,
+      applySuggestionAndRepreview,
+      updateTaskDuration: scheduleDuration,
     addTask: (title: string, durationMin: number) => {
       const clean = title.trim();
       if (!clean || !Number.isFinite(durationMin) || durationMin < 5 || durationMin > 480) return;
@@ -310,12 +364,12 @@ function createMrBloomStore() {
         schedulingType: 'FLEXIBLE', fixedStart: null, fixedEnd: null,
         dependencies: [], splittable: false
       };
-      return flushPendingDurations().then(() => applyPatch([{ op: 'add_task', task }]));
+      return flushPendingDurations().then(() => applyPatch([{ op: 'add_task' as const, task }]));
     },
     updateTaskImportance: (taskId: string, importance: Importance) =>
-      flushPendingDurations().then(() => applyPatch([{ op: 'update_task', task_id: taskId, importance }])),
+      flushPendingDurations().then(() => applyPatch([{ op: 'update_task' as const, task_id: taskId, importance: importance as 'CORE' | 'OPTIONAL' }])),
     removeTask: (taskId: string) =>
-      flushPendingDurations().then(() => applyPatch([{ op: 'remove_task', task_id: taskId }])),
+      flushPendingDurations().then(() => applyPatch([{ op: 'remove_task' as const, task_id: taskId }])),
     generateTimeline: async () => {
       await flushPendingDurations();
       await patchQueue;

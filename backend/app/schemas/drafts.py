@@ -52,7 +52,7 @@ class AvailabilityWindowDraft(BaseModel):
 class TaskDraft(BaseModel):
     id: str = Field(min_length=1)
     title: str = Field(min_length=1)
-    durationMin: int = Field(ge=1, le=1440)
+    durationMin: int = Field(ge=5, le=480)
     priority: Literal["URGENT", "HIGH", "MEDIUM", "LOW"] = "MEDIUM"
     importance: Literal["CORE", "OPTIONAL"] = "CORE"
     category: str | None = None
@@ -66,12 +66,39 @@ class TaskDraft(BaseModel):
     splittable: bool = False
 
 
+class DeferredTaskDraft(BaseModel):
+    task: TaskDraft
+    targetDate: date
+
 class TodayDraft(BaseModel):
+
+    @model_validator(mode="after")
+    def validate_deferred_tasks(self) -> "TodayDraft":
+        if self.deferred_tasks:
+            seen_ids = {t.id for t in self.tasks}
+            def_ids = set()
+            for dt in self.deferred_tasks:
+                if dt.targetDate < self.planDate:
+                    raise ValueError(f"Deferred task '{dt.task.title}' cannot target a date before the plan date.")
+                if dt.task.id in seen_ids or dt.task.id in def_ids:
+                    raise ValueError(f"Deferred task ID '{dt.task.id}' is duplicated or overlaps with today tasks.")
+                def_ids.add(dt.task.id)
+            
+            allowed_ids = seen_ids | def_ids
+            for dt in self.deferred_tasks:
+                for dep in dt.task.dependencies:
+                    if dep not in allowed_ids:
+                        raise ValueError(f"Dangling dependency '{dep}' in deferred task '{dt.task.id}'.")
+                    if dep == dt.task.id:
+                        raise ValueError(f"Self-dependency '{dep}' in deferred task '{dt.task.id}'.")
+        return self
+
     type: Literal["today"] = "today"
     planDate: date
     timezone: str = "UTC"
     windows: list[AvailabilityWindowDraft] = Field(default_factory=list)
     tasks: list[TaskDraft] = Field(default_factory=list)
+    deferred_tasks: list[DeferredTaskDraft] = Field(default_factory=list)
 
 
 def clean_availability_windows(
