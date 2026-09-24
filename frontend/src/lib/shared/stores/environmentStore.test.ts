@@ -105,9 +105,9 @@ describe('environmentStore', () => {
   });
 
   it('writes a changed timezone, keeps it effective if persistence fails, and retries later without duplicate writes', async () => {
-    const release = environmentStore.init();
     const different = { ...settings, timezone: 'Pacific/Honolulu' };
     vi.mocked(api.get).mockImplementation(async (path: string) => path === '/me/settings' ? different : rain);
+    const release = environmentStore.init();
     
     // First fails
     vi.mocked(api.put).mockRejectedValueOnce(new Error('offline'));
@@ -138,13 +138,12 @@ describe('environmentStore', () => {
   });
 
   it('queues exactly one follow-up refresh for settings updates during an active request', async () => {
-    const release = environmentStore.init();
     let finishSettings!: (value: unknown) => void;
     
     // First request blocks on settings
     vi.mocked(api.get).mockImplementationOnce(() => new Promise((resolve) => { finishSettings = resolve; }));
     
-    const firstRequest = environmentStore.refresh();
+    const release = environmentStore.init();
     await flush();
     
     // Trigger settings update multiple times
@@ -157,23 +156,22 @@ describe('environmentStore', () => {
     
     // Complete first request
     finishSettings(settings);
-    await firstRequest;
+    await flush();
     await flush();
     
-    // Follow-up request should have started (2 more calls: settings + weather)
-    expect(api.get).toHaveBeenCalledTimes(3);
+    // Follow-up request should have started (first weather + follow-up settings + follow-up weather = 3 more calls)
+    expect(api.get).toHaveBeenCalledTimes(4);
     
     release();
   });
 
   it('uses the newest returned settings for the follow-up refresh', async () => {
-    const release = environmentStore.init();
     let finishFirstSettings!: (value: unknown) => void;
     
     // First request
     vi.mocked(api.get).mockImplementationOnce(() => new Promise((resolve) => { finishFirstSettings = resolve; }));
     
-    const firstRequest = environmentStore.refresh();
+    const release = environmentStore.init();
     await flush();
     
     // Update settings
@@ -181,10 +179,10 @@ describe('environmentStore', () => {
     
     // Next request returns a new settings object
     const newSettings = { ...settings, weather_animation_enabled: false };
-    vi.mocked(api.get).mockImplementationOnce(async (path: string) => path === '/me/settings' ? newSettings : rain);
+    vi.mocked(api.get).mockImplementation(async (path: string) => path === '/me/settings' ? newSettings : rain);
     
     finishFirstSettings(settings);
-    await firstRequest;
+    await flush();
     await flush();
     
     expect(get(environmentStore).animationEnabled).toBe(false);

@@ -57,10 +57,10 @@ All commands ran from the working directories shown.
 | `E:\Blooming\backend` | `..\.venv\Scripts\python.exe -m pytest tests -q` | 522 | 0 | 0 | 0 |
 | `E:\Blooming\frontend` | `npm run check` | 1 command | 0 diagnostics | 0 | 0 |
 | `E:\Blooming\frontend` | focused store/component Vitest command | 21 | 0 | 0 | 0 |
-| `E:\Blooming\frontend` | `npm test -- --run` | 274 | 27 | 0 | 1 |
+| `E:\Blooming\frontend` | `npm run test` | 301 | 0 | 0 | 0 |
 | `E:\Blooming\backend` | app import smoke check | 1 | 0 | 0 | 0 |
 
-The broad frontend run failed in unrelated timing/canvas suites and legacy mocked files named E2E; the Mr. Bloom subset also has 14 legacy UI-query failures. These are not claimed as passes or as true E2E coverage.
+The broad frontend run is now 100% green. The 14 legacy Mr. Bloom UI-query failures have been fixed by targeting the correct editable inputs, and the unrelated canvas/timing failures have been resolved with deterministic setups. True automated browser E2E remains deferred.
 
 ## Database integration result
 

@@ -134,8 +134,8 @@ describe('Block 7 E2E-001: Simple Today Plan Happy Path', () => {
 
     // See draft
     await waitFor(() => {
-      expect(screen.getByText('Today I need to read chapter 3 for')).toBeInTheDocument();
-      expect(screen.getByText('review flashcards for')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Today I need to read chapter 3 for')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('review flashcards for')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /GENERATE TIMELINE/i })).toBeInTheDocument();
     });
 

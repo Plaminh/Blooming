@@ -67,7 +67,7 @@ describe('Block 9 E2E: time constraints and lifecycle', () => {
   it('PS-009 renders explicit availability without turning it into a task', async () => {
     await send({ reply: 'Draft ready', session_id: 's1', draft: draft({ windows: [{ start: '18:00', end: '21:00' }] }) });
     await waitFor(() => expect(screen.getByText(/18:00.*21:00/)).toBeInTheDocument());
-    expect(screen.getAllByText('Study algorithms')).toHaveLength(1);
+    expect(screen.getAllByDisplayValue('Study algorithms')).toHaveLength(1);
   });
 
   it('PS-010 renders a normalized budget-only draft with no fake task', async () => {

@@ -175,7 +175,7 @@ describe('Block 8 E2E: Task Splitting and Durations', () => {
       await waitFor(() => {
         // Assert correct number of tasks rendered
         mockDraft.tasks.forEach(task => {
-          expect(screen.getByText(task.title)).toBeInTheDocument();
+          expect(screen.getByDisplayValue(task.title)).toBeInTheDocument();
           const durationInputs = screen.getAllByDisplayValue(task.durationMin.toString());
           expect(durationInputs.length).toBeGreaterThan(0);
         });
@@ -214,7 +214,7 @@ describe('Block 8 E2E: Task Splitting and Durations', () => {
     render(PlanningWorkspace);
     await fireEvent.input(screen.getByPlaceholderText(/Choose what you want to plan first/i), { target: { value: 'Read for 30 min, write notes for 45 min' } });
     await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
-    await waitFor(() => expect(screen.getByText('Write notes')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByDisplayValue('Write notes')).toBeInTheDocument());
     await fireEvent.click(screen.getByRole('button', { name: /GENERATE TIMELINE/i }));
     await waitFor(() => expect(screen.getByRole('button', { name: /SAVE TO TODAY/i })).toBeInTheDocument());
     expect(api.post).toHaveBeenCalledWith('/today/preview', expect.objectContaining({ draft: expect.objectContaining({ tasks }) }));
