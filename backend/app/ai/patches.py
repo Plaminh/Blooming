@@ -1,5 +1,5 @@
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.schemas.drafts import RoadmapDraft, TodayDraft
@@ -18,7 +18,8 @@ def apply_patch(
         raise ValueError(f"Unknown draft timezone: {result.timezone}") from exc
     for op in ops:
         if op.op == "set_plan_date":
-            if op.plan_date is None or op.plan_date < date.today():
+            # "Today" is the draft owner's local day, not the server's.
+            if op.plan_date is None or op.plan_date < datetime.now(draft_timezone).date():
                 raise ValueError("Plan date cannot be in the past")
             for item in result.tasks:
                 for field_name in ("deadline", "fixedStart", "fixedEnd"):
@@ -34,6 +35,12 @@ def apply_patch(
                             ),
                         )
             result.planDate = op.plan_date
+            continue
+        if op.op == "remove_deferred_task":
+            remaining = [item for item in result.deferred_tasks if item.task.id != op.task_id]
+            if len(remaining) == len(result.deferred_tasks):
+                raise ValueError("Task not found")
+            result.deferred_tasks = remaining
             continue
         if op.op == "set_windows":
             result.windows = op.windows or []

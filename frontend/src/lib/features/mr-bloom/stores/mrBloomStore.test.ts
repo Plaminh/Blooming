@@ -340,3 +340,31 @@ test('milestone add uses the next free deterministic ID and edits preserve it', 
   roadmap = get(mrBloomStore).activeDraft;
   expect(roadmap?.type === 'roadmap' && roadmap.milestones.at(-1)).toMatchObject({ id: 'm2', title: 'Two' });
 });
+
+test('discarding a draft while Mr. Bloom is replying does not lock the composer', async () => {
+  let resolveChat: (value: unknown) => void = () => {};
+  vi.mocked(api.post).mockImplementationOnce(() => new Promise(resolve => { resolveChat = resolve; }));
+
+  const pending = mrBloomStore.submitMessage('Plan my day');
+  expect(get(mrBloomStore).isWaitingForResponse).toBe(true);
+
+  mrBloomStore.discardDraft();
+  resolveChat({ reply: 'Late reply', draft: null, suggestions: [], assumptions: [] });
+  await pending;
+
+  const state = get(mrBloomStore);
+  expect(state.isWaitingForResponse).toBe(false);
+  expect(state.chatHistory.some(message => message.content === 'Late reply')).toBe(false);
+});
+
+test('a failed reply that arrives after a save still releases the composer', async () => {
+  let rejectChat: (reason: unknown) => void = () => {};
+  vi.mocked(api.post).mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectChat = reject; }));
+
+  const pending = mrBloomStore.submitMessage('Plan my day');
+  mrBloomStore.acceptDraft('Saved elsewhere.');
+  rejectChat(new Error('Gateway timeout'));
+  await pending;
+
+  expect(get(mrBloomStore).isWaitingForResponse).toBe(false);
+});

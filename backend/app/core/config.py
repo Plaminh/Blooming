@@ -57,6 +57,9 @@ class Settings(BaseSettings):
         "openai/gpt-oss-20b": 160_000, "openai/gpt-oss-120b": 160_000, "llama-3.1-8b-instant": 400_000}
     AI_USER_CALLS_PER_DAY: dict[str, int] = {"PLANNER": 10, "EDITOR": 10, "CHITCHAT": 15, "ROUTER": 40}
     AI_TIMEOUT_SECONDS: float = 20.0
+    # Total provider time for one chat turn, across router, cascade and repair.
+    # The desktop client aborts chat requests after 75s, so keep this well below.
+    AI_REQUEST_BUDGET_SECONDS: float = 45.0
     AI_CHAT_RATE_LIMIT_PER_MIN: int = 12
     AI_BUDGET_LEAN_THRESHOLD: float = 0.70
     AI_BUDGET_RULES_ONLY_THRESHOLD: float = 0.85

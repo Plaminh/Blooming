@@ -195,3 +195,46 @@ async def test_client_lifecycle():
     await provider.close_client()
     assert client.is_closed
     assert provider.client is None
+
+
+@pytest.mark.asyncio
+async def test_exhausted_request_budget_sends_nothing(monkeypatch):
+    from app.ai.providers import llm_deadline
+
+    monkeypatch.setattr(settings, "GROQ_API_KEY", SecretStr("test-secret"))
+    calls = []
+
+    def respond(request):
+        calls.append(json.loads(request.content)["model"])
+        return httpx.Response(200, json=envelope('{"ok": true}'))
+
+    provider = LLMProvider(httpx.AsyncClient(transport=httpx.MockTransport(respond)))
+    with llm_deadline(0):
+        with pytest.raises(LLMError, match="timeout"):
+            await provider.call("groq:small,groq:large", [], require_json=True)
+    assert calls == []
+    # No request reached the model, so its breaker must stay closed.
+    assert provider.get_circuit_breaker("groq", "small").state == "CLOSED"
+    await provider.close_client()
+
+
+@pytest.mark.asyncio
+async def test_request_budget_shrinks_the_per_call_timeout(monkeypatch):
+    from app.ai.providers import llm_deadline
+
+    monkeypatch.setattr(settings, "GROQ_API_KEY", SecretStr("test-secret"))
+    monkeypatch.setattr(settings, "AI_TIMEOUT_SECONDS", 20.0)
+    seen = []
+
+    def respond(request):
+        seen.append(request.extensions["timeout"]["read"])
+        return httpx.Response(200, json=envelope('{"ok": true}'))
+
+    provider = LLMProvider(httpx.AsyncClient(transport=httpx.MockTransport(respond)))
+    with llm_deadline(5):
+        await provider.call("groq:small", [], require_json=True)
+    assert 0 < seen[0] <= 5
+    # Outside a request deadline the configured per-call timeout applies.
+    await provider.call("groq:small", [], require_json=True)
+    assert seen[1] == 20.0
+    await provider.close_client()

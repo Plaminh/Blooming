@@ -14,7 +14,7 @@ from app.db.models.garden import GardenState, RewardEvent, Plant, PlantOwnership
 from app.db.models.goals import Goal, Milestone
 from app.db.models.planning import PlanningMessage, PlanningSession
 from app.db.models.reminders import Reminder, ReminderAction
-from app.db.models.tasks import Task, TaskDependency
+from app.db.models.tasks import RecurringTask, Task, TaskDependency
 from app.db.models.users import AuthSession, EmailVerificationToken, User, UserSettings
 from app.db.models.ai_usage import AiUsageLog
 
@@ -36,6 +36,7 @@ __all__ = [
     "PlanRevision",
     "PlanningMessage",
     "PlanningSession",
+    "RecurringTask",
     "Reminder",
     "ReminderAction",
     "Task",

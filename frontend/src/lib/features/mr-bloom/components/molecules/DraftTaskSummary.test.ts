@@ -25,3 +25,21 @@ test('groups primary controls in the main row and collapses unused time actions'
   expect(mainRow?.contains(constraints)).toBe(false);
   expect(disclosure).not.toHaveAttribute('open');
 });
+
+test('shows server fixed times as clock values and marks repeating or carried work', () => {
+  render(DraftTaskSummary, {
+    task: {
+      ...task,
+      schedulingType: 'FIXED' as const,
+      fixedStart: '2026-09-28T19:00:00+07:00',
+      fixedEnd: '2026-09-28T20:00:00+07:00',
+      recurrence: { freq: 'WEEKLY' as const, weekdays: [0, 2] },
+      sourceTaskId: '6a4f6c1e-0000-4000-8000-000000000001'
+    }
+  });
+
+  expect(screen.getByLabelText('Start time')).toHaveValue('19:00');
+  expect(screen.getByLabelText('End time')).toHaveValue('20:00');
+  expect(screen.getByText('↻ Repeats weekly · Mon, Wed')).toBeInTheDocument();
+  expect(screen.getByText('Carried over')).toBeInTheDocument();
+});

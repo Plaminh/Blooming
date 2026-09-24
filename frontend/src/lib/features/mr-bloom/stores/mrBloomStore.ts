@@ -60,6 +60,13 @@ function apiErrorCode(error: APIError): string | null {
 
 let latestRequestVersion = 0;
 
+// A discard, save or session restore invalidates an in-flight reply. The reply
+// is dropped, but the composer must still be released: only one chat request
+// can be in flight, so no newer request depends on this flag staying set.
+function releaseComposer(update: (updater: (state: MrBloomState) => MrBloomState) => void) {
+  update(state => (state.isWaitingForResponse ? { ...state, isWaitingForResponse: false } : state));
+}
+
 async function sendMessage(
   message: string, msgId: string,
   update: (updater: (state: MrBloomState) => MrBloomState) => void,
@@ -70,7 +77,7 @@ async function sendMessage(
     const result: ChatResponse = await api.post('/assistant/chat', {
       message, session_id: snapshot.sessionId, current_draft: snapshot.activeDraft
     });
-    if (version !== latestRequestVersion) return;
+    if (version !== latestRequestVersion) return releaseComposer(update);
     update(state => ({
       ...state, isWaitingForResponse: false,
       activeDraft: result.draft ?? state.activeDraft,
@@ -91,7 +98,7 @@ async function sendMessage(
       }]
     }));
   } catch (error) {
-    if (version !== latestRequestVersion) return;
+    if (version !== latestRequestVersion) return releaseComposer(update);
     update(state => ({
       ...state, isWaitingForResponse: false,
       error: error instanceof Error ? error.message : 'Unable to reach Mr. Bloom.',
@@ -488,6 +495,8 @@ function createMrBloomStore() {
       flushPendingDurations().then(() => applyPatch([{ op: 'update_task' as const, task_id: taskId, importance: importance as 'CORE' | 'OPTIONAL' }])).then(() => { void store.generateTimeline(); }),
     removeTask: (taskId: string) =>
       flushPendingDurations().then(() => applyPatch([{ op: 'remove_task' as const, task_id: taskId }])).then(() => { void store.generateTimeline(); }),
+    removeDeferredTask: (taskId: string) =>
+      flushPendingDurations().then(() => applyPatch([{ op: 'remove_deferred_task' as const, task_id: taskId }])).then(() => { void store.generateTimeline(); }),
     generateTimeline: async () => {
       await flushPendingDurations();
       await patchQueue;

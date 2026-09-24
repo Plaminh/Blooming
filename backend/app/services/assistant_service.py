@@ -18,7 +18,7 @@ from app.ai.router import normalize
 from typing import cast
 from app.db.models.tasks import Task
 from app.ai.parser import ParsedPlan, ParsedTask
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from app.services.today_service import today_service
 from app.schemas.assistant import ChatRequest, ChatResponse
 from app.schemas.drafts import TodayDraft
@@ -76,7 +76,12 @@ async def chat(
         if today["status"] != "NO_PLAN":
             return tired_response(lang, has_plan=True)
         pending = (await db.scalars(
-            select(Task).where(Task.user_id == user_id, Task.status.in_({"PENDING", "DRAFT"}))
+            select(Task).where(
+                Task.user_id == user_id,
+                Task.status.in_({"PENDING", "DRAFT"}),
+                # Work saved for a later day is not today's to lighten.
+                or_(Task.planned_date.is_(None), Task.planned_date <= now.date()),
+            )
             .order_by(Task.created_at.desc()).limit(2)
         )).all()
         if pending:
@@ -86,7 +91,9 @@ async def chat(
                 title=item.title, duration_min=min(25, item.estimated_duration_minutes),
                 source="RULE", importance="OPTIONAL", category=item.category,
             ) for item in pending), confidence=1.0)
-            result = await _preview(light, context, lang, tier="RULES")
+            result = await _preview(
+                light, context, lang, tier="RULES", include_carried=False
+            )
             result.intent = "MOOD"
             return result
         return tired_response(lang, has_plan=False)

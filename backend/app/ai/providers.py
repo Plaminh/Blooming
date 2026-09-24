@@ -1,6 +1,9 @@
 import json
 import logging
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from copy import deepcopy
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -15,6 +18,31 @@ if TYPE_CHECKING:
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Monotonic instant after which no further provider call may start for the
+# current request. One chat turn can reach the router, planner cascade and a
+# repair call; without a shared deadline their per-call timeouts add up to
+# minutes while the user watches a spinner.
+_request_deadline: ContextVar[float | None] = ContextVar(
+    "llm_request_deadline", default=None
+)
+# Starting a call with less time than this left only produces a timeout.
+MIN_CALL_SECONDS = 1.0
+
+
+@contextmanager
+def llm_deadline(seconds: float) -> Iterator[None]:
+    """Bound the total provider time of every call made inside this block."""
+    token = _request_deadline.set(time.monotonic() + max(0.0, seconds))
+    try:
+        yield
+    finally:
+        _request_deadline.reset(token)
+
+
+def remaining_budget() -> float | None:
+    deadline = _request_deadline.get()
+    return None if deadline is None else deadline - time.monotonic()
 
 
 def strictify_schema(schema: dict) -> dict:
@@ -175,8 +203,16 @@ class LLMProvider:
         temperature: float,
         max_tokens: int,
         response_format: Optional[dict] = None,
+        timeout: float | None = None,
     ) -> dict:
         cb = self.get_circuit_breaker(provider, model)
+        call_timeout = min(
+            settings.AI_TIMEOUT_SECONDS,
+            timeout if timeout is not None else settings.AI_TIMEOUT_SECONDS,
+        )
+        # A timeout caused by the request's shrinking budget says nothing about
+        # the model's health, so it must not trip that model's breaker.
+        budget_limited = call_timeout < settings.AI_TIMEOUT_SECONDS
         if not cb.is_allowed():
             raise CircuitBreakerOpenError()
 
@@ -201,7 +237,9 @@ class LLMProvider:
             if not self.client:
                 self.init_client()
             assert self.client is not None
-            response = await self.client.post(url, headers=headers, json=payload)
+            response = await self.client.post(
+                url, headers=headers, json=payload, timeout=call_timeout
+            )
             latency = int((time.monotonic() - start_time) * 1000)
 
             if response.status_code == 429:
@@ -236,7 +274,8 @@ class LLMProvider:
             return data
 
         except httpx.TimeoutException:
-            cb.record_failure()
+            if not budget_limited:
+                cb.record_failure()
             logger.error(f"Timeout calling {provider}")
             raise LLMError("timeout", status_code=504)
         except httpx.HTTPStatusError as e:
@@ -300,6 +339,12 @@ class LLMProvider:
                             *messages,
                         ]
 
+            remaining = remaining_budget()
+            if remaining is not None and remaining < MIN_CALL_SECONDS:
+                # Nothing was sent, so there is no usage to record.
+                logger.warning("AI request budget exhausted before %s/%s", provider, model)
+                last_error = LLMError("timeout", status_code=504)
+                break
             try:
                 started = time.monotonic()
                 result = await self._call_single(
@@ -309,6 +354,7 @@ class LLMProvider:
                     temperature,
                     max_tokens,
                     response_format,
+                    timeout=remaining,
                 )
                 if require_json:
                     try:

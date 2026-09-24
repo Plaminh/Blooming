@@ -34,7 +34,18 @@ export class APIError extends Error {
 interface RequestOptions extends RequestInit {
   data?: any;
   formUrlEncoded?: boolean;
+  /** Abort the request after this many milliseconds (0 disables the limit). */
+  timeoutMs?: number;
 }
+
+/** A request that never answers must not leave the UI waiting forever. */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+/** The assistant may call several models; the backend caps that chain at 45s. */
+export const CHAT_REQUEST_TIMEOUT_MS = 75_000;
+export const REQUEST_TIMEOUT_STATUS = 408;
+const LONG_RUNNING_ENDPOINTS: Record<string, number> = {
+  '/assistant/chat': CHAT_REQUEST_TIMEOUT_MS
+};
 
 type AuthErrorHandler = () => void;
 let onAuthError: AuthErrorHandler | null = null;
@@ -47,7 +58,7 @@ const TOKEN_KEY = 'blooming_access_token';
 
 export const api = {
   async fetch(endpoint: string, options: RequestOptions = {}) {
-    const { data, formUrlEncoded, ...fetchOptions } = options;
+    const { data, formUrlEncoded, timeoutMs: requestedTimeout, ...fetchOptions } = options;
     
     const headers = new Headers(fetchOptions.headers || {});
     
@@ -76,6 +87,7 @@ export const api = {
       path = `/${path}`;
     }
     urlStr += path;
+    const timeoutMs = requestedTimeout ?? LONG_RUNNING_ENDPOINTS[path] ?? DEFAULT_REQUEST_TIMEOUT_MS;
 
     if (data) {
       if (formUrlEncoded) {
@@ -91,10 +103,34 @@ export const api = {
       }
     }
     
-    const response = await fetch(urlStr, {
-      ...fetchOptions,
-      headers
-    });
+    const controller = new AbortController();
+    let timedOut = false;
+    const callerSignal = fetchOptions.signal;
+    const forwardAbort = () => controller.abort();
+    if (callerSignal) {
+      if (callerSignal.aborted) controller.abort();
+      else callerSignal.addEventListener('abort', forwardAbort, { once: true });
+    }
+    const timer = timeoutMs > 0
+      ? setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs)
+      : undefined;
+
+    let response: Response;
+    try {
+      response = await fetch(urlStr, {
+        ...fetchOptions,
+        headers,
+        signal: controller.signal
+      });
+    } catch (error) {
+      if (timedOut) {
+        throw new APIError(REQUEST_TIMEOUT_STATUS, 'The server took too long to respond. Please try again.');
+      }
+      throw error;
+    } finally {
+      if (timer) clearTimeout(timer);
+      callerSignal?.removeEventListener('abort', forwardAbort);
+    }
 
     // For 204 No Content, don't try to parse JSON
     if (response.status === 204) {
@@ -171,6 +207,19 @@ export interface TaskDraft {
   dependencies: string[];
   splittable: boolean;
   breakAfterMin?: number | null;
+  /** Saving creates a repeating template for this task. */
+  recurrence?: RecurrenceDraft | null;
+  /** Server-issued: the repeating template this task is an occurrence of. */
+  recurringTaskId?: string | null;
+  /** Server-issued: an existing unscheduled task carried into this day. */
+  sourceTaskId?: string | null;
+}
+
+export interface RecurrenceDraft {
+  freq: 'DAILY' | 'WEEKLY';
+  /** 0 = Monday ... 6 = Sunday. */
+  weekdays?: number[];
+  until?: string | null;
 }
 
 export interface DeferredTaskDraft {
@@ -206,6 +255,7 @@ export type AssistantDraft = TodayDraft | RoadmapDraft;
 
 export type PatchOp = 
   | { op: "remove_task"; task_id: string }
+  | { op: "remove_deferred_task"; task_id: string }
   | { op: "move_task_to_date"; task_id: string; target_date: string; timezone?: string | null }
   | { op: "update_window"; window_index: number; start?: string | null; end?: string | null }
   | { op: "update_task"; task_id: string; duration_min?: number | null; title?: string | null; importance?: "CORE" | "OPTIONAL" | null; priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT" | null; category?: "Learning" | "Work" | "Personal" | null; break_after_min?: number | null; splittable?: boolean | null; fixed_start?: string | null; fixed_end?: string | null; deadline?: string | null; scheduling_type?: "FLEXIBLE" | "FIXED" | null }

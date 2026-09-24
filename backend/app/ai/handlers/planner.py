@@ -6,15 +6,16 @@ from typing import Literal
 from pydantic import BaseModel, Field, ValidationError
 
 from app.ai.budget import BudgetMode, available_routes, get_budget_mode
+from app.ai.carryover import carried_tasks
 from app.ai.context import ChatContext
-from app.ai.drafts import assemble_today
+from app.ai.drafts import assemble_today, primary_plan_date
 from app.ai.parser import ParsedPlan, ParsedTask, parse
 from app.ai.providers import LLMError, llm_provider
 from app.ai.router import normalize
 from app.ai.validators import check_today
 from app.core.config import settings
 from app.schemas.assistant import ChatResponse
-from app.services.today_service import today_service
+from app.schemas.drafts import TodayDraft
 
 
 class LLMTask(BaseModel):
@@ -63,9 +64,11 @@ def _parsed_from_llm(value: LLMDayPlan, ctx: ChatContext, message: str) -> Parse
                 else (l_task.duration_min or p_task.duration_min)
             )
 
+            # replace() keeps the parser's day, recurrence and spread, which
+            # the model is never asked for.
             final_tasks.append(
-                ParsedTask(
-                    title=p_task.title,
+                replace(
+                    p_task,
                     duration_min=final_duration,
                     source=final_source,
                     importance=l_task.importance,
@@ -106,6 +109,7 @@ def _parsed_from_llm(value: LLMDayPlan, ctx: ChatContext, message: str) -> Parse
         plan_date_offset=max(ctx.default_date_offset, parser_plan.plan_date_offset),
         confidence=1.0,
         assumptions=tuple(value.assumptions),
+        day=parser_plan.day,
     )
 
 
@@ -181,6 +185,49 @@ async def _llm_plan(
             )
 
 
+def _draft_summary(draft: TodayDraft, lang: str) -> str:
+    """One deterministic sentence saying which days the draft covers."""
+    vi = lang == "vi"
+    day = draft.planDate.strftime("%d/%m")
+    parts = [
+        f"Mình đã xếp {len(draft.tasks)} việc cho ngày {day}."
+        if vi
+        else f"I drafted {len(draft.tasks)} task(s) for {day}."
+    ]
+    if draft.deferred_tasks:
+        days = sorted({item.targetDate for item in draft.deferred_tasks})
+        labels = ", ".join(value.strftime("%d/%m") for value in days[:5])
+        more = "…" if len(days) > 5 else ""
+        parts.append(
+            f"{len(draft.deferred_tasks)} việc khác được lưu cho ngày {labels}{more}; "
+            "khi bạn lập lịch những ngày đó, chúng sẽ tự có trong bản nháp."
+            if vi
+            else f"{len(draft.deferred_tasks)} more will be saved for {labels}{more} "
+            "and added automatically when you plan those days."
+        )
+    repeating = [
+        task
+        for task in draft.tasks + [item.task for item in draft.deferred_tasks]
+        if task.recurrence is not None
+    ]
+    if repeating:
+        names = ", ".join(
+            f"{task.title} ({task.recurrence.label(lang)})"  # type: ignore[union-attr]
+            for task in repeating[:3]
+        )
+        parts.append(
+            f"Việc lặp lại: {names}. Sau khi lưu, mình sẽ tự thêm chúng vào những ngày sau."
+            if vi
+            else f"Repeating: {names}. After you save, I'll add them to future days automatically."
+        )
+    parts.append(
+        "Bạn xem lại rồi bấm tạo timeline nhé."
+        if vi
+        else "Please review your tasks and constraints, then generate the timeline."
+    )
+    return " ".join(parts)
+
+
 async def _preview(
     plan: ParsedPlan,
     ctx: ChatContext,
@@ -189,10 +236,24 @@ async def _preview(
     tier: str,
     reply: str | None = None,
     degraded: str | None = None,
+    carried: list[ParsedTask] | None = None,
+    include_carried: bool = True,
 ) -> ChatResponse:
-    draft, assumptions = assemble_today(plan, ctx)
+    if carried is None:
+        carried = (
+            await carried_tasks(
+                ctx.db, ctx.user_id, primary_plan_date(plan, ctx), ctx.timezone
+            )
+            if include_carried
+            else []
+        )
+    draft, assumptions = assemble_today(plan, ctx, carried)
     if check_today(draft):
-        question = "Please clarify the tasks or available time before I schedule them."
+        question = (
+            "Bạn nói rõ giúp mình các việc cần làm hoặc thời gian rảnh nhé."
+            if lang == "vi"
+            else "Please clarify the tasks or available time before I schedule them."
+        )
         return ChatResponse(
             reply=reply or question,
             question=question,
@@ -202,10 +263,10 @@ async def _preview(
             draft=draft,
             assumptions=assumptions,
         )
+    summary = _draft_summary(draft, lang)
     # Do not automatically preview. Let the frontend click "Generate Timeline".
     return ChatResponse(
-        reply=reply
-        or "I've created a draft. Please review your tasks and constraints, then generate the timeline.",
+        reply=f"{reply}\n{summary}" if reply else summary,
         intent="PLAN_DAY",
         tier=tier,
         degraded=degraded,
@@ -252,6 +313,14 @@ async def plan_day(
         and not parsed.unresolved
     ):
         return await _preview(parsed, ctx, lang, tier="PARSER")
+    if not parsed.tasks:
+        # "Lập lịch hôm nay" names no task, but the day may already hold
+        # deferred or recurring work; draft that before asking a model.
+        carried = await carried_tasks(
+            ctx.db, ctx.user_id, primary_plan_date(parsed, ctx), ctx.timezone
+        )
+        if carried:
+            return await _preview(parsed, ctx, lang, tier="RULES", carried=carried)
     mode = await get_budget_mode(ctx.db, ctx.user_id, "PLANNER", now=ctx.now)
     configured_routes = settings.AI_ROUTE_PLANNER_LITE
     if mode == BudgetMode.NORMAL:

@@ -9,7 +9,9 @@ from app.ai.handlers.chitchat import reply as chitchat_reply
 from app.ai.knowledge import KB
 from app.ai.router import Route, normalize
 from app.schemas.assistant import ChatResponse, QuickReply
-from app.services import garden_service, statistics_service
+from app.db.models.tasks import RecurringTask
+from app.schemas.drafts import RecurrenceDraft
+from app.services import garden_service, recurring_service, statistics_service
 from app.services.goals_service import goals_service
 from app.services.today_service import today_service
 
@@ -18,6 +20,25 @@ def _chips(lang: str) -> list[QuickReply]:
     if lang == "vi":
         return [QuickReply(label="Lên kế hoạch hôm nay", send_text="Lập lịch hôm nay"), QuickReply(label="Tạo mục tiêu", send_text="Tạo mục tiêu")]
     return [QuickReply(label="Plan my day", send_text="Plan my day"), QuickReply(label="Create a goal", send_text="Create a goal")]
+
+
+def _recurring_list(templates: list[RecurringTask], lang: str) -> str:
+    if not templates:
+        return "Bạn chưa có việc lặp lại nào." if lang == "vi" else "You have no repeating tasks."
+    items = []
+    for item in templates[:6]:
+        rule = RecurrenceDraft(
+            freq=item.frequency,  # type: ignore[arg-type]
+            weekdays=recurring_service.weekdays_of(item.weekday_mask),
+            until=item.until_date,
+        )
+        items.append(f"{item.title} ({rule.label(lang)}, {item.estimated_duration_minutes}p)")
+    more = "…" if len(templates) > 6 else ""
+    prefix = (
+        f"Bạn có {len(templates)} việc lặp lại: " if lang == "vi"
+        else f"You have {len(templates)} repeating task(s): "
+    )
+    return prefix + "; ".join(items) + more + "."
 
 
 async def handle(
@@ -51,12 +72,57 @@ async def handle(
             reply = KB[key][lang]
         else:
             reply = chitchat_reply(message, lang)
+    elif intent == "STATUS_RECURRING":
+        if db is None or user_id is None:
+            raise ValueError("Authenticated database context required")
+        templates = await recurring_service.list_active(db, user_id)
+        reply = _recurring_list(templates, lang)
+    elif intent == "STOP_RECURRING":
+        if db is None or user_id is None:
+            raise ValueError("Authenticated database context required")
+        templates = await recurring_service.list_active(db, user_id)
+        matches = recurring_service.match_by_title(templates, message)
+        if len(matches) == 1:
+            # An explicit, typed request; the template is only deactivated so
+            # it can be turned back on, and already planned days are kept.
+            await recurring_service.set_active(db, user_id, matches[0].id, False)
+            reply = (
+                f"Đã dừng lặp lại \"{matches[0].title}\". Những ngày đã lập lịch vẫn giữ nguyên."
+                if lang == "vi"
+                else f"Stopped repeating \"{matches[0].title}\". Days already planned are unchanged."
+            )
+        elif not templates:
+            reply = "Bạn chưa có việc lặp lại nào." if lang == "vi" else "You have no repeating tasks."
+        else:
+            question = (
+                "Bạn muốn dừng việc lặp lại nào? " if lang == "vi"
+                else "Which repeating task should I stop? "
+            ) + _recurring_list(templates, lang)
+            return ChatResponse(
+                reply=question, question=question, intent=intent, tier="RULES",
+                suggestions=[
+                    QuickReply(
+                        label=(f"Dừng: {item.title}" if lang == "vi" else f"Stop: {item.title}")[:80],
+                        send_text=(f"Dừng lặp lại {item.title}" if lang == "vi" else f"Stop repeating {item.title}"),
+                    )
+                    for item in (matches or templates)[:4]
+                ],
+            )
     elif intent == "STATUS_TODAY":
         if db is None or user_id is None:
             raise ValueError("Authenticated database context required")
         today = await today_service.get_today(db, user_id, now.date())
         if today["status"] == "NO_PLAN":
-            reply = "Bạn chưa có kế hoạch hôm nay." if lang == "vi" else "You have no plan for today yet."
+            waiting = today.get("pending_tasks", [])
+            if waiting:
+                names = ", ".join(item["title"] for item in waiting[:3])
+                reply = (
+                    f"Bạn chưa có kế hoạch hôm nay, nhưng có {len(waiting)} việc đang chờ: {names}."
+                    if lang == "vi"
+                    else f"No plan for today yet, but {len(waiting)} task(s) are waiting: {names}."
+                )
+            else:
+                reply = "Bạn chưa có kế hoạch hôm nay." if lang == "vi" else "You have no plan for today yet."
         else:
             tasks = [block for block in today["blocks"] if block["block_type"] == "TASK"]
             completed = sum(block["status"] == "COMPLETED" for block in tasks)

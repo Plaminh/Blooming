@@ -18,6 +18,7 @@ BEGIN;
 \ir tables/13_planning_messages.sql
 \ir tables/14_availability_windows.sql
 \ir tables/15_plan_revisions.sql
+\ir tables/15a_recurring_tasks.sql
 \ir tables/16_tasks.sql
 \ir tables/17_plan_blocks.sql
 \ir tables/18_task_dependencies.sql

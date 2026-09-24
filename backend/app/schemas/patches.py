@@ -17,6 +17,12 @@ class MoveTaskToDateOp(BaseModel):
     target_date: str
     timezone: str | None = None
 
+class RemoveDeferredTaskOp(BaseModel):
+    """Drop a task the draft would save for a later day."""
+
+    op: Literal["remove_deferred_task"]
+    task_id: str
+
 class UpdateWindowOp(BaseModel):
     op: Literal["update_window"]
     window_index: int = Field(ge=0)
@@ -69,6 +75,7 @@ class SetPlanDateOp(BaseModel):
 PatchOp = Annotated[
     Union[
         RemoveTaskOp,
+        RemoveDeferredTaskOp,
         MoveTaskToDateOp,
         UpdateWindowOp,
         UpdateTaskOp,

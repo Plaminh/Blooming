@@ -21,6 +21,8 @@ Intent = Literal[
     "EDIT_DRAFT",
     "MOOD",
     "CHITCHAT",
+    "STATUS_RECURRING",
+    "STOP_RECURRING",
 ]
 
 
@@ -38,6 +40,47 @@ def normalize(text: str) -> str:
         char for char in decomposed if unicodedata.category(char) != "Mn"
     )
     return re.sub(r"\s+", " ", stripped.replace("đ", "d")).strip()
+
+
+def has_diacritics(text: str) -> bool:
+    """True when the user typed Vietnamese accents (or đ)."""
+    lowered = re.sub(r"\s+", " ", text.casefold()).strip()
+    return normalize(text) != lowered
+
+
+def accent_aware_search(
+    message: str, accented: str, plain: str, english: str | None = None
+) -> bool:
+    """Match Vietnamese keywords without letting accent stripping merge words.
+
+    Stripping accents maps "chắn" (as in "chắc chắn") and "chán" (bored) to the
+    same "chan". When the user typed accents, match the accented forms against
+    the original text; only unaccented input falls back to the plain forms.
+    English keywords never carry accents and are always matched plainly.
+    """
+    text = normalize(message)
+    if english and re.search(english, text):
+        return True
+    if has_diacritics(message):
+        original = unicodedata.normalize("NFC", message.casefold())
+        return bool(re.search(accented, original))
+    return bool(re.search(plain, text))
+
+
+# Vietnamese words cannot use \b around accented letters reliably across
+# normalization forms, so these patterns bound words with explicit lookarounds.
+_W = r"(?<![\w])"
+_E = r"(?![\w])"
+PLAN_KEYWORDS_RE = (
+    r"\b(len ke hoach|lap lich|xep lich|plan my day|schedule my day|sap xep lich"
+    r"|sap xep viec|plan my week|schedule my week)\b"
+)
+RECURRENCE_RE = (
+    r"\b(moi ngay|hang ngay|ngay nao cung|hang tuan|moi tuan|every day|everyday|daily"
+    r"|weekly|every week|every (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)"
+    r"|moi thu (?:[2-7]|hai|ba|tu|nam|sau|bay)|moi chu nhat)\b"
+)
+RECURRING_NOUN_RE = r"\b(viec lap lai|lich lap lai|lap lai|recurring|repeating|repeat)\b"
 
 
 def detect_lang(text: str) -> Literal["vi", "en"]:
@@ -66,14 +109,29 @@ def route(
         text,
     ):
         return Route("CRISIS", 1.0, flags=frozenset(flags))
-    mood = bool(
-        re.search(
-            r"\b(met|chan|stress|stressed|ap luc|kiet suc|buon ngu|tired|exhausted|burned out)\b",
-            text,
-        )
+    mood = accent_aware_search(
+        message,
+        accented=rf"{_W}(mệt|chán|căng thẳng|áp lực|kiệt sức|buồn ngủ|uể oải|oải){_E}",
+        plain=r"\b(met|(?<!chac )chan|cang thang|ap luc|kiet suc|buon ngu|ue oai)\b",
+        english=r"\b(stress|stressed|tired|exhausted|burned out|burnt out)\b",
     )
     if mood:
         flags.add("tired")
+    planning = bool(re.search(PLAN_KEYWORDS_RE, text))
+    if re.search(RECURRING_NOUN_RE, text) or re.search(RECURRENCE_RE, text):
+        # "bo" alone would also match "chạy bộ mỗi ngày" (jog every day).
+        stop = accent_aware_search(
+            message,
+            accented=rf"{_W}(dừng|ngừng|hủy|huỷ|bỏ|xóa|xoá|tắt){_E}",
+            plain=r"\b(dung|ngung|huy|(?<!chay )bo|xoa|tat)\b",
+            english=r"\b(stop|cancel|remove|delete|end)\b",
+        )
+        if stop and not re.search(r"\b\d+\s*(?:p|phut|minutes?|mins?|h|gio|tieng)\b", text):
+            return Route("STOP_RECURRING", 0.9, flags=frozenset(flags))
+        if re.search(RECURRING_NOUN_RE, text) and re.search(
+            r"\b(nao|gi|cua toi|dang co|list|show|my|what|which|xem|liet ke)\b", text
+        ):
+            return Route("STATUS_RECURRING", 0.9, flags=frozenset(flags))
     if has_draft and re.search(
         r"\b(doi|sua|bo|xoa|them|keo|giam|tang|change|edit|remove|delete|add|shorten|extend)\b",
         text,
@@ -85,12 +143,20 @@ def route(
     ):
         if not re.search(r"\b(lap lich|len ke hoach|plan my day)\b", text):
             return Route("STATUS_TODAY", 0.92, flags=frozenset(flags))
-    if re.search(r"\b(water|nuoc|leaves|leaf|vuon|cay)\b", text) and re.search(
-        r"\b(bao nhieu|con|co|balance|how many|garden|the nao|status|my|cua toi)\b",
+    garden_noun = accent_aware_search(
+        message,
+        accented=rf"{_W}(nước|vườn|cây|leaves|water){_E}",
+        plain=r"\b(nuoc|vuon|cay)\b",
+        english=r"\b(water|leaves|leaf|garden)\b",
+    )
+    # "có" is deliberately not a question word here: "Tôi có hẹn uống nước"
+    # is an appointment, not a garden balance question.
+    if garden_noun and re.search(
+        r"\b(bao nhieu|con|balance|how many|garden|the nao|status|my|cua toi)\b",
         text,
-    ):
+    ) and not re.search(r"\b(uong nuoc|drink)\b", text):
         return Route("STATUS_GARDEN", 0.91, flags=frozenset(flags))
-    if re.search(
+    if not planning and re.search(
         r"\b(thong ke|statistics|stats|bao nhieu gio|how many hours|this week|tuan nay)\b",
         text,
     ):
@@ -105,11 +171,13 @@ def route(
         text,
     ):
         return Route("HELP_FEATURE", 0.9, flags=frozenset(flags))
-    if re.search(
-        r"\b(len ke hoach|lap lich|xep lich|plan my day|schedule my day|sap xep lich|sap xep viec)\b",
+    if planning:
+        return Route("PLAN_DAY", 0.94, flags=frozenset(flags))
+    if re.search(RECURRENCE_RE, text) and re.search(
+        r"\b\d+\s*(?:p|phut|minutes?|mins?|h|gio|tieng)\b|\b(hoc|lam|doc|tap|study|read|work|practice|exercise)\b",
         text,
     ):
-        return Route("PLAN_DAY", 0.94, flags=frozenset(flags))
+        return Route("PLAN_DAY", 0.85, flags=frozenset(flags))
     if re.search(r"\b(plan|schedule|scheduling)\b", text) and len(words) > 1:
         return Route("PLAN_DAY", 0.85, flags=frozenset(flags))
     if re.search(r"\b(i have|i only have|toi co)\b", text) and re.search(
@@ -142,7 +210,7 @@ def route(
 
 
 class IntentClassification(BaseModel):
-    intent: Literal["GREETING", "THANKS", "STATUS_TODAY", "STATUS_GARDEN", "STATUS_STATS", "STATUS_GOALS", "HELP_FEATURE", "PLAN_DAY", "CREATE_GOAL", "EDIT_DRAFT", "MOOD", "CHITCHAT"]
+    intent: Literal["GREETING", "THANKS", "STATUS_TODAY", "STATUS_GARDEN", "STATUS_STATS", "STATUS_GOALS", "HELP_FEATURE", "PLAN_DAY", "CREATE_GOAL", "EDIT_DRAFT", "MOOD", "CHITCHAT", "STATUS_RECURRING"]
 
 
 async def classify_low_confidence(message: str, fallback: Route, db, user_id, history: list[dict] | None = None) -> Route:

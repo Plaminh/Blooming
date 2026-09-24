@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.ai.patches import apply_patch
 from app.schemas.patches import ApplyPatchRequest, ApplyPatchResponse
 from app.ai.proactive import nudge_gate
+from app.ai.providers import llm_deadline
 from app.api.deps import CurrentUser, get_db_session
 from app.core.config import settings
 from app.core.time_utils import safe_timezone
@@ -155,15 +156,16 @@ async def assistant_chat(
         select(UserSettings).where(UserSettings.user_id == current_user.id)
     )
     timezone_name = user_settings.timezone if user_settings else "UTC"
-    response = await chat(
-        request,
-        timezone=timezone_name,
-        db=session,
-        user_id=current_user.id,
-        history=history[-4:],
-        pending_intent=conversation.pending_intent,
-        pending_message=pending_message,
-    )
+    with llm_deadline(settings.AI_REQUEST_BUDGET_SECONDS):
+        response = await chat(
+            request,
+            timezone=timezone_name,
+            db=session,
+            user_id=current_user.id,
+            history=history[-4:],
+            pending_intent=conversation.pending_intent,
+            pending_message=pending_message,
+        )
     response.session_id = str(conversation.id)
     logger.info(
         "assistant_response",
@@ -191,6 +193,7 @@ async def assistant_chat(
         "STATUS_GARDEN",
         "STATUS_STATS",
         "STATUS_GOALS",
+        "STATUS_RECURRING",
         "HELP_FEATURE",
         "CHITCHAT",
     }

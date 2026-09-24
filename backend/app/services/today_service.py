@@ -34,7 +34,151 @@ logger = logging.getLogger(__name__)
 USABLE_PLAN_STATUSES = {"CONFIRMED", "ACTIVE", "COMPLETED"}
 
 
+def _snapshot_task_ids(snapshot: dict, key: str = "unscheduled_tasks") -> set[UUID]:
+    """Task ids named by a revision's unscheduled list.
+
+    Replan revisions store bare UUID strings, save revisions store objects
+    keyed by draft task id; both shapes must be readable by the next replan.
+    """
+    draft_to_task = {
+        draft_id: task_id
+        for task_id, draft_id in (snapshot.get("task_draft_map") or {}).items()
+    }
+    ids: set[UUID] = set()
+    for entry in snapshot.get(key) or []:
+        raw = None
+        if isinstance(entry, str):
+            raw = entry
+        elif isinstance(entry, dict):
+            raw = entry.get("task_id") or draft_to_task.get(entry.get("draft_task_id"))
+        if raw:
+            try:
+                ids.add(UUID(str(raw)))
+            except ValueError:
+                continue
+    return ids
+
+
 class TodayService:
+    @staticmethod
+    async def _pending_task_infos(
+        db: AsyncSession, user_id: UUID, day: date
+    ) -> list[dict]:
+        """Deferred and recurring work waiting for a day that has no plan yet."""
+        from app.ai.carryover import due_recurring_tasks, pending_tasks_for_day
+
+        infos = [
+            {"task_id": str(task.id), "title": task.title, "reason": "DEFERRED"}
+            for task in await pending_tasks_for_day(db, user_id, day)
+        ]
+        infos.extend(
+            {"task_id": None, "title": template.title, "reason": "RECURRING"}
+            for template in await due_recurring_tasks(db, user_id, day)
+        )
+        return infos
+
+    async def _reusable_task(
+        self, db: AsyncSession, user_id: UUID, raw_id: str | None
+    ) -> Task | None:
+        """An unfinished, unscheduled task of this user the draft carried in."""
+        if not raw_id:
+            return None
+        try:
+            task_id = UUID(raw_id)
+        except ValueError:
+            return None
+        task = await db.scalar(
+            select(Task).where(
+                Task.id == task_id,
+                Task.user_id == user_id,
+                Task.status.in_(("DRAFT", "PENDING")),
+            )
+        )
+        if task is None:
+            return None
+        still_scheduled = await db.scalar(
+            select(func.count(PlanBlock.id)).where(PlanBlock.task_id == task.id)
+        )
+        return None if still_scheduled else task
+
+    async def _owned_template_id(
+        self, db: AsyncSession, user_id: UUID, raw_id: str | None
+    ) -> UUID | None:
+        from app.db.models.tasks import RecurringTask
+
+        if not raw_id:
+            return None
+        try:
+            template_id = UUID(raw_id)
+        except ValueError:
+            return None
+        return await db.scalar(
+            select(RecurringTask.id).where(
+                RecurringTask.id == template_id, RecurringTask.user_id == user_id
+            )
+        )
+
+    async def _materialize_task(
+        self,
+        db: AsyncSession,
+        user_id: UUID,
+        t_draft,
+        day: date,
+        tz,
+        *,
+        status: str | None = None,
+    ) -> tuple[Task, bool]:
+        """Create (or reuse the carried-in) task row for one draft task.
+
+        Returns the task and whether an existing row was reused. A draft task
+        with a recurrence also creates or reuses its repeating template.
+        """
+        from app.services import recurring_service
+
+        template_id = await self._owned_template_id(db, user_id, t_draft.recurringTaskId)
+        if t_draft.recurrence is not None:
+            template = await recurring_service.upsert_from_draft(
+                db, user_id, t_draft, day, tz
+            )
+            template_id = template.id
+        values = dict(
+            title=t_draft.title,
+            estimated_duration_minutes=t_draft.durationMin,
+            priority=t_draft.priority,
+            scheduling_type=t_draft.schedulingType,
+            importance=t_draft.importance,
+            category=t_draft.category,
+            deadline_at=self._normalize_dt(t_draft.deadline, tz)
+            if t_draft.deadline
+            else None,
+            fixed_start_at=self._normalize_dt(t_draft.fixedStart, tz)
+            if t_draft.fixedStart
+            else None,
+            fixed_end_at=self._normalize_dt(t_draft.fixedEnd, tz)
+            if t_draft.fixedEnd
+            else None,
+            is_splittable=t_draft.splittable,
+            preferred_break_duration_minutes=t_draft.breakAfterMin,
+            planned_date=day,
+            recurring_task_id=template_id,
+        )
+        existing = await self._reusable_task(db, user_id, t_draft.sourceTaskId)
+        if existing is not None:
+            for key, value in values.items():
+                setattr(existing, key, value)
+            if status:
+                existing.status = status
+            return existing, True
+        task = Task(
+            user_id=user_id,
+            source="MANUAL" if t_draft.estimateSource == "USER" else "AI",
+            **values,
+        )
+        if status:
+            task.status = status
+        db.add(task)
+        return task, False
+
     async def _get_plan_for_preview_validation(
         self, db: AsyncSession, user_id: UUID, plan_date: date
     ):
@@ -53,7 +197,12 @@ class TodayService:
 
         plan = await crud_daily_plan.get_by_date(db, user_id, local_date)
         if not plan or plan.status not in USABLE_PLAN_STATUSES:
-            return {"plan_date": local_date, "status": "NO_PLAN", "timezone": str(tz)}
+            return {
+                "plan_date": local_date,
+                "status": "NO_PLAN",
+                "timezone": str(tz),
+                "pending_tasks": await self._pending_task_infos(db, user_id, local_date),
+            }
 
         revision = await db.scalar(
             select(PlanRevision)
@@ -222,12 +371,14 @@ class TodayService:
             .order_by(PlanRevision.revision_number.desc())
             .limit(1)
         )
-        pending_ids = set()
-        if previous:
-            for ut in previous.after_snapshot.get("unscheduled_tasks", []):
-                tid = ut.get("task_id")
-                if tid:
-                    pending_ids.add(UUID(tid))
+        pending_ids = _snapshot_task_ids(previous.after_snapshot) if previous else set()
+        # Work moved to today from an earlier day joins the replan too.
+        from app.ai.carryover import pending_tasks_for_day
+
+        carried_ids = {
+            task.id for task in await pending_tasks_for_day(db, user_id, local_date)
+        }
+        pending_ids |= carried_ids
 
         task_ids = {b.task_id for b in blocks if b.task_id} | pending_ids
         tasks = {
@@ -410,6 +561,18 @@ class TodayService:
                     {
                         "unscheduled_tasks": result.unscheduled_tasks,
                         "reasons": result.reasons,
+                        # Carry the save-time bookkeeping forward: a later
+                        # replace needs it to remove only this plan's tasks,
+                        # and Today needs it to map blocks to draft tasks.
+                        **{
+                            key: previous.after_snapshot[key]
+                            for key in (
+                                "created_task_ids",
+                                "reused_task_ids",
+                                "task_draft_map",
+                            )
+                            if previous is not None and key in previous.after_snapshot
+                        },
                     }
                 ),
             )
@@ -747,6 +910,11 @@ class TodayService:
             )
 
         draft_hash = hashlib.sha256(draft_json.encode()).hexdigest()
+        carried_source_ids = {
+            task.sourceTaskId
+            for task in [*request.draft.tasks, *(d.task for d in request.draft.deferred_tasks)]
+            if task.sourceTaskId
+        }
         idempotency_key = (
             request.idempotency_key
             or hashlib.sha256(request.preview_token.encode()).hexdigest()
@@ -912,7 +1080,8 @@ class TodayService:
                         select(Task).where(Task.id.in_(prev_task_ids))
                     )
                     for t in tasks_res.scalars():
-                        if t.status != "COMPLETED":
+                        # A task the new draft carries in again is reused below.
+                        if t.status != "COMPLETED" and str(t.id) not in carried_source_ids:
                             deps_res = await db.execute(
                                 select(TaskDependency).where(
                                     (TaskDependency.task_id == t.id)
@@ -967,29 +1136,13 @@ class TodayService:
 
         task_id_map = {}
         new_tasks = []
+        reused_task_ids: list[str] = []
         for t_draft in request.draft.tasks:
-            new_task = Task(
-                user_id=user_id,
-                title=t_draft.title,
-                estimated_duration_minutes=t_draft.durationMin,
-                priority=t_draft.priority,
-                scheduling_type=t_draft.schedulingType,
-                importance=t_draft.importance,
-                category=t_draft.category,
-                deadline_at=self._normalize_dt(t_draft.deadline, tz)
-                if t_draft.deadline
-                else None,
-                fixed_start_at=self._normalize_dt(t_draft.fixedStart, tz)
-                if t_draft.fixedStart
-                else None,
-                fixed_end_at=self._normalize_dt(t_draft.fixedEnd, tz)
-                if t_draft.fixedEnd
-                else None,
-                is_splittable=t_draft.splittable,
-                preferred_break_duration_minutes=t_draft.breakAfterMin,
-                source="MANUAL" if t_draft.estimateSource == "USER" else "AI",
+            new_task, reused = await self._materialize_task(
+                db, user_id, t_draft, local_date, tz
             )
-            db.add(new_task)
+            if reused:
+                reused_task_ids.append(str(new_task.id))
             new_tasks.append((t_draft, new_task))
 
         await db.flush()
@@ -1033,133 +1186,20 @@ class TodayService:
                 )
             )
 
-        # --- Process deferred_tasks ---
-        deferred_by_date = {}
-        for dt in request.draft.deferred_tasks:
-            deferred_by_date.setdefault(dt.targetDate, []).append(dt.task)
-
-        for t_date, t_drafts in deferred_by_date.items():
-            t_plan = await crud_daily_plan.get_by_date(db, user_id, t_date)
-            if not t_plan:
-                t_plan = DailyPlan(
-                    user_id=user_id,
-                    plan_date=t_date,
-                    status="ACTIVE",
-                    confirmed_at=datetime.now(timezone.utc),
-                    reality_check="COMFORTABLE",
-                    timezone_snapshot=str(tz),
-                )
-                db.add(t_plan)
-                await db.flush()
-
-            t_last_rev = await db.scalar(
-                select(func.max(PlanRevision.revision_number)).where(
-                    PlanRevision.daily_plan_id == t_plan.id
-                )
+        # --- Work for later days ---
+        # Tasks named for another day are stored as unscheduled work for that
+        # day instead of an empty "active" plan: an empty plan used to block
+        # planning that day (PLAN_EXISTS), and replacing it deleted the tasks.
+        # They come back in the draft automatically when that day is planned.
+        deferred_task_ids: list[str] = []
+        for deferred in request.draft.deferred_tasks:
+            deferred_task, reused = await self._materialize_task(
+                db, user_id, deferred.task, deferred.targetDate, tz, status="PENDING"
             )
-            t_rev_num = (t_last_rev or 0) + 1
-            t_prev_rev = await db.scalar(
-                select(PlanRevision).where(
-                    PlanRevision.daily_plan_id == t_plan.id,
-                    PlanRevision.revision_number == (t_last_rev or 0),
-                )
-            )
-
-            import copy
-            import hashlib
-
-            t_unscheduled = (
-                copy.deepcopy(t_prev_rev.after_snapshot.get("unscheduled_tasks", []))
-                if t_prev_rev
-                else []
-            )
-            t_created_ids = (
-                copy.deepcopy(t_prev_rev.after_snapshot.get("created_task_ids", []))
-                if t_prev_rev
-                else []
-            )
-            t_task_draft_map = (
-                copy.deepcopy(t_prev_rev.after_snapshot.get("task_draft_map", {}))
-                if t_prev_rev
-                else {}
-            )
-            t_draft_hash = hashlib.sha256(request.preview_token.encode()).hexdigest()
-
-            # Before saving, check if we already saved this exact preview token for this target date
-            if (
-                t_prev_rev
-                and t_prev_rev.after_snapshot.get("draft_hash") == t_draft_hash
-            ):
-                continue  # Idempotent retry, skip
-
-            for t_draft in t_drafts:
-                # Use a specific deterministic key for the deferred task ID mapping
-                idempotent_key = f"deferred_{t_draft.id}_{request.preview_token}"
-                existing_tid = t_task_draft_map.get(idempotent_key)
-
-                if existing_tid:
-                    continue  # already exists in mapping
-
-                t_task = Task(
-                    user_id=user_id,
-                    title=t_draft.title,
-                    estimated_duration_minutes=t_draft.durationMin,
-                    priority=t_draft.priority,
-                    scheduling_type=t_draft.schedulingType,
-                    importance=t_draft.importance,
-                    category=t_draft.category,
-                    deadline_at=self._normalize_dt(t_draft.deadline, tz)
-                    if t_draft.deadline
-                    else None,
-                    fixed_start_at=self._normalize_dt(t_draft.fixedStart, tz)
-                    if t_draft.fixedStart
-                    else None,
-                    fixed_end_at=self._normalize_dt(t_draft.fixedEnd, tz)
-                    if t_draft.fixedEnd
-                    else None,
-                    is_splittable=t_draft.splittable,
-                    preferred_break_duration_minutes=t_draft.breakAfterMin,
-                    source="MANUAL" if t_draft.estimateSource == "USER" else "AI",
-                )
-                db.add(t_task)
-                await db.flush()
-
-                t_unscheduled.append(
-                    {
-                        "draft_task_id": t_draft.id,
-                        "task_id": str(t_task.id),
-                        "reason": "DEFERRED",
-                        "title": t_draft.title,
-                    }
-                )
-                t_created_ids.append(str(t_task.id))
-                t_task_draft_map[idempotent_key] = str(t_task.id)
-
-            t_rev = PlanRevision(
-                daily_plan_id=t_plan.id,
-                revision_number=t_rev_num,
-                reason="AI_DRAFT_APPLIED",
-                trigger_type="MANUAL_EDIT",
-                generated_by="AI",
-                before_snapshot=copy.deepcopy(t_prev_rev.after_snapshot)
-                if t_prev_rev
-                else {},
-                after_snapshot={
-                    "blocks": len(t_plan.plan_blocks) if t_last_rev else 0,
-                    "draft_hash": t_draft_hash,
-                    "created_task_ids": t_created_ids,
-                    "task_draft_map": t_task_draft_map,
-                    "unscheduled_tasks": t_unscheduled,
-                    "reasons": copy.deepcopy(
-                        t_prev_rev.after_snapshot.get("reasons", [])
-                    )
-                    if t_prev_rev
-                    else [],
-                },
-            )
-            db.add(t_rev)
             await db.flush()
-        # ------------------------------
+            (reused_task_ids if reused else deferred_task_ids).append(
+                str(deferred_task.id)
+            )
 
         blocks_created = []
         first_position = (
@@ -1207,7 +1247,12 @@ class TodayService:
             revision.after_snapshot.get("task_draft_map", {}) if revision else {}
         )
         created_task_ids = [pid for pid in previous_created_ids if pid in preserved_ids]
-        created_task_ids.extend(str(new_task.id) for _, new_task in new_tasks)
+        # Reused carried-in tasks are not "created" by this save: replacing the
+        # plan later must return them to their day, not delete them.
+        reused = set(reused_task_ids)
+        created_task_ids.extend(
+            str(new_task.id) for _, new_task in new_tasks if str(new_task.id) not in reused
+        )
         task_draft_map = {
             task_id: draft_id
             for task_id, draft_id in previous_draft_map.items()
@@ -1229,6 +1274,8 @@ class TodayService:
                 "draft_hash": draft_hash,
                 "idempotency_key": idempotency_key,
                 "created_task_ids": created_task_ids,
+                "reused_task_ids": reused_task_ids,
+                "deferred_task_ids": deferred_task_ids,
                 "task_draft_map": task_draft_map,
                 "unscheduled_tasks": [u.model_dump(mode="json") for u in unscheduled],
                 "reasons": jsonable_encoder(result.reasons),

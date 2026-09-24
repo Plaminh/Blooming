@@ -1,8 +1,10 @@
 <script lang="ts">
   import { mrBloomStore, type DraftTask, type Importance } from '../../stores/mrBloomStore';
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
+  import { clockOf, recurrenceLabel } from '../../model/draftLabels';
 
   let { task }: { task: DraftTask } = $props();
+  let repeats = $derived(recurrenceLabel(task.recurrence));
 
   function handleDurationChange(event: Event) {
     const value = Number.parseInt((event.currentTarget as HTMLInputElement).value, 10);
@@ -14,8 +16,12 @@
   }
 
   function handleConstraintChange(updates: Partial<typeof task>) {
-    let { fixedStart, fixedEnd, deadline, durationMin } = task;
-    
+    let { durationMin } = task;
+    // Patches take "HH:MM"; the draft holds ISO datetimes from the server.
+    let fixedStart = clockOf(task.fixedStart) || null;
+    let fixedEnd = clockOf(task.fixedEnd) || null;
+    let deadline = clockOf(task.deadline) || null;
+
     if ('fixedStart' in updates) fixedStart = updates.fixedStart!;
     if ('fixedEnd' in updates) fixedEnd = updates.fixedEnd!;
     if ('deadline' in updates) deadline = updates.deadline!;
@@ -75,18 +81,25 @@
     </button>
   </div>
 
+  {#if repeats || task.sourceTaskId}
+    <div class="task-badges">
+      {#if repeats}<span class="badge repeat" title="Saved as a repeating task">↻ {repeats}</span>{/if}
+      {#if task.sourceTaskId}<span class="badge carried" title="Planned for this day earlier">Carried over</span>{/if}
+    </div>
+  {/if}
+
   <div class="constraint-editor">
     {#if task.fixedStart || task.fixedEnd}
       <div class="time-range">
-        <input type="time" aria-label="Start time" value={task.fixedStart ? task.fixedStart.slice(0, 5) : ''} onchange={(e) => handleConstraintChange({ fixedStart: e.currentTarget.value || null })} />
+        <input type="time" aria-label="Start time" value={clockOf(task.fixedStart)} onchange={(e) => handleConstraintChange({ fixedStart: e.currentTarget.value || null })} />
         <span>to</span>
-        <input type="time" aria-label="End time" value={task.fixedEnd ? task.fixedEnd.slice(0, 5) : ''} onchange={(e) => handleConstraintChange({ fixedEnd: e.currentTarget.value || null })} />
+        <input type="time" aria-label="End time" value={clockOf(task.fixedEnd)} onchange={(e) => handleConstraintChange({ fixedEnd: e.currentTarget.value || null })} />
         <button type="button" class="clear-constraint" aria-label="Clear fixed time" onclick={() => handleConstraintChange({ fixedStart: null, fixedEnd: null })}>×</button>
       </div>
     {:else if task.deadline}
       <div class="time-range">
         <span>By</span>
-        <input type="time" aria-label="Deadline" value={task.deadline.slice(0, 5)} onchange={(e) => handleConstraintChange({ deadline: e.currentTarget.value || null })} />
+        <input type="time" aria-label="Deadline" value={clockOf(task.deadline)} onchange={(e) => handleConstraintChange({ deadline: e.currentTarget.value || null })} />
         <button type="button" class="clear-constraint" aria-label="Clear deadline" onclick={() => handleConstraintChange({ deadline: null })}>×</button>
       </div>
     {:else}
@@ -253,6 +266,21 @@
     white-space: nowrap;
     border: 0;
   }
+
+  .task-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-left: calc(var(--bloom-icon-draft-task-slot) + 8px);
+  }
+  .badge {
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-family: var(--bloom-body-font);
+    font-size: 12px;
+  }
+  .badge.repeat { border: 1px solid #9fcfe4; background: #eef5f9; color: #0b657e; }
+  .badge.carried { border: 1px solid #e1c56d; background: #fff9df; color: #684f0b; }
 
   .constraint-editor {
     display: flex;

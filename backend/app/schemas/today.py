@@ -54,6 +54,9 @@ class TodayNoPlanResponse(BaseModel):
     timezone: str = "UTC"
     plan_date: date
     status: Literal["NO_PLAN"] = "NO_PLAN"
+    # Work already meant for this day: tasks moved here earlier (DEFERRED) and
+    # repeating tasks due today (RECURRING). Planning the day drafts them.
+    pending_tasks: list[UnscheduledTaskInfo] = Field(default_factory=list)
 
 
 class TodayTaskEdit(BaseModel):

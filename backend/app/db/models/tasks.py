@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime, time
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
     Integer,
+    SmallInteger,
     String,
     Text,
+    Time,
     func,
     text,
 )
@@ -89,6 +92,18 @@ class Task(Base):
         ),
         Index("tasks_user_status_deadline_idx", "user_id", "status", "deadline_at"),
         Index(
+            "tasks_user_planned_date_idx",
+            "user_id",
+            "planned_date",
+            postgresql_where=text("planned_date IS NOT NULL"),
+        ),
+        Index(
+            "tasks_recurring_idx",
+            "recurring_task_id",
+            "planned_date",
+            postgresql_where=text("recurring_task_id IS NOT NULL"),
+        ),
+        Index(
             "tasks_milestone_idx",
             "milestone_id",
             postgresql_where=text("milestone_id IS NOT NULL"),
@@ -136,6 +151,13 @@ class Task(Base):
     preferred_break_duration_minutes: Mapped[int | None] = mapped_column(Integer)
     fixed_start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     fixed_end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Local date the task is meant for before it is scheduled: work moved to a
+    # later day, or one occurrence of a recurring task.
+    planned_date: Mapped[date | None] = mapped_column(Date)
+    recurring_task_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("recurring_tasks.id", ondelete="SET NULL"),
+    )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -165,6 +187,95 @@ class Task(Base):
     reward_events: Mapped[list[RewardEvent]] = relationship(
         back_populates="source_task", passive_deletes=True
     )
+
+
+WEEKDAY_COUNT = 7
+
+
+class RecurringTask(Base):
+    """A repeating task template; concrete tasks are created per planned day."""
+
+    __tablename__ = "recurring_tasks"
+    __table_args__ = (
+        CheckConstraint("BTRIM(title) <> ''", name="recurring_tasks_title_not_blank"),
+        CheckConstraint(
+            "estimated_duration_minutes BETWEEN 5 AND 480",
+            name="recurring_tasks_duration_valid",
+        ),
+        CheckConstraint(
+            "priority IN ('LOW', 'MEDIUM', 'HIGH', 'URGENT')",
+            name="recurring_tasks_priority_valid",
+        ),
+        CheckConstraint(
+            "importance IN ('CORE', 'OPTIONAL')", name="recurring_tasks_importance_valid"
+        ),
+        CheckConstraint(
+            "category IS NULL OR category IN ('Learning', 'Work', 'Personal')",
+            name="recurring_tasks_category_valid",
+        ),
+        CheckConstraint(
+            "frequency IN ('DAILY', 'WEEKLY')", name="recurring_tasks_frequency_valid"
+        ),
+        CheckConstraint(
+            "weekday_mask BETWEEN 0 AND 127 AND (frequency = 'DAILY' OR weekday_mask > 0)",
+            name="recurring_tasks_weekday_mask_valid",
+        ),
+        CheckConstraint(
+            "until_date IS NULL OR until_date >= start_date",
+            name="recurring_tasks_until_valid",
+        ),
+        Index(
+            "recurring_tasks_user_active_idx",
+            "user_id",
+            postgresql_where=text("is_active"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    estimated_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    priority: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=text("'MEDIUM'")
+    )
+    importance: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=text("'CORE'")
+    )
+    category: Mapped[str | None] = mapped_column(String(50))
+    frequency: Mapped[str] = mapped_column(String(10), nullable=False)
+    # Bit i set = repeats on weekday i (0 = Monday ... 6 = Sunday).
+    weekday_mask: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, server_default=text("0")
+    )
+    fixed_start_time: Mapped[time | None] = mapped_column(Time)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    until_date: Mapped[date | None] = mapped_column(Date)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("TRUE")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    def occurs_on(self, day: date) -> bool:
+        if not self.is_active or day < self.start_date:
+            return False
+        if self.until_date is not None and day > self.until_date:
+            return False
+        if self.frequency == "DAILY":
+            return True
+        return bool(self.weekday_mask & (1 << day.weekday()))
 
 
 class TaskDependency(Base):

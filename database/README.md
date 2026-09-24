@@ -7,10 +7,10 @@ This directory intentionally separates the schema by table. Run `install.sql` wi
 ## Scope and file order
 
 - `00_init.sql`: Extensions and common functions.
-- `tables/*.sql`: 23 SQL files. Each file contains precisely one table, its associated indexes, and its triggers, prefixed by a number to dictate creation order.
+- `tables/*.sql`: 24 SQL files. Each file contains precisely one table, its associated indexes, and its triggers, prefixed by a number to dictate creation order.
 - `99_seed.sql`: Static seed data (e.g. plant catalog) inserted after the tables are created.
 
-The installer creates 23 tables.
+The installer creates 24 tables.
 
 ## Install / Recreate Database
 

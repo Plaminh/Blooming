@@ -109,10 +109,27 @@ describe('api client', () => {
     });
 
     const controller = new AbortController();
+    controller.abort();
     await api.get('/test', { signal: controller.signal });
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ signal: controller.signal })
-    );
+    // The client wraps the caller's signal so it can also enforce a timeout;
+    // aborting the caller's signal must still abort the underlying request.
+    const passed = mockFetch.mock.calls[0][1].signal as AbortSignal;
+    expect(passed).toBeInstanceOf(AbortSignal);
+    expect(passed.aborted).toBe(true);
+  });
+
+  it('aborts a request that exceeds its timeout with a readable error', async () => {
+    vi.useFakeTimers();
+    try {
+      mockFetch.mockImplementationOnce((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+      }));
+      const pending = api.get('/slow', { timeoutMs: 1000 });
+      const assertion = expect(pending).rejects.toMatchObject({ status: 408 });
+      await vi.advanceTimersByTimeAsync(1000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

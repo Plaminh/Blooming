@@ -5,6 +5,7 @@
   import DraftReviewHeader from './DraftReviewHeader.svelte';
   import DraftAddButton from '../molecules/DraftAddButton.svelte';
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
+  import { dayLabel, recurrenceLabel } from '../../model/draftLabels';
 
   let draft = $derived($mrBloomStore.activeDraft as TodayDraft);
   let addingTask = $state(false);
@@ -24,6 +25,14 @@
   let timeBudgetMinutes = $derived(budgetAssumption ? Number.parseInt(budgetAssumption.text.match(/\d+/)?.[0] || '0', 10) : null);
   let otherAssumptions = $derived($mrBloomStore.assumptions.filter(a => a !== budgetAssumption));
   let hasTasks = $derived((draft?.tasks?.length || 0) > 0);
+  // Tasks the message named for later days; saving stores them for that day.
+  let laterDays = $derived.by(() => {
+    const groups = new Map<string, NonNullable<TodayDraft['deferred_tasks']>>();
+    for (const item of draft?.deferred_tasks ?? []) {
+      groups.set(item.targetDate, [...(groups.get(item.targetDate) ?? []), item]);
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  });
 </script>
 
 <div class="today-draft-preview">
@@ -36,7 +45,7 @@
     <div class="content">
       <div class="availability-bar">
         <span class="availability-icon"><AppIcon name="calendar" size="detail" /></span>
-        <span>Available · {availabilityText}</span>
+        <span>{dayLabel(draft.planDate)} · Available · {availabilityText}</span>
       </div>
 
       {#if timeBudgetMinutes !== null}
@@ -56,6 +65,28 @@
           </div>
         {/if}
       </div>
+
+      {#if laterDays.length}
+        <section class="later-days" aria-label="Tasks for other days">
+          <strong>Saved for other days</strong>
+          <p>These are added automatically when you plan that day.</p>
+          {#each laterDays as [day, items] (day)}
+            <div class="later-day">
+              <span class="later-day-label">{dayLabel(day)}</span>
+              <ul>
+                {#each items as item (item.task.id)}
+                  <li>
+                    <span>{item.task.title} · {item.task.durationMin} min{#if item.task.recurrence} · ↻ {recurrenceLabel(item.task.recurrence)}{/if}</span>
+                    <button type="button" aria-label="Remove {item.task.title} from {dayLabel(day)}" onclick={() => mrBloomStore.removeDeferredTask(item.task.id)}>
+                      <AppIcon name="close" size="control" />
+                    </button>
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {/each}
+        </section>
+      {/if}
 
       {#if otherAssumptions.length}
         <section class="assumptions" aria-label="Planning assumptions">
@@ -157,6 +188,36 @@
   }
 
   .assumptions ul { margin: 5px 0 0; padding-left: 20px; }
+
+  .later-days {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 9px 12px;
+    border: 1px solid #9fcfe4;
+    border-radius: 5px;
+    background: #eef5f9;
+    color: #0b506e;
+    font-family: var(--bloom-body-font);
+    font-size: 14px;
+  }
+  .later-days p { margin: 0; font-size: 12px; }
+  .later-day { display: flex; gap: 10px; align-items: flex-start; }
+  .later-day-label { flex: 0 0 72px; font-weight: 600; }
+  .later-day ul { display: flex; flex: 1; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+  .later-day li { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .later-day button {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    place-items: center;
+    border: 0;
+    background: transparent;
+    color: #3b7ba0;
+    cursor: pointer;
+  }
+  .later-day button:hover { color: #c54646; }
   .add-task-form { display: flex; flex-wrap: wrap; gap: 6px; }
   .add-task-form input { min-width: 0; padding: 6px; }
   .add-task-form input:first-child { flex: 1; }

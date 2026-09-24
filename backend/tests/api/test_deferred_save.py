@@ -2,7 +2,7 @@ import pytest
 import datetime
 from sqlalchemy import select, func
 from app.db.models.tasks import Task
-from app.db.models.daily_plans import DailyPlan, PlanRevision
+from app.db.models.daily_plans import DailyPlan
 
 
 @pytest.mark.asyncio
@@ -86,15 +86,17 @@ async def test_deferred_save_integration(
     assert len(today_data["blocks"]) > 0
     assert today_data["blocks"][0]["task_id"] is not None
 
-    # 4. Reload tomorrow
+    # 4. Reload tomorrow: the deferred task waits for that day without an
+    # empty plan that would block planning it (PLAN_EXISTS).
     tomorrow_res = await async_client.get(
         f"/api/v1/today?date={tomorrow_str}", headers=auth_headers
     )
     assert tomorrow_res.status_code == 200
     tomorrow_data = tomorrow_res.json()
-    assert any(
-        ut["title"] == "Deferred Task" for ut in tomorrow_data["unscheduled_tasks"]
-    )
+    assert tomorrow_data["status"] == "NO_PLAN"
+    assert [
+        (item["title"], item["reason"]) for item in tomorrow_data["pending_tasks"]
+    ] == [("Deferred Task", "DEFERRED")]
 
     after_save_task_count = await db_session.scalar(
         select(func.count(Task.id)).where(Task.user_id == test_user.id)
@@ -111,21 +113,23 @@ async def test_deferred_save_integration(
     )
     assert after_retry_task_count == after_save_task_count
 
-    # DB checks for uniqueness
+    # DB checks: exactly one pending task stored for tomorrow, and no plan.
+    deferred_rows = (
+        await db_session.scalars(
+            select(Task).where(
+                Task.user_id == test_user.id, Task.title == "Deferred Task"
+            )
+        )
+    ).all()
+    assert len(deferred_rows) == 1
+    assert deferred_rows[0].planned_date == tomorrow_date
+    assert deferred_rows[0].status == "PENDING"
     tomorrow_plan = await db_session.scalar(
         select(DailyPlan).where(
             DailyPlan.user_id == test_user.id, DailyPlan.plan_date == tomorrow_date
         )
     )
-    latest_rev = await db_session.scalar(
-        select(PlanRevision)
-        .where(PlanRevision.daily_plan_id == tomorrow_plan.id)
-        .order_by(PlanRevision.revision_number.desc())
-        .limit(1)
-    )
-    unscheduled = latest_rev.after_snapshot.get("unscheduled_tasks", [])
-    deferred_matches = [u for u in unscheduled if u.get("title") == "Deferred Task"]
-    assert len(deferred_matches) == 1
+    assert tomorrow_plan is None
 
     # 6. Cross-user isolation
     user2_save_res = await async_client.post(

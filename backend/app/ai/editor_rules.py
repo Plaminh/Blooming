@@ -2,7 +2,7 @@ import re
 from typing import Literal, cast
 
 from app.schemas.patches import PatchOp
-from app.ai.router import normalize
+from app.ai.router import has_diacritics, normalize
 from app.schemas.drafts import TodayDraft
 from pydantic import TypeAdapter
 
@@ -19,9 +19,20 @@ def parse_edit(message: str, draft: TodayDraft, ctx_date=None) -> list[PatchOp] 
                 )
             ]
 
-    scale_match = re.search(r"\b(scale|nhan)\b.*?\b(\d+(?:\.\d+)?)\b", text)
+    # The number must follow the verb directly, and accented input must say
+    # "nhân" (multiply): stripped of accents, "nhận thêm 2 email" (receive two
+    # more emails) would otherwise rescale every task in the draft.
+    if has_diacritics(message):
+        scale_match = re.search(
+            r"(?<!\w)(?:scale(?: by)?|nhân(?: lên)?|x)\s*(\d+(?:[.,]\d+)?)(?!\w)",
+            message.casefold(),
+        )
+    else:
+        scale_match = re.search(
+            r"\b(?:scale(?: by)?|nhan(?: len)?|x)\s*(\d+(?:\.\d+)?)\b", text
+        )
     if scale_match:
-        factor = float(scale_match.group(2))
+        factor = float(scale_match.group(1).replace(",", "."))
         return [
             TypeAdapter(PatchOp).validate_python(
                 dict(op="scale_durations", factor=factor)

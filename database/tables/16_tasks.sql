@@ -18,6 +18,9 @@ CREATE TABLE tasks (
 	preferred_break_duration_minutes INTEGER, 
 	fixed_start_at TIMESTAMP WITH TIME ZONE, 
 	fixed_end_at TIMESTAMP WITH TIME ZONE, 
+	-- Local date the task is meant for before it is scheduled (deferred or recurring work).
+	planned_date DATE, 
+	recurring_task_id UUID, 
 	completed_at TIMESTAMP WITH TIME ZONE, 
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
 	updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
@@ -36,9 +39,12 @@ CREATE TABLE tasks (
 	CONSTRAINT tasks_preferred_break_duration_valid CHECK (preferred_break_duration_minutes IS NULL OR preferred_break_duration_minutes > 0), 
 	CONSTRAINT tasks_min_split_duration_limit CHECK (min_split_duration_minutes IS NULL OR min_split_duration_minutes <= estimated_duration_minutes), 
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE, 
-	FOREIGN KEY(milestone_id) REFERENCES milestones (id) ON DELETE SET NULL
+	FOREIGN KEY(milestone_id) REFERENCES milestones (id) ON DELETE SET NULL, 
+	FOREIGN KEY(recurring_task_id) REFERENCES recurring_tasks (id) ON DELETE SET NULL
 );
 CREATE INDEX tasks_milestone_idx ON tasks (milestone_id) WHERE milestone_id IS NOT NULL;
+CREATE INDEX tasks_user_planned_date_idx ON tasks (user_id, planned_date) WHERE planned_date IS NOT NULL;
+CREATE INDEX tasks_recurring_idx ON tasks (recurring_task_id, planned_date) WHERE recurring_task_id IS NOT NULL;
 CREATE INDEX tasks_user_status_deadline_idx ON tasks (user_id, status, deadline_at);
 DROP TRIGGER IF EXISTS tasks_set_updated_at ON tasks;
 CREATE TRIGGER tasks_set_updated_at
