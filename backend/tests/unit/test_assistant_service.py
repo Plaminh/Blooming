@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from app.ai.router import Route
 from app.schemas.assistant import ChatRequest, ChatResponse
-from app.schemas.drafts import AvailabilityWindowDraft, TaskDraft, TodayDraft
+from app.schemas.drafts import AvailabilityWindowDraft, RoadmapDraft, TaskDraft, TodayDraft
 from app.services import assistant_service
 
 
@@ -19,6 +19,19 @@ async def test_rule_intent_never_requires_database_or_provider():
 async def test_goal_without_date_asks_one_question():
     result = await assistant_service.chat(
         ChatRequest(message="Create a goal to learn Python")
+    )
+    assert result.intent == "CREATE_GOAL"
+    assert result.question
+    assert result.draft is None
+
+
+@pytest.mark.asyncio
+async def test_goal_without_date_asks_instead_of_inventing_one_with_today_draft():
+    result = await assistant_service.chat(
+        ChatRequest(
+            message="Create a goal to finish my AI course project",
+            current_draft=_existing_draft(),
+        )
     )
     assert result.intent == "CREATE_GOAL"
     assert result.question
@@ -140,6 +153,30 @@ async def test_explicit_today_plan_replaces_conflicting_draft_and_pending_edit(m
         history=None,
         light=False,
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("pending", [False, True])
+async def test_explicit_dated_goal_replaces_today_draft_and_ignores_pending_edit(pending):
+    result = await assistant_service.chat(
+        ChatRequest(
+            message="I want to finish my AI course project by October 30, 2026.",
+            current_draft=_existing_draft(),
+        ),
+        history=[{"role": "user", "content": "Change Study to 15 minutes."}],
+        pending_intent="EDIT_DRAFT" if pending else None,
+        pending_message="Change Study to 15 minutes." if pending else None,
+    )
+
+    assert result.intent == "CREATE_GOAL"
+    assert isinstance(result.draft, RoadmapDraft)
+    assert result.draft.goalTitle == "finish my AI course project"
+    assert result.draft.targetDate.isoformat() == "2026-10-30"
+    assert result.draft.milestones == sorted(
+        result.draft.milestones, key=lambda milestone: milestone.targetDate
+    )
+    assert any(item.kind == "FRAMEWORK" for item in result.assumptions)
+    assert result.preview is None
 
 
 def _existing_draft() -> TodayDraft:

@@ -109,6 +109,20 @@ def test_self_contained_today_plan_beats_existing_draft_edit_fallback():
     assert selected.confidence >= 0.7
 
 
+def test_explicit_dated_goal_beats_existing_today_draft_edit_fallback():
+    selected = route(
+        "I want to finish my AI course project by October 30, 2026.",
+        has_draft=True,
+        awaiting_answer=True,
+    )
+    assert selected.intent == "CREATE_GOAL"
+    assert selected.confidence >= 0.7
+
+
+def test_actual_edit_still_beats_existing_today_draft_fallback():
+    assert route("Change task 1 to 45 minutes", has_draft=True).intent == "EDIT_DRAFT"
+
+
 def test_chitchat_templates_return_to_planning_without_model():
     assert "forecast" in chitchat_reply("How is the weather?", "en")
     assert "sắp xếp" in chitchat_reply("Kể chuyện cười", "vi")

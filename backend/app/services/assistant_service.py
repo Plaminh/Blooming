@@ -18,6 +18,7 @@ from app.ai.router import (
     Route,
     classify_low_confidence,
     detect_lang,
+    is_explicit_goal_request,
     is_self_contained_day_plan,
     route,
 )
@@ -41,6 +42,14 @@ def _starts_fresh_day_plan(message: str, selected: Route) -> bool:
     if selected.intent != "PLAN_DAY" or selected.confidence < 0.7:
         return False
     return is_self_contained_day_plan(message)
+
+
+def _starts_fresh_goal(message: str, selected: Route) -> bool:
+    return (
+        selected.intent == "CREATE_GOAL"
+        and selected.confidence >= 0.7
+        and is_explicit_goal_request(message)
+    )
 
 
 async def chat(
@@ -73,16 +82,19 @@ async def chat(
         selected = Route(cast(Intent, pending_intent), 0.8, "rules", selected.flags)
     elif db is not None and user_id is not None:
         selected = await classify_low_confidence(request.message, selected, db, user_id, history)
-    fresh_day_plan = _starts_fresh_day_plan(request.message, selected)
+    fresh_intent = (
+        _starts_fresh_day_plan(request.message, selected)
+        or _starts_fresh_goal(request.message, selected)
+    )
     effective_message = request.message
     effective_history = history
     if (
-        not fresh_day_plan
+        not fresh_intent
         and pending_intent in {"PLAN_DAY", "CREATE_GOAL", "EDIT_DRAFT"}
         and pending_message
     ):
         effective_message = f"{pending_message}\n{request.message}"
-    elif fresh_day_plan:
+    elif fresh_intent:
         # Old clarification turns are context for the old request, not this one.
         effective_history = None
     lang = detect_lang(request.message)

@@ -91,6 +91,11 @@ SCHEDULING_DETAIL_RE = (
     r"|\b(?:from|tu)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s+(?:to|den)\s+"
     r"\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b"
 )
+GOAL_TARGET_DATE_RE = (
+    r"(?:20\d{2}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/20\d{2}|"
+    r"(?:january|february|march|april|may|june|july|august|september|october|"
+    r"november|december)\s+\d{1,2}(?:st|nd|rd|th)?(?:,)?\s+20\d{2})"
+)
 
 ROUTER_SYSTEM_PROMPT = """Classify only the latest user intent. Reply with one JSON intent.
 Never execute an action. A short bare imperative describing concrete work that could become
@@ -141,6 +146,17 @@ def is_self_contained_day_plan(message: str) -> bool:
     return bool(re.search(DAY_TARGET_RE, text) and re.search(SCHEDULING_DETAIL_RE, text))
 
 
+def is_explicit_goal_request(message: str) -> bool:
+    """Recognize goal creation phrasing independently of current draft state."""
+    text = normalize(message)
+    goal_opening = re.search(
+        r"\b(?:i want to|my goal is to|create (?:a )?goal to)\s+"
+        r"(?:finish|complete|achieve|build|learn|launch|become|earn|write|deliver)\b",
+        text,
+    )
+    return bool(goal_opening and re.search(rf"\bby\s+{GOAL_TARGET_DATE_RE}\b", text))
+
+
 def route(
     message: str, *, has_draft: bool = False, awaiting_answer: bool = False
 ) -> Route:
@@ -165,6 +181,10 @@ def route(
     if mood:
         flags.add("tired")
     planning = bool(re.search(PLAN_KEYWORDS_RE, text))
+    # A complete goal declaration starts a new roadmap and is independent of
+    # any Today draft. Keep it ahead of all draft-edit heuristics.
+    if is_explicit_goal_request(message):
+        return Route("CREATE_GOAL", 0.95, flags=frozenset(flags))
     if re.search(RECURRING_NOUN_RE, text) or re.search(RECURRENCE_RE, text):
         # "bo" alone would also match "chạy bộ mỗi ngày" (jog every day).
         stop = accent_aware_search(
@@ -209,7 +229,10 @@ def route(
     ):
         return Route("STATUS_STATS", 0.9, flags=frozenset(flags))
     if re.search(
-        r"\b(muc tieu|goal|milestone)\b.*\b(cua toi|hien tai|con|tiep theo|sap toi|my|current|next|status)\b|\b(my current goal|next milestone)\b",
+        r"\bmuc tieu\b.*\b(cua toi|hien tai|con|tiep theo|sap toi)\b"
+        r"|\bmilestone\b.*\b(tiep theo|sap toi)\b"
+        r"|\b(?:goal|milestone)s?\b.*\b(current|next|status)\b"
+        r"|\b(my goals?|my current goal|current goals?|next milestone)\b",
         text,
     ):
         return Route("STATUS_GOALS", 0.9, flags=frozenset(flags))

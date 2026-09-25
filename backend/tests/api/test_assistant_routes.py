@@ -400,6 +400,57 @@ async def test_new_explicit_today_plan_clears_stale_edit_clarification(
 
 
 @pytest.mark.asyncio
+async def test_explicit_goal_clears_today_edit_state_without_persisting_goal(
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    db_session,
+):
+    plan_date = date.today().isoformat()
+    today_draft = {
+        "type": "today", "planDate": plan_date, "timezone": "UTC",
+        "windows": [{"start": "09:00", "end": "17:00"}],
+        "tasks": [
+            {"id": "old-1", "title": "Review notes", "durationMin": 30},
+            {"id": "old-2", "title": "Review notes", "durationMin": 25},
+        ],
+    }
+    clarification = await async_client.post(
+        "/api/v1/assistant/chat", headers=auth_headers,
+        json={
+            "message": "Change Review notes to 20 minutes.",
+            "current_draft": today_draft,
+        },
+    )
+    clarification_body = clarification.json()
+    assert clarification_body["question"] == "Which task did you mean?"
+    goals_before = await db_session.scalar(select(func.count(Goal.id)))
+
+    response = await async_client.post(
+        "/api/v1/assistant/chat", headers=auth_headers,
+        json={
+            "message": "I want to finish my AI course project by October 30, 2026.",
+            "session_id": clarification_body["session_id"],
+            "current_draft": clarification_body["draft"],
+        },
+    )
+    body = response.json()
+    assert response.status_code == 200, response.text
+    assert body["intent"] == "CREATE_GOAL"
+    assert body["draft"]["type"] == "roadmap"
+    assert body["draft"]["goalTitle"] == "finish my AI course project"
+    assert body["draft"]["targetDate"] == "2026-10-30"
+    assert len(body["draft"]["milestones"]) == 3
+    assert body["assumptions"][0]["kind"] == "FRAMEWORK"
+    assert body["preview"] is None
+
+    state = await db_session.get(PlanningSession, UUID(body["session_id"]))
+    await db_session.refresh(state)
+    assert state.status == "OPEN"
+    assert state.pending_intent is None
+    assert await db_session.scalar(select(func.count(Goal.id))) == goals_before
+
+
+@pytest.mark.asyncio
 async def test_successful_today_save_completes_planning_session(
     async_client: AsyncClient,
     auth_headers: dict[str, str],

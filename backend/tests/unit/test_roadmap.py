@@ -17,3 +17,6 @@ def test_roadmap_fallback_creates_equal_chronological_milestones():
     ]
     assert dates[-1] == result.draft.targetDate
     assert all(milestone.expectedOutcome for milestone in result.draft.milestones)
+    assert [(item.kind, item.text) for item in result.assumptions] == [
+        ("FRAMEWORK", "Generated using Blooming's default 3-step roadmap framework.")
+    ]
