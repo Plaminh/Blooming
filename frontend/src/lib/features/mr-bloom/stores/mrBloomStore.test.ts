@@ -64,6 +64,22 @@ test('shows a service error and keeps the composer available', async () => {
   expect(state.activeDraft).toBeNull();
 });
 
+test('CHAT-04: conversational reply preserves an existing draft and message order', async () => {
+  mrBloomStore.update(state => ({ ...state, activeDraft: saveableDraft }));
+  vi.mocked(api.post).mockResolvedValueOnce({
+    reply: 'Glad to help. Ready to keep going?', intent: 'THANKS', draft: null
+  });
+
+  await mrBloomStore.submitMessage('Thanks');
+
+  const state = get(mrBloomStore);
+  expect(state.activeDraft).toEqual(saveableDraft);
+  expect(state.chatHistory.map(message => [message.role, message.content])).toEqual([
+    ['user', 'Thanks'],
+    ['assistant', 'Glad to help. Ready to keep going?']
+  ]);
+});
+
 test('failed message is marked as failed and excluded from outgoing history on retry', async () => {
   // 1. Initial success
   vi.mocked(api.post).mockResolvedValueOnce({

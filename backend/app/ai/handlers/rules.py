@@ -66,8 +66,18 @@ async def handle(
     elif intent == "HELP_FEATURE":
         text = normalize(message)
         key = next((word for word in ("pomodoro", "water", "leaves", "vitality", "reality") if word in text), None)
-        if key is None and ("what can you do" in text or "ban la ai" in text):
-            reply = "Mình giúp bạn lên kế hoạch và theo dõi việc tập trung." if lang == "vi" else "I help you plan your day and stay focused."
+        if key is None and (
+            "what can you do" in text
+            or "what can you help me" in text
+            or "how can you help me" in text
+            or "ban la ai" in text
+        ):
+            reply = (
+                "Mình có thể giúp bạn lên kế hoạch trong ngày, chia nhỏ công việc, "
+                "tạo lộ trình mục tiêu và theo dõi tập trung."
+                if lang == "vi"
+                else "I can plan your day, break down tasks, create goal roadmaps, and help you stay focused."
+            )
         elif key:
             reply = KB[key][lang]
         else:

@@ -167,7 +167,7 @@ def route(
     ):
         return Route("STATUS_GOALS", 0.9, flags=frozenset(flags))
     if re.search(
-        r"\b(pomodoro|water|leaves|reality check|vitality|replan|growth)\b.*\b(la gi|de lam gi|hoat dong|nghia|what|how|mean)\b|\bwhat (?:is|are) (?:pomodoro|water|leaves|vitality|reality check)\b|\b(ban la ai|ban lam duoc gi|what can you do)\b",
+        r"\b(pomodoro|water|leaves|reality check|vitality|replan|growth)\b.*\b(la gi|de lam gi|hoat dong|nghia|what|how|mean)\b|\bwhat (?:is|are) (?:pomodoro|water|leaves|vitality|reality check)\b|\b(ban la ai|ban lam duoc gi|what can you (?:do|help(?: me)? (?:with|plan))|how can you help(?: me)?)\b",
         text,
     ):
         return Route("HELP_FEATURE", 0.9, flags=frozenset(flags))
