@@ -7,6 +7,55 @@ from app.schemas.drafts import TodayDraft
 from pydantic import TypeAdapter
 
 
+_ARTICLES = {"a", "an", "the"}
+
+
+def _title_tokens(value: str) -> tuple[str, ...]:
+    """Canonical title words for conservative near-match resolution."""
+    return tuple(
+        token
+        for token in re.findall(r"[a-z0-9]+", normalize(value))
+        if token not in _ARTICLES
+    )
+
+
+def _referenced_title(text: str) -> str | None:
+    match = re.search(
+        r"\b(?:change|update|sua|doi)\s+(.+?)\s+(?:to\s+\d+|and\s+mark\b|thanh\s+\d+)",
+        text,
+    )
+    return match.group(1).strip() if match else None
+
+
+def _resolve_task_id(text: str, draft: TodayDraft) -> str | None:
+    exact = [
+        task for task in draft.tasks
+        if normalize(task.title) in text and len(normalize(task.title)) > 2
+    ]
+    if len(exact) > 1:
+        raise ValueError("Which task did you mean?")
+    if len(exact) == 1:
+        return exact[0].id
+
+    reference = _referenced_title(text)
+    if not reference:
+        return None
+    reference_tokens = set(_title_tokens(reference))
+    if len(reference_tokens) < 2:
+        return None
+    plausible = []
+    for task in draft.tasks:
+        candidate_tokens = set(_title_tokens(task.title))
+        shorter = min(len(reference_tokens), len(candidate_tokens))
+        if shorter >= 2 and (
+            reference_tokens <= candidate_tokens or candidate_tokens <= reference_tokens
+        ):
+            plausible.append(task)
+    if len(plausible) > 1:
+        raise ValueError("Which task did you mean?")
+    return plausible[0].id if plausible else None
+
+
 def parse_edit(message: str, draft: TodayDraft, ctx_date=None) -> list[PatchOp] | None:
     text = normalize(message)
 
@@ -47,25 +96,7 @@ def parse_edit(message: str, draft: TodayDraft, ctx_date=None) -> list[PatchOp] 
             raise ValueError("Task number out of range.")
         task_id = draft.tasks[index].id
     else:
-        # Avoid matching generic terms if they are not explicitly task names
-        matches = [
-            task
-            for task in draft.tasks
-            if normalize(task.title) in text and len(normalize(task.title)) > 2
-        ]
-
-        explicit_action = re.search(
-            r"\b(remove|delete|drop|bo|xoa|change|update|sua|optional|core|priority)\b",
-            text,
-        )
-        if explicit_action:
-            if len(matches) > 1:
-                raise ValueError("Which task did you mean?")
-            if len(matches) == 1:
-                task_id = matches[0].id
-        else:
-            if len(matches) == 1:
-                task_id = matches[0].id
+        task_id = _resolve_task_id(text, draft)
 
     if not task_id:
         return None
@@ -78,28 +109,18 @@ def parse_edit(message: str, draft: TodayDraft, ctx_date=None) -> list[PatchOp] 
         ]
 
     duration = re.search(r"\b(\d+)\s*(?:p|phut|min|minutes?)\b", text)
-    if duration:
+    optional = bool(re.search(r"\b(optional|khong bat buoc)\b", text))
+    core = bool(re.search(r"\b(core|bat buoc)\b", text))
+    if duration or optional or core:
+        values: dict[str, object] = dict(op="update_task", task_id=task_id)
+        if duration:
+            values["duration_min"] = int(duration.group(1))
+        if optional:
+            values["importance"] = "OPTIONAL"
+        elif core:
+            values["importance"] = "CORE"
         return [
-            TypeAdapter(PatchOp).validate_python(
-                dict(
-                    op="update_task",
-                    task_id=task_id,
-                    duration_min=int(duration.group(1)),
-                )
-            )
-        ]
-
-    if re.search(r"\b(optional|khong bat buoc)\b", text):
-        return [
-            TypeAdapter(PatchOp).validate_python(
-                dict(op="update_task", task_id=task_id, importance="OPTIONAL")
-            )
-        ]
-    if re.search(r"\b(core|bat buoc)\b", text):
-        return [
-            TypeAdapter(PatchOp).validate_python(
-                dict(op="update_task", task_id=task_id, importance="CORE")
-            )
+            TypeAdapter(PatchOp).validate_python(values)
         ]
 
     priority = re.search(r"\b(low|medium|high|urgent)\s+priority\b", text)

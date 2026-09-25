@@ -273,7 +273,7 @@ async def test_tired_user_without_plan_gets_light_draft_from_pending_work(
 
 
 @pytest.mark.asyncio
-async def test_chat_contract_accepts_current_draft_and_returns_fresh_preview(
+async def test_chat_contract_accepts_current_draft_without_auto_preview(
     async_client: AsyncClient,
     auth_headers: dict[str, str],
 ):
@@ -294,7 +294,7 @@ async def test_chat_contract_accepts_current_draft_and_returns_fresh_preview(
     assert body["intent"] == "EDIT_DRAFT"
     assert body["tier"] == "RULES"
     assert body["draft"]["tasks"][0]["durationMin"] == 45
-    assert body["preview"]["preview_token"]
+    assert body["preview"] is None
 
 
 @pytest.mark.asyncio

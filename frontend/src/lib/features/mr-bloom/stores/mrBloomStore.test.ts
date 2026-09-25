@@ -63,6 +63,39 @@ test('shows a service error and keeps the composer available', async () => {
   expect(state.activeDraft).toBeNull();
 });
 
+test('chat edit sends the complete current task fields and invalidates old preview', async () => {
+  const draft: TodayDraft = {
+    type: 'today', planDate: '2026-09-20', timezone: 'UTC', windows: [],
+    tasks: [{
+      id: 'd2', title: 'Read Book', durationMin: 30, priority: 'MEDIUM', importance: 'CORE',
+      category: null, estimateSource: 'USER', breakAfterMin: null, deadline: null,
+      schedulingType: 'FLEXIBLE', fixedStart: null, fixedEnd: null, dependencies: [], splittable: false
+    }]
+  };
+  const edited = {
+    ...draft, tasks: [{ ...draft.tasks[0], durationMin: 20, importance: 'OPTIONAL' as const }]
+  };
+  mrBloomStore.update(state => ({
+    ...state, activeDraft: draft, preview: { preview_token: 'old' } as never,
+    previewMode: 'timeline', sessionId: 'session-1'
+  }));
+  vi.mocked(api.post).mockResolvedValueOnce({
+    reply: 'Updated', intent: 'EDIT_DRAFT', draft: edited, preview: null
+  });
+
+  await mrBloomStore.submitMessage('Change Read a book to 20 minutes and mark it optional.');
+
+  expect(api.post).toHaveBeenCalledWith('/assistant/chat', {
+    message: 'Change Read a book to 20 minutes and mark it optional.',
+    session_id: 'session-1',
+    current_draft: draft
+  });
+  const state = get(mrBloomStore);
+  expect(state.activeDraft).toEqual(edited);
+  expect(state.preview).toBeNull();
+  expect(state.previewMode).toBe('today');
+});
+
 test('CHAT-04: conversational reply preserves an existing draft and message order', async () => {
   mrBloomStore.update(state => ({ ...state, activeDraft: saveableDraft }));
   vi.mocked(api.post).mockResolvedValueOnce({

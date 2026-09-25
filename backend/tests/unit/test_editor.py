@@ -9,7 +9,6 @@ from app.ai.budget import BudgetMode
 from app.ai.context import ChatContext
 from app.ai.handlers import editor
 from app.schemas.drafts import TaskDraft, TodayDraft
-from app.schemas.today import TodayPreviewResponse
 
 
 def _context():
@@ -25,22 +24,11 @@ def _context():
 
 
 @pytest.mark.asyncio
-async def test_deterministic_editor_returns_fresh_preview_without_llm(monkeypatch):
+async def test_deterministic_editor_returns_updated_draft_without_auto_preview(monkeypatch):
     provider = AsyncMock()
     monkeypatch.setattr(editor.llm_provider, "call", provider)
     monkeypatch.setattr(
         editor, "get_budget_mode", AsyncMock(return_value=BudgetMode.LEAN)
-    )
-    monkeypatch.setattr(
-        editor.today_service,
-        "preview_today_draft",
-        AsyncMock(
-            return_value=TodayPreviewResponse(
-                plan_date=date.today(),
-                timezone="UTC",
-                preview_token="token",
-            )
-        ),
     )
     draft = TodayDraft(
         planDate=date.today(),
@@ -49,10 +37,32 @@ async def test_deterministic_editor_returns_fresh_preview_without_llm(monkeypatc
     )
     result = await editor.edit("change task 1 to 45 min", draft, _context())
     assert result.draft.tasks[0].durationMin == 45
-    assert result.preview is not None
-    assert result.preview.preview_token == "token"
+    assert result.preview is None
     assert result.degraded == "LEAN"
     provider.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_edit_03_unique_article_near_match_updates_only_target(monkeypatch):
+    monkeypatch.setattr(editor, "get_budget_mode", AsyncMock(return_value=BudgetMode.LEAN))
+    draft = TodayDraft(
+        planDate=date.today(), windows=[{"start": "09:00", "end": "17:00"}],
+        tasks=[
+            TaskDraft(id="d1", title="Study Algorithms", durationMin=45),
+            TaskDraft(id="d2", title="Read Book", durationMin=30, importance="CORE"),
+        ],
+    )
+
+    result = await editor.edit(
+        "Change Read a book to 20 minutes and mark it optional.", draft, _context()
+    )
+
+    assert result.question is None
+    assert result.preview is None
+    assert [(task.id, task.title, task.durationMin, task.importance) for task in result.draft.tasks] == [
+        ("d1", "Study Algorithms", 45, "CORE"),
+        ("d2", "Read Book", 20, "OPTIONAL"),
+    ]
 
 
 @pytest.mark.asyncio

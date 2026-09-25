@@ -126,6 +126,35 @@ def test_ED_004_unique_normalized_title_resolves_deterministically():
     assert getattr(ops[0], "task_id") == "d1"
 
 
+def test_ED_005_unique_article_difference_combines_duration_and_importance():
+    draft = create_test_draft()
+    ops = parse_edit("Change Read a book to 20 minutes and mark it optional.", draft)
+    assert ops is not None
+    assert len(ops) == 1
+    assert ops[0].task_id == "d1"
+    assert ops[0].duration_min == 20
+    assert ops[0].importance == "OPTIONAL"
+
+
+def test_ED_006_article_near_match_requires_unique_candidate():
+    draft = create_test_draft()
+    draft.tasks.append(
+        TaskDraft(id="d4", title="Read Project Book", durationMin=40)
+    )
+    with pytest.raises(ValueError, match="Which task did you mean"):
+        parse_edit("Change Read a book to 20 minutes and mark it optional.", draft)
+
+
+def test_ED_007_exact_title_still_wins_over_near_candidate():
+    draft = create_test_draft()
+    draft.tasks.append(
+        TaskDraft(id="d4", title="Read Project Book", durationMin=40)
+    )
+    ops = parse_edit("Change Read Book to 20 minutes", draft)
+    assert ops is not None
+    assert ops[0].task_id == "d1"
+
+
 @pytest.mark.asyncio
 async def test_ED_deterministic_edit_makes_zero_llm_calls(monkeypatch):
     from datetime import datetime, timezone
@@ -143,21 +172,6 @@ async def test_ED_deterministic_edit_makes_zero_llm_calls(monkeypatch):
         "app.ai.handlers.editor.get_budget_mode",
         AsyncMock(return_value=BudgetMode.NORMAL),
     )
-    preview_payload = {
-        "plan_date": date.today().isoformat(),
-        "timezone": "UTC",
-        "status": "PREVIEW",
-        "blocks": [],
-        "unscheduled_tasks": [],
-        "reasons": [],
-        "reality_check": "COMFORTABLE",
-        "preview_token": "fresh",
-    }
-    preview = SimpleNamespace(model_dump=lambda **_: preview_payload)
-    monkeypatch.setattr(
-        "app.ai.handlers.editor.today_service.preview_today_draft",
-        AsyncMock(return_value=preview),
-    )
     ctx = SimpleNamespace(
         db=AsyncMock(),
         user_id=uuid4(),
@@ -168,7 +182,7 @@ async def test_ED_deterministic_edit_makes_zero_llm_calls(monkeypatch):
     result = await edit("change task 1 to 45 minutes", create_test_draft(), ctx)
 
     assert result.draft.tasks[0].durationMin == 45
-    assert result.preview.preview_token == "fresh"
+    assert result.preview is None
     provider_call.assert_not_awaited()
 
 

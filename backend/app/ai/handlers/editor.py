@@ -12,8 +12,6 @@ from app.ai.providers import LLMError, llm_provider
 from app.core.config import settings
 from app.schemas.assistant import ChatResponse
 from app.schemas.drafts import TodayDraft
-from app.schemas.today import TodayPreviewRequest
-from app.services.today_service import today_service
 
 
 class EditorOutput(BaseModel):
@@ -91,14 +89,11 @@ async def edit(
             draft=draft,
         )
     assert isinstance(changed, TodayDraft)
-    preview = await today_service.preview_today_draft(
-        ctx.db, ctx.user_id, TodayPreviewRequest(draft=changed)
-    )
     return ChatResponse(
-        reply="I updated the draft. Review the new preview before saving.",
+        reply="I updated the draft. Generate the timeline when you're ready.",
         intent="EDIT_DRAFT",
         tier=tier,
         draft=changed,
-        preview=preview.model_dump(mode="json"),
+        preview=None,
         degraded=mode.value if mode != BudgetMode.NORMAL else None,
     )
