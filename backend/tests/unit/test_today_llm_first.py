@@ -519,6 +519,56 @@ async def test_clarification_fallback_when_neither_produces_draft(base_context):
     assert response.intent == "PLAN_DAY"
 
 
+@pytest.mark.asyncio
+async def test_parse_04_llm_estimate_creates_transparent_non_persisted_draft(base_context):
+    extraction = {
+        "reply": "I estimated the missing duration for your review.",
+        "tasks": [{
+            "title": "Organize Zarkon materials",
+            "duration_min": 45,
+            "duration_is_explicit": False,
+            "importance": "CORE",
+            "priority": "MEDIUM",
+            "category": "Work",
+        }],
+        "windows": [],
+        "assumptions": [
+            "Estimated 45 minutes for Organize Zarkon materials",
+            "Kept a distinct planning assumption",
+        ],
+    }
+
+    with patch.object(planner.llm_provider, "call", AsyncMock(return_value=extraction)) as llm_call:
+        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
+            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:planner")):
+                response = await planner.plan_day(
+                    "Organize Zarkon materials.", base_context, "en"
+                )
+
+    assert response.intent == "PLAN_DAY"
+    assert response.tier == "LLM"
+    assert response.draft is not None
+    assert len(response.draft.tasks) == 1
+    task = response.draft.tasks[0]
+    assert (task.title, task.durationMin, task.estimateSource) == (
+        "Organize Zarkon materials", 45, "AI"
+    )
+    assert task.fixedStart is None
+    assert task.fixedEnd is None
+    assert task.deadline is None
+    assumption_texts = [item.text for item in response.assumptions]
+    assert assumption_texts.count(
+        "Estimated 45 minutes for Organize Zarkon materials"
+    ) == 1
+    assert assumption_texts.index(
+        "Estimated 45 minutes for Organize Zarkon materials"
+    ) < assumption_texts.index("Kept a distinct planning assumption")
+    assert llm_call.await_args.kwargs["purpose"] == "PLANNER"
+    base_context.db.add.assert_not_called()
+    base_context.db.add_all.assert_not_called()
+    base_context.db.flush.assert_not_awaited()
+
+
 # ===========================================================================
 # Group 11: Authoritative LLM, Carried Work Bypass Safety & Edge Conditions
 # ===========================================================================

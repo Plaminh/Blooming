@@ -94,14 +94,10 @@ describe('Block 9 E2E: time constraints and lifecycle', () => {
 
   it('editing after preview invalidates the token and the scheduler receives the edited draft', async () => {
     const initial = draft({ tasks: [task({ fixedStart: '14:00', fixedEnd: '15:00', schedulingType: 'FIXED' })] });
-    let patched = initial;
+    const patched = { ...initial, tasks: [task({ fixedStart: null, fixedEnd: null, schedulingType: 'FLEXIBLE' })] };
     (api.post as any).mockImplementation(async (url: string, payload: any) => {
       if (url === '/assistant/chat') return { reply: 'Draft ready', session_id: 's1', draft: initial };
       if (url === '/today/preview') return { preview_token: 'token', timezone: 'Asia/Ho_Chi_Minh', blocks: [], status: 'DRAFT', unscheduled_tasks: [], reasons: [], reality_check: null };
-      if (url === '/assistant/apply-patch') {
-        patched = { ...initial, tasks: [task({ fixedStart: null, fixedEnd: null, schedulingType: 'FLEXIBLE' })] };
-        return { draft: patched, preview: { preview_token: 'must-be-discarded' } };
-      }
       throw new Error(`Unexpected POST: ${url}: ${JSON.stringify(payload)}`);
     });
     render(PlanningWorkspace);

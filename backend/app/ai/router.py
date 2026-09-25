@@ -82,6 +82,38 @@ RECURRENCE_RE = (
 )
 RECURRING_NOUN_RE = r"\b(viec lap lai|lich lap lai|lap lai|recurring|repeating|repeat)\b"
 
+ROUTER_SYSTEM_PROMPT = """Classify only the latest user intent. Reply with one JSON intent.
+Never execute an action. A short bare imperative describing concrete work that could become
+a task is PLAN_DAY even when it has no date or duration (for example, 'Organize project
+materials.', 'Review lecture notes.', or 'Clean my desk.'). A personal opinion or casual
+observation is CHITCHAT (for example, 'I like organizing things.'). Questions about what
+the assistant can do are HELP_FEATURE, acknowledgements are THANKS, and requests for a
+long-term outcome or roadmap are CREATE_GOAL. Do not classify every request containing an
+action verb as PLAN_DAY; consider whether the user is naming work for their own plan."""
+
+
+def _looks_like_bare_task_statement(text: str) -> bool:
+    """Identify grammar-shaped task commands without maintaining a task-verb lexicon.
+
+    This deliberately remains low confidence so the semantic classifier can distinguish
+    commands from terse casual remarks. Its fallback bias preserves a plausible task when
+    that classifier is unavailable instead of silently sending it to chitchat.
+    """
+    words = re.findall(r"[a-z0-9']+", text)
+    if not 2 <= len(words) <= 12 or "?" in text:
+        return False
+    if words[0] in {
+        "i", "i'm", "im", "we", "we're", "were", "my", "our",
+        "what", "why", "when", "where", "who", "how", "is", "are",
+        "do", "does", "did", "can", "could", "would", "should", "will",
+    }:
+        return False
+    # Imperative conversation requests commonly address the assistant ("tell me",
+    # "explain to me"); they are not statements of the user's own work.
+    if len(words) > 1 and words[1] in {"me", "us", "chuyen"}:
+        return False
+    return True
+
 
 def detect_lang(text: str) -> Literal["vi", "en"]:
     if any(char in text.lower() for char in "ăâđêôơư"):
@@ -206,6 +238,8 @@ def route(
         return Route("EDIT_DRAFT", 0.5, "fallback", frozenset(flags))
     if re.search(r"\b\d+\s*(?:p|phut|minutes?|mins?|h|gio|tieng)\b", text):
         return Route("PLAN_DAY", 0.5, "fallback", frozenset(flags))
+    if _looks_like_bare_task_statement(text):
+        return Route("PLAN_DAY", 0.55, "fallback", frozenset(flags))
     return Route("CHITCHAT", 0.5, "fallback", frozenset(flags))
 
 
@@ -229,7 +263,7 @@ async def classify_low_confidence(message: str, fallback: Route, db, user_id, hi
     try:
         result = await llm_provider.call(
             routes,
-            [{"role": "system", "content": "Classify only the latest user intent. Reply with one JSON intent. Never execute an action."},
+            [{"role": "system", "content": ROUTER_SYSTEM_PROMPT},
              *(history or [])[-4:], {"role": "user", "content": message}],
             require_json=True, json_schema=IntentClassification.model_json_schema(),
             max_tokens=80, db=db, user_id=user_id, purpose="ROUTER",

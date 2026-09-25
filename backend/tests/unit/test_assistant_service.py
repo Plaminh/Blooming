@@ -1,7 +1,8 @@
-from unittest.mock import AsyncMock
+from unittest.mock import ANY, AsyncMock
 from uuid import uuid4
 
 import pytest
+from app.ai.router import Route
 from app.schemas.assistant import ChatRequest, ChatResponse
 from app.schemas.drafts import AvailabilityWindowDraft, TaskDraft, TodayDraft
 from app.services import assistant_service
@@ -129,3 +130,60 @@ async def test_real_planning_request_still_creates_today_draft(monkeypatch):
     assert result.intent == "PLAN_DAY"
     assert result.draft == draft
     planner.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_parse_04_short_task_reaches_planner_and_keeps_estimate_provenance(monkeypatch):
+    draft = TodayDraft(
+        planDate="2026-09-25",
+        windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
+        tasks=[
+            TaskDraft(
+                id="d1",
+                title="Organize Zarkon materials",
+                durationMin=45,
+                estimateSource="AI",
+            )
+        ],
+    )
+    classify = AsyncMock(return_value=Route("PLAN_DAY", 0.75, "llm"))
+    planner = AsyncMock(
+        return_value=ChatResponse(
+            reply="Draft ready",
+            intent="PLAN_DAY",
+            draft=draft,
+            assumptions=[{
+                "id": "a-duration-d1",
+                "kind": "DURATION",
+                "task_id": "d1",
+                "text": "Estimated 45 minutes for Organize Zarkon materials",
+            }],
+        )
+    )
+    monkeypatch.setattr(assistant_service, "classify_low_confidence", classify)
+    monkeypatch.setattr(assistant_service, "build_context", AsyncMock(return_value=object()))
+    monkeypatch.setattr(assistant_service, "plan_day", planner)
+
+    result = await assistant_service.chat(
+        ChatRequest(message="Organize Zarkon materials."),
+        db=AsyncMock(),
+        user_id=uuid4(),
+    )
+
+    classify.assert_awaited_once()
+    planner.assert_awaited_once()
+    assert result.intent == "PLAN_DAY"
+    assert result.draft is not None
+    assert result.draft.tasks[0].title == "Organize Zarkon materials"
+    assert result.draft.tasks[0].durationMin == 45
+    assert result.draft.tasks[0].estimateSource == "AI"
+    assert result.draft.tasks[0].fixedStart is None
+    assert result.draft.tasks[0].deadline is None
+    assert result.assumptions[0].text.startswith("Estimated 45 minutes")
+    planner.assert_awaited_once_with(
+        "Organize Zarkon materials.",
+        ANY,
+        "en",
+        history=None,
+        light=False,
+    )

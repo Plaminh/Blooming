@@ -118,6 +118,37 @@ def test_explicit_planning_language_routes_without_classifier(message):
     assert selected.confidence >= 0.7
 
 
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Organize Zarkon materials.",
+        "Review lecture notes.",
+        "Clean my desk.",
+        "Finish the API documentation.",
+        "Prepare slides.",
+        "Read chapter five.",
+    ],
+)
+def test_short_actionable_statements_are_low_confidence_plan_candidates(message):
+    selected = route(message)
+    assert selected.intent == "PLAN_DAY"
+    assert selected.confidence < 0.7
+    assert selected.source == "fallback"
+
+
+@pytest.mark.parametrize(
+    ("message", "intent"),
+    [
+        ("I like organizing things.", "CHITCHAT"),
+        ("Tell me a joke", "CHITCHAT"),
+        ("Thanks.", "THANKS"),
+        ("What can you help me plan?", "HELP_FEATURE"),
+    ],
+)
+def test_task_candidate_fallback_preserves_conversation_routes(message, intent):
+    assert route(message).intent == intent
+
+
 @pytest.mark.asyncio
 async def test_low_confidence_uses_budgeted_classifier_and_db_history(monkeypatch):
     monkeypatch.setattr(budget, "get_budget_mode", AsyncMock(return_value=budget.BudgetMode.NORMAL))
@@ -130,3 +161,20 @@ async def test_low_confidence_uses_budgeted_classifier_and_db_history(monkeypatc
     assert selected.source == "llm"
     assert provider_call.await_args.kwargs["purpose"] == "ROUTER"
     assert provider_call.await_args.args[1][1]["content"] == "I want a long term outcome"
+
+
+@pytest.mark.asyncio
+async def test_task_candidate_gets_semantic_classifier_opportunity(monkeypatch):
+    monkeypatch.setattr(budget, "get_budget_mode", AsyncMock(return_value=budget.BudgetMode.NORMAL))
+    monkeypatch.setattr(budget, "available_routes", AsyncMock(return_value="ollama:small"))
+    provider_call = AsyncMock(return_value={"intent": "PLAN_DAY"})
+    monkeypatch.setattr(llm_provider, "call", provider_call)
+
+    fallback = route("Organize Zarkon materials.")
+    selected = await classify_low_confidence(
+        "Organize Zarkon materials.", fallback, AsyncMock(), uuid4()
+    )
+
+    assert selected.intent == "PLAN_DAY"
+    assert selected.source == "llm"
+    assert "short bare imperative" in provider_call.await_args.args[1][0]["content"]

@@ -44,10 +44,6 @@ test('sends the message to the backend and shows its draft', async () => {
   if (state.activeDraft?.type === 'today') {
     expect(state.activeDraft.tasks[0].id).toBe('task-1');
     expect(state.activeDraft.tasks[0].title).toBe('Write report');
-    vi.mocked(api.post).mockResolvedValueOnce({
-      draft: { ...state.activeDraft, tasks: state.activeDraft.tasks.map(task => ({ ...task, importance: 'OPTIONAL' })) },
-      preview: { preview_token: 'fresh' }
-    });
     await mrBloomStore.updateTaskImportance('task-1', 'OPTIONAL');
     const edited = get(mrBloomStore).activeDraft;
     if (edited?.type === 'today') {
@@ -160,34 +156,25 @@ test('send-text and patch quick replies use their explicit payloads', async () =
   const draft: TodayDraft = { type: 'today', planDate: '2026-09-20', timezone: 'UTC',
     windows: [{ start: '09:00', end: '12:00' }], tasks: [] };
   mrBloomStore.update(state => ({ ...state, activeDraft: draft }));
-  vi.mocked(api.post).mockResolvedValueOnce({ draft, preview: null });
   const patch: import('$lib/api').PatchOp[] = [{ op: 'set_windows' as const, windows: [{ start: '10:00', end: '12:00' }] }];
   await mrBloomStore.handleSuggestion({ label: 'Start later', patch });
-  expect(api.post).toHaveBeenLastCalledWith('/assistant/apply-patch', { draft, ops: patch });
+  expect(get(mrBloomStore).activeDraft).toEqual({ ...draft, windows: [{ start: '10:00', end: '12:00' }] });
+  expect(api.post).toHaveBeenCalledTimes(1);
 });
 
-test('duration edits debounce into one preview request', async () => {
-  vi.useFakeTimers();
-  try {
-    const draft: TodayDraft = { type: 'today', planDate: '2026-09-20', timezone: 'UTC',
-      windows: [{ start: '09:00', end: '12:00' }], tasks: [{ id: 'd1', title: 'Read',
-        durationMin: 30, priority: 'MEDIUM', importance: 'CORE', category: null,
-        estimateSource: 'USER', breakAfterMin: null, deadline: null,
-        schedulingType: 'FLEXIBLE', fixedStart: null, fixedEnd: null,
-        dependencies: [], splittable: false }] };
-    mrBloomStore.update(state => ({ ...state, activeDraft: draft }));
-    vi.mocked(api.post).mockResolvedValue({ draft, preview: null });
-    mrBloomStore.updateTaskDuration('d1', 35);
-    mrBloomStore.updateTaskDuration('d1', 40);
-    await vi.advanceTimersByTimeAsync(300);
-    expect(api.post).toHaveBeenCalledTimes(1);
-    expect(api.post).toHaveBeenCalledWith('/assistant/apply-patch', {
-      draft: { ...draft, tasks: [{ ...draft.tasks[0], durationMin: 40 }] },
-      ops: [{ op: 'update_task', task_id: 'd1', duration_min: 40 }]
-    });
-  } finally {
-    vi.useRealTimers();
-  }
+test('duration edits stay local and do not automatically preview', () => {
+  const draft: TodayDraft = { type: 'today', planDate: '2026-09-20', timezone: 'UTC',
+    windows: [{ start: '09:00', end: '12:00' }], tasks: [{ id: 'd1', title: 'Read',
+      durationMin: 30, priority: 'MEDIUM', importance: 'CORE', category: null,
+      estimateSource: 'USER', breakAfterMin: null, deadline: null,
+      schedulingType: 'FLEXIBLE', fixedStart: null, fixedEnd: null,
+      dependencies: [], splittable: false }] };
+  mrBloomStore.update(state => ({ ...state, activeDraft: draft }));
+  mrBloomStore.updateTaskDuration('d1', 35);
+  mrBloomStore.updateTaskDuration('d1', 40);
+  const edited = get(mrBloomStore).activeDraft;
+  expect(edited?.type === 'today' && edited.tasks[0].durationMin).toBe(40);
+  expect(api.post).not.toHaveBeenCalled();
 });
 
 test('SS-011, PR-016: Stale response protection prevents older requests from overwriting newer state', async () => {
@@ -245,18 +232,11 @@ test('MD-008: safely ignores unsupported actions', async () => {
 test('editing a previewed draft immediately invalidates its token and hides Save state', async () => {
   const draft: TodayDraft = { type: 'today', planDate: '2026-09-20', timezone: 'UTC', windows: [], tasks: [] };
   mrBloomStore.update(state => ({ ...state, activeDraft: draft, preview: { preview_token: 'stale' } as any, previewMode: 'timeline' }));
-  let resolvePatch!: (value: unknown) => void;
-  vi.mocked(api.post).mockReturnValueOnce(new Promise(resolve => { resolvePatch = resolve; }));
-
-  const pending = mrBloomStore.applyPatch([{ op: 'set_windows', windows: [{ start: '10:00', end: '12:00' }] }]);
+  await mrBloomStore.applyPatch([{ op: 'set_windows', windows: [{ start: '10:00', end: '12:00' }] }]);
   expect(get(mrBloomStore).preview).toBeNull();
   expect(get(mrBloomStore).previewMode).toBe('today');
-  expect(get(mrBloomStore).isDraftMutationPending).toBe(true);
-
-  resolvePatch({ draft: { ...draft, windows: [{ start: '10:00', end: '12:00' }] }, preview: { preview_token: 'must-not-be-used' } });
-  await pending;
-  expect(get(mrBloomStore).preview).toBeNull();
-  expect(get(mrBloomStore).previewMode).toBe('today');
+  expect(get(mrBloomStore).isDraftMutationPending).toBe(false);
+  expect(api.post).not.toHaveBeenCalled();
 });
 
 test('a new draft clears a stale preview token', async () => {

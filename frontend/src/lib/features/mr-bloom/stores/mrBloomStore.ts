@@ -147,149 +147,71 @@ function createMrBloomStore() {
     if (accepted) await sendMessage(message, msgId, update, snapshot);
   }
 
-  async function doApplyPatch(ops: import('$lib/api').PatchOp[]) {
-    let draft: AssistantDraft | null = null;
-    update(state => { draft = state.activeDraft; return { ...state, error: null }; });
-    if (!draft) return;
-    try {
-      const result = await api.post('/assistant/apply-patch', { draft, ops });
-      update(state => ({
-        ...state,
-        activeDraft: result.draft,
-        preview: null,
-        previewMode: result.draft.type,
-        needsReplace: false
-      }));
-    } catch (error) {
-      update(state => ({ ...state, error: error instanceof Error ? error.message : 'Edit failed.' }));
-    }
-  }
-    async function applySuggestionAndRepreview(suggestion: import('$lib/api').RepairSuggestion) {
-      if (!suggestion?.patch) return;
-      let draft: import('$lib/api').TodayDraft | null = null;
-      let currentPreviewToken: string | null = null;
-      let isBusy = false;
-      
-      update(state => {
-        draft = state.activeDraft?.type === 'today' ? state.activeDraft : null;
-        currentPreviewToken = state.preview?.preview_token ?? null;
-        isBusy = !!state.isDraftMutationPending || !!state.isPreviewPending;
-        if (!isBusy) {
-          return { ...state, isDraftMutationPending: true, error: null };
-        }
-        return state;
-      });
-      
-      if (isBusy || !draft) return;
-      
-      try {
-        const result: { draft: import('$lib/api').TodayDraft } = await api.post('/assistant/apply-patch', { draft, ops: suggestion.patch });
-        update(state => ({
-          ...state,
-          activeDraft: result.draft,
-          preview: null,
-          previewMode: result.draft.type,
-          isDraftMutationPending: false,
-          isPreviewPending: true
-        }));
-        
-        let newDraft: import('$lib/api').TodayDraft | null = null;
-        update(state => { newDraft = state.activeDraft?.type === 'today' ? state.activeDraft : null; return state; });
-        if (!newDraft) throw new Error("Draft invalid");
-        
-        const previewResponse = await api.post('/today/preview', { draft: newDraft });
-        if (!previewResponse?.preview_token || previewResponse.preview_token === currentPreviewToken) {
-           throw new Error("Stale preview token received.");
-        }
-        
-        update(state => {
-          return {
-            ...state,
-            preview: previewResponse,
-            previewMode: 'timeline',
-            needsReplace: false
-          };
-        });
-      } catch (err: unknown) {
-        const e = err as Error;
-        update(state => ({ ...state, error: e.message ?? String(e) }));
-      } finally {
-        update(state => ({ ...state, isDraftMutationPending: false, isPreviewPending: false }));
-      }
-    }
-  let patchQueue: Promise<void> = Promise.resolve();
-  let pendingPatchCount = 0;
-  function applyPatch(ops: import('$lib/api').PatchOp[]): Promise<void> {
-    // Invalidate the saveable snapshot synchronously, even if another edit is
-    // ahead of this one in the serialized patch queue.
-    pendingPatchCount += 1;
-    draftRevision += 1;
-    update(state => ({
-      ...state, preview: null,
-      previewMode: state.activeDraft?.type ?? 'placeholder',
-      needsReplace: false, isDraftMutationPending: true
-    }));
-    const next = patchQueue.then(() => doApplyPatch(ops)).finally(() => {
-      pendingPatchCount -= 1;
-      update(state => ({ ...state, isDraftMutationPending: pendingPatchCount > 0 }));
-    });
-    patchQueue = next.catch(() => undefined);
-    return next;
+  function clockOnPlanDate(planDate: string, value: string | null | undefined) {
+    return value ? `${planDate}T${value}:00` : null;
   }
 
-  const pendingDuration = new Map<string, number>();
-  const pendingTitle = new Map<string, string>();
-  let previewTimer: ReturnType<typeof setTimeout> | undefined;
-  async function flushPendingDurations() {
-    if (previewTimer) clearTimeout(previewTimer);
-    previewTimer = undefined;
-    if (!pendingDuration.size && !pendingTitle.size) return;
-    const ops: import('$lib/api').PatchOp[] = [];
-    const taskIds = new Set([...pendingDuration.keys(), ...pendingTitle.keys()]);
-    for (const task_id of taskIds) {
-      const title = pendingTitle.get(task_id);
-      const duration_min = pendingDuration.get(task_id);
-      const op: Extract<import('$lib/api').PatchOp, { op: 'update_task' }> = {
-        op: 'update_task', task_id
-      };
-      if (title !== undefined) op.title = title;
-      if (duration_min !== undefined) op.duration_min = duration_min;
-      ops.push(op);
+  function applyLocalTodayOps(draft: TodayDraft, ops: import('$lib/api').PatchOp[]): TodayDraft {
+    let next = draft;
+    for (const op of ops) {
+      if (op.op === 'set_windows') {
+        next = { ...next, windows: op.windows.map(window => ({ ...window })) };
+      } else if (op.op === 'update_window') {
+        next = { ...next, windows: next.windows.map((window, index) => index === op.window_index
+          ? { start: op.start ?? window.start, end: op.end ?? window.end }
+          : window) };
+      } else if (op.op === 'add_task') {
+        next = { ...next, tasks: [...next.tasks, { ...op.task }] };
+      } else if (op.op === 'remove_task') {
+        next = { ...next, tasks: next.tasks.filter(task => task.id !== op.task_id) };
+      } else if (op.op === 'remove_deferred_task') {
+        next = { ...next, deferred_tasks: (next.deferred_tasks ?? []).filter(item => item.task.id !== op.task_id) };
+      } else if (op.op === 'scale_durations') {
+        next = { ...next, tasks: next.tasks.map(task => !op.task_id || task.id === op.task_id
+          ? { ...task, durationMin: Math.min(480, Math.max(5, Math.round(task.durationMin * op.factor / 5) * 5)), estimateSource: 'USER' }
+          : task) };
+      } else if (op.op === 'set_plan_date') {
+        next = { ...next, planDate: op.plan_date };
+      } else if (op.op === 'update_task') {
+        next = { ...next, tasks: next.tasks.map(task => task.id !== op.task_id ? task : {
+          ...task,
+          ...(op.title !== undefined && op.title !== null ? { title: op.title } : {}),
+          ...(op.duration_min !== undefined && op.duration_min !== null
+            ? { durationMin: op.duration_min, estimateSource: 'USER' as const } : {}),
+          ...(op.importance !== undefined && op.importance !== null ? { importance: op.importance } : {}),
+          ...(op.priority !== undefined && op.priority !== null ? { priority: op.priority === 'URGENT' ? 'HIGH' as const : op.priority } : {}),
+          ...(op.category !== undefined ? { category: op.category } : {}),
+          ...(op.break_after_min !== undefined ? { breakAfterMin: op.break_after_min } : {}),
+          ...(op.splittable !== undefined && op.splittable !== null ? { splittable: op.splittable } : {}),
+          ...(op.scheduling_type !== undefined && op.scheduling_type !== null ? { schedulingType: op.scheduling_type } : {}),
+          ...(op.fixed_start !== undefined ? { fixedStart: clockOnPlanDate(next.planDate, op.fixed_start) } : {}),
+          ...(op.fixed_end !== undefined ? { fixedEnd: clockOnPlanDate(next.planDate, op.fixed_end) } : {}),
+          ...(op.deadline !== undefined ? { deadline: clockOnPlanDate(next.planDate, op.deadline) } : {})
+        }) };
+      }
     }
-    pendingDuration.clear();
-    pendingTitle.clear();
-    await applyPatch(ops);
-    void store.generateTimeline();
+    return next;
   }
-  function scheduleDuration(taskId: string, durationMin: number) {
-    pendingDuration.set(taskId, durationMin);
+  function applyPatch(ops: import('$lib/api').PatchOp[]): Promise<void> {
     draftRevision += 1;
-    update(state => ({
-      ...state,
-      activeDraft: state.activeDraft?.type === 'today'
-        ? { ...state.activeDraft, tasks: state.activeDraft.tasks.map(task =>
-            task.id === taskId ? { ...task, durationMin } : task) }
-        : state.activeDraft,
-      preview: null, previewMode: state.activeDraft?.type ?? 'placeholder',
-      needsReplace: false, isDraftMutationPending: true, error: null
-    }));
-    if (previewTimer) clearTimeout(previewTimer);
-    previewTimer = setTimeout(() => { void flushPendingDurations(); }, 300);
+    previewSequence += 1;
+    update(state => {
+      if (state.activeDraft?.type !== 'today') return state;
+      const activeDraft = applyLocalTodayOps(state.activeDraft, ops);
+      return {
+        ...state, activeDraft, preview: null, previewMode: 'today',
+        needsReplace: false, isDraftMutationPending: false,
+        isPreviewPending: false, error: null
+      };
+    });
+    return Promise.resolve();
+  }
+
+  function scheduleDuration(taskId: string, durationMin: number) {
+    void applyPatch([{ op: 'update_task', task_id: taskId, duration_min: durationMin }]);
   }
   function scheduleTitle(taskId: string, title: string) {
-    pendingTitle.set(taskId, title);
-    draftRevision += 1;
-    update(state => ({
-      ...state,
-      activeDraft: state.activeDraft?.type === 'today'
-        ? { ...state.activeDraft, tasks: state.activeDraft.tasks.map(task =>
-            task.id === taskId ? { ...task, title } : task) }
-        : state.activeDraft,
-      preview: null, previewMode: state.activeDraft?.type ?? 'placeholder',
-      needsReplace: false, isDraftMutationPending: true, error: null
-    }));
-    if (previewTimer) clearTimeout(previewTimer);
-    previewTimer = setTimeout(() => { void flushPendingDurations(); }, 300);
+    void applyPatch([{ op: 'update_task', task_id: taskId, title }]);
   }
 
   async function saveToday(replaceExisting = false) {
@@ -302,8 +224,6 @@ function createMrBloomStore() {
     if (!accepted) return;
     ++latestRequestVersion;
     try {
-      await flushPendingDurations();
-      await patchQueue;
       let snapshot = initial;
       update(state => { snapshot = state; return state; });
       if (snapshot.activeDraft?.type !== 'today' || !snapshot.preview) return;
@@ -444,7 +364,6 @@ function createMrBloomStore() {
       }));
     },
     applyPatch,
-    applySuggestionAndRepreview,
     updateRoadmap: (changes: Partial<Pick<RoadmapDraft, 'goalTitle' | 'goalDescription' | 'targetDate'>>) =>
       update(state => state.activeDraft?.type === 'roadmap'
         ? { ...state, activeDraft: { ...state.activeDraft, ...changes }, error: null }
@@ -496,17 +415,15 @@ function createMrBloomStore() {
         schedulingType: 'FLEXIBLE', fixedStart: null, fixedEnd: null,
         dependencies: [], splittable: false
       };
-      return flushPendingDurations().then(() => applyPatch([{ op: 'add_task' as const, task }])).then(() => { void store.generateTimeline(); });
+      return applyPatch([{ op: 'add_task' as const, task }]);
     },
     updateTaskImportance: (taskId: string, importance: Importance) =>
-      flushPendingDurations().then(() => applyPatch([{ op: 'update_task' as const, task_id: taskId, importance: importance as 'CORE' | 'OPTIONAL' }])).then(() => { void store.generateTimeline(); }),
+      applyPatch([{ op: 'update_task' as const, task_id: taskId, importance: importance as 'CORE' | 'OPTIONAL' }]),
     removeTask: (taskId: string) =>
-      flushPendingDurations().then(() => applyPatch([{ op: 'remove_task' as const, task_id: taskId }])).then(() => { void store.generateTimeline(); }),
+      applyPatch([{ op: 'remove_task' as const, task_id: taskId }]),
     removeDeferredTask: (taskId: string) =>
-      flushPendingDurations().then(() => applyPatch([{ op: 'remove_deferred_task' as const, task_id: taskId }])).then(() => { void store.generateTimeline(); }),
+      applyPatch([{ op: 'remove_deferred_task' as const, task_id: taskId }]),
     generateTimeline: async () => {
-      await flushPendingDurations();
-      await patchQueue;
       let draft: TodayDraft | null = null;
       let patchError = false;
       update(state => { draft = state.activeDraft?.type === 'today' ? state.activeDraft : null; patchError = !!state.error; return { ...state, error: patchError ? state.error : null }; });

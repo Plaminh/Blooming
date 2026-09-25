@@ -233,26 +233,27 @@ test('UI-014: send_text quick reply uses normal submitMessage flow', async () =>
   expect(get(mrBloomStore).chatHistory.at(-2)?.role).toBe('user');
 });
 
-test('UI-015: patch quick reply invokes applyPatch without calling chat endpoint', async () => {
+test('UI-015: patch quick reply edits locally without calling an endpoint', async () => {
   const { getByText } = render(MrBloomConversationPanel);
   const patchOp: import('$lib/api').PatchOp = { op: 'remove_task', task_id: '1' };
   
   mrBloomStore.update(state => ({
     ...state,
-    activeDraft: { type: 'today', planDate: '2026-01-01', timezone: 'UTC', windows: [], tasks: [] },
+    activeDraft: { type: 'today', planDate: '2026-01-01', timezone: 'UTC', windows: [], tasks: [{
+      id: '1', title: 'Task', durationMin: 30, priority: 'MEDIUM', importance: 'CORE',
+      category: null, estimateSource: 'USER', breakAfterMin: null, deadline: null,
+      schedulingType: 'FLEXIBLE', fixedStart: null, fixedEnd: null, dependencies: [], splittable: false
+    }] },
     suggestions: [{ label: 'Remove task', patch: [patchOp] }]
   }));
   await tick();
   
-  vi.mocked(api.post).mockResolvedValueOnce({ draft: { type: 'today', tasks: [] }, preview: null });
-  
   const button = getByText('Remove task');
   await fireEvent.click(button);
-  
-  expect(api.post).toHaveBeenCalledWith('/assistant/apply-patch', expect.objectContaining({
-    ops: [patchOp]
-  }));
-  expect(api.post).not.toHaveBeenCalledWith('/assistant/chat', expect.anything());
+
+  expect(api.post).not.toHaveBeenCalled();
+  const active = get(mrBloomStore).activeDraft;
+  expect(active?.type === 'today' && active.tasks).toHaveLength(0);
 });
 
 test('UI-016 / UI-017: action executes only after explicit user click', async () => {

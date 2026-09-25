@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { render, screen, within } from '@testing-library/svelte';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import DraftTaskSummary from './DraftTaskSummary.svelte';
 
 const task = {
@@ -42,4 +42,15 @@ test('shows server fixed times as clock values and marks repeating or carried wo
   expect(screen.getByLabelText('End time')).toHaveValue('20:00');
   expect(screen.getByText('↻ Repeats weekly · Mon, Wed')).toBeInTheDocument();
   expect(screen.getByText('Carried over')).toBeInTheDocument();
+});
+
+test('keeps sequential title characters editable while the field is focused', async () => {
+  render(DraftTaskSummary, { task: { ...task, title: 'Study algorithms' } });
+  const input = screen.getByRole('textbox', { name: 'Title' });
+
+  await fireEvent.focus(input);
+  await fireEvent.input(input, { target: { value: 'Review' } });
+  await fireEvent.input(input, { target: { value: 'Review algorithms' } });
+
+  expect(input).toHaveValue('Review algorithms');
 });

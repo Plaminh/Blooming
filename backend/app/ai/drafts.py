@@ -328,4 +328,13 @@ def assemble_today(
         tasks=tasks,
         deferred_tasks=deferred,
     )
-    return draft, assumptions
+    # The extractor may state the same assumption that deterministic assembly
+    # derives from task provenance. Keep the first occurrence and its ordering.
+    unique_assumptions: list[Assumption] = []
+    seen_assumption_texts: set[str] = set()
+    for assumption in assumptions:
+        if assumption.text in seen_assumption_texts:
+            continue
+        seen_assumption_texts.add(assumption.text)
+        unique_assumptions.append(assumption)
+    return draft, unique_assumptions

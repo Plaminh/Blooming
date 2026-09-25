@@ -32,7 +32,7 @@
           <strong>Overloaded Plan</strong>
           {#each $mrBloomStore.preview.suggestions as suggestion}
             <button class="repair-btn" 
-              onclick={() => mrBloomStore.applySuggestionAndRepreview(suggestion)}
+              onclick={() => mrBloomStore.applyPatch(suggestion.patch)}
               disabled={$mrBloomStore.isDraftMutationPending || $mrBloomStore.isPreviewPending}
             >
               {suggestion.label}

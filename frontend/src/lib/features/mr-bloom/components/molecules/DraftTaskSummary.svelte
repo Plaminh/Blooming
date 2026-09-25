@@ -5,6 +5,18 @@
 
   let { task }: { task: DraftTask } = $props();
   let repeats = $derived(recurrenceLabel(task.recurrence));
+  let title = $state('');
+  let lastTaskTitle: string | null = $state(null);
+
+  $effect(() => {
+    // Synchronize only when the store value actually changes. Local typing
+    // updates this buffer first, so the matching store update does not reset it.
+    const nextTitle = task.title;
+    if (nextTitle !== lastTaskTitle) {
+      lastTaskTitle = nextTitle;
+      title = nextTitle;
+    }
+  });
 
   function handleDurationChange(event: Event) {
     const value = Number.parseInt((event.currentTarget as HTMLInputElement).value, 10);
@@ -48,7 +60,14 @@
 <article class="draft-task-row">
   <div class="main-row">
     <span class="task-icon"><AppIcon name="document" size="task-type" /></span>
-    <input class="task-title" value={task.title} title={task.title} aria-label="Title" oninput={(e) => mrBloomStore.updateTaskTitle(task.id, e.currentTarget.value)} />
+    <input
+      class="task-title"
+      bind:value={title}
+      title={title}
+      aria-label="Title"
+      maxlength="200"
+      oninput={() => mrBloomStore.updateTaskTitle(task.id, title)}
+    />
 
     <div class="duration-editor">
       <span class="sr-only">Duration for {task.title}</span>
