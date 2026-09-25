@@ -181,7 +181,7 @@ describe('Block 8 E2E: Task Splitting and Durations', () => {
         });
 
         // Save should not be available before preview
-        expect(screen.queryByRole('button', { name: /SAVE TO TODAY/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^SAVE$/i })).not.toBeInTheDocument();
       });
 
       bloom.unmount();
@@ -216,9 +216,9 @@ describe('Block 8 E2E: Task Splitting and Durations', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(screen.getByDisplayValue('Write notes')).toBeInTheDocument());
     await fireEvent.click(screen.getByRole('button', { name: /GENERATE TIMELINE/i }));
-    await waitFor(() => expect(screen.getByRole('button', { name: /SAVE TO TODAY/i })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: /^SAVE$/i })).toBeInTheDocument());
     expect(api.post).toHaveBeenCalledWith('/today/preview', expect.objectContaining({ draft: expect.objectContaining({ tasks }) }));
-    await fireEvent.click(screen.getByRole('button', { name: /SAVE TO TODAY/i }));
+    await fireEvent.click(screen.getByRole('button', { name: /^SAVE$/i }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/today/save', expect.objectContaining({
       session_id: 'block-8-session', preview_token: 'block-8-preview', draft: expect.objectContaining({ tasks })
     })));

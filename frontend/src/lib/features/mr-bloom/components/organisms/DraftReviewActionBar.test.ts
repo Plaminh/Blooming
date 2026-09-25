@@ -6,11 +6,11 @@ test('disables both primary and secondary actions while an operation is pending'
   const onPrimary = vi.fn();
   const onSecondary = vi.fn();
   render(DraftReviewActionBar, {
-    primaryLabel: 'SAVE TO TODAY', secondaryLabel: 'DISCARD',
+    primaryLabel: 'SAVE', secondaryLabel: 'DISCARD',
     onPrimary, onSecondary, disabled: true
   });
 
-  const primary = screen.getByRole('button', { name: 'SAVE TO TODAY' });
+  const primary = screen.getByRole('button', { name: 'SAVE' });
   const secondary = screen.getByRole('button', { name: 'DISCARD' });
   expect(primary).toBeDisabled();
   expect(secondary).toBeDisabled();

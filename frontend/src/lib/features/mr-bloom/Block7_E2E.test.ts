@@ -154,11 +154,11 @@ describe('Block 7 E2E-001: Simple Today Plan Happy Path', () => {
     // Wait for preview response and SAVE button
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/today/preview', expect.any(Object));
-      expect(screen.getByRole('button', { name: /SAVE TO TODAY/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^SAVE$/i })).toBeInTheDocument();
     });
 
     // Click Save inside MrBloom right panel
-    const saveButton = screen.getByRole('button', { name: /SAVE TO TODAY/i });
+    const saveButton = screen.getByRole('button', { name: /^SAVE$/i });
     await fireEvent.click(saveButton);
 
     // Wait for the save post request to complete

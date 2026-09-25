@@ -89,7 +89,7 @@ describe('Block 9 E2E: time constraints and lifecycle', () => {
     await send({ reply: 'The fixed end must be after the fixed start.', session_id: 's1', draft: null, preview: null });
     await waitFor(() => expect(screen.getByText(/fixed end must be after/i)).toBeInTheDocument());
     expect(api.post).not.toHaveBeenCalledWith('/today/preview', expect.anything());
-    expect(screen.queryByRole('button', { name: /SAVE TO TODAY/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^SAVE$/i })).not.toBeInTheDocument();
   });
 
   it('editing after preview invalidates the token and the scheduler receives the edited draft', async () => {
@@ -109,10 +109,10 @@ describe('Block 9 E2E: time constraints and lifecycle', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(screen.getByLabelText('Start time')).toBeInTheDocument());
     await fireEvent.click(screen.getByRole('button', { name: /GENERATE TIMELINE/i }));
-    await waitFor(() => expect(screen.getByRole('button', { name: /SAVE TO TODAY/i })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: /^SAVE$/i })).toBeInTheDocument());
     await fireEvent.click(screen.getByRole('button', { name: 'BACK TO TASKS' }));
     await fireEvent.click(screen.getByRole('button', { name: 'Clear fixed time' }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: /SAVE TO TODAY/i })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^SAVE$/i })).not.toBeInTheDocument());
     expect(get(mrBloomStore).preview).toBeNull();
     await fireEvent.click(screen.getByRole('button', { name: /GENERATE TIMELINE/i }));
     await waitFor(() => expect(api.post).toHaveBeenLastCalledWith('/today/preview', { draft: patched }));
