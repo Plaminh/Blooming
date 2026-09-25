@@ -68,6 +68,26 @@ async def test_edit_delegates_current_draft(monkeypatch):
     editor.assert_awaited_once_with("change task 1 to 45 min", draft, context, history=None)
 
 
+@pytest.mark.asyncio
+async def test_pending_edit_combines_original_request_with_ordinal_answer(monkeypatch):
+    draft = _existing_draft()
+    context = object()
+    monkeypatch.setattr(assistant_service, "build_context", AsyncMock(return_value=context))
+    editor = AsyncMock(return_value=ChatResponse(reply="updated", intent="EDIT_DRAFT", draft=draft))
+    monkeypatch.setattr(assistant_service, "edit", editor)
+
+    await assistant_service.chat(
+        ChatRequest(message="First one.", current_draft=draft),
+        db=AsyncMock(), user_id=uuid4(), pending_intent="EDIT_DRAFT",
+        pending_message="Change Review notes to 20 minutes.",
+    )
+
+    editor.assert_awaited_once_with(
+        "Change Review notes to 20 minutes.\nFirst one.",
+        draft, context, history=None,
+    )
+
+
 def _existing_draft() -> TodayDraft:
     return TodayDraft(
         planDate="2026-09-21",

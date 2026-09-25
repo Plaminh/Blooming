@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.schemas.drafts import RoadmapDraft, TodayDraft
 from app.schemas.patches import PatchOp
+from app.ai.router import normalize
 
 
 def apply_patch(
@@ -151,6 +152,13 @@ def apply_patch(
     from app.ai.validators import check_today
 
     issues = check_today(validated)
+    # A duration/importance edit may resolve one member of an already-ambiguous
+    # duplicate-title set. Do not make that unrelated pre-existing condition
+    # block the selected task patch; title-changing operations remain guarded.
+    original_titles = [normalize(item.title) for item in draft.tasks]
+    validated_titles = [normalize(item.title) for item in validated.tasks]
+    if original_titles == validated_titles:
+        issues = [issue for issue in issues if issue != "DUPLICATE_TITLE"]
     if issues:
         raise ValueError(", ".join(issues))
     return validated

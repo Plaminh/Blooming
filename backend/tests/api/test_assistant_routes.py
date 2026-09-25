@@ -298,6 +298,50 @@ async def test_chat_contract_accepts_current_draft_without_auto_preview(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("answer", "durations"),
+    [("First one.", [20, 25]), ("Second one.", [30, 20])],
+)
+async def test_edit_04_session_clarification_resolves_duplicate_by_ordinal(
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    answer: str,
+    durations: list[int],
+):
+    draft = {
+        "type": "today", "planDate": date.today().isoformat(), "timezone": "UTC",
+        "windows": [{"start": "09:00", "end": "17:00"}],
+        "tasks": [
+            {"id": "review-1", "title": "Review notes", "durationMin": 30},
+            {"id": "review-2", "title": "Review notes", "durationMin": 25},
+        ],
+    }
+    first = await async_client.post(
+        "/api/v1/assistant/chat", headers=auth_headers,
+        json={"message": "Change Review notes to 20 minutes.", "current_draft": draft},
+    )
+    assert first.status_code == 200, first.text
+    first_body = first.json()
+    assert first_body["question"] == "Which task did you mean?"
+    assert [task["durationMin"] for task in first_body["draft"]["tasks"]] == [30, 25]
+
+    second = await async_client.post(
+        "/api/v1/assistant/chat", headers=auth_headers,
+        json={
+            "message": answer,
+            "session_id": first_body["session_id"],
+            "current_draft": first_body["draft"],
+        },
+    )
+    assert second.status_code == 200, second.text
+    body = second.json()
+    assert body["question"] is None
+    assert body["preview"] is None
+    assert [task["id"] for task in body["draft"]["tasks"]] == ["review-1", "review-2"]
+    assert [task["durationMin"] for task in body["draft"]["tasks"]] == durations
+
+
+@pytest.mark.asyncio
 async def test_successful_today_save_completes_planning_session(
     async_client: AsyncClient,
     auth_headers: dict[str, str],

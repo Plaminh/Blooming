@@ -48,7 +48,7 @@ async def chat(
             tier="RULES",
         )
     effective_message = request.message
-    if pending_intent in {"PLAN_DAY", "CREATE_GOAL"} and pending_message:
+    if pending_intent in {"PLAN_DAY", "CREATE_GOAL", "EDIT_DRAFT"} and pending_message:
         effective_message = f"{pending_message}\n{request.message}"
     selected = route(request.message, has_draft=request.current_draft is not None,
                      awaiting_answer=bool(pending_intent))
@@ -66,7 +66,7 @@ async def chat(
             return await plan_day(effective_message, context, lang, history=history,
                                   light="tired" in selected.flags)
         if isinstance(request.current_draft, TodayDraft):
-            return await edit(request.message, request.current_draft, context, history=history)
+            return await edit(effective_message, request.current_draft, context, history=history)
     if selected.intent == "CREATE_GOAL":
         return roadmap(effective_message, lang, today=now.date())
     if selected.intent == "MOOD":

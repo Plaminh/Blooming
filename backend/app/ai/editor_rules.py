@@ -28,11 +28,18 @@ def _referenced_title(text: str) -> str | None:
 
 
 def _resolve_task_id(text: str, draft: TodayDraft) -> str | None:
+    ordinal_match = re.search(r"\b(first|1st|second|2nd)\b", text)
+    ordinal = (
+        0 if ordinal_match and ordinal_match.group(1) in {"first", "1st"}
+        else 1 if ordinal_match else None
+    )
     exact = [
         task for task in draft.tasks
         if normalize(task.title) in text and len(normalize(task.title)) > 2
     ]
     if len(exact) > 1:
+        if ordinal is not None and ordinal < len(exact):
+            return exact[ordinal].id
         raise ValueError("Which task did you mean?")
     if len(exact) == 1:
         return exact[0].id
@@ -52,6 +59,8 @@ def _resolve_task_id(text: str, draft: TodayDraft) -> str | None:
         ):
             plausible.append(task)
     if len(plausible) > 1:
+        if ordinal is not None and ordinal < len(plausible):
+            return plausible[ordinal].id
         raise ValueError("Which task did you mean?")
     return plausible[0].id if plausible else None
 

@@ -65,6 +65,61 @@ async def test_edit_03_unique_article_near_match_updates_only_target(monkeypatch
     ]
 
 
+def _duplicate_notes_draft() -> TodayDraft:
+    return TodayDraft(
+        planDate=date.today(), windows=[{"start": "09:00", "end": "17:00"}],
+        tasks=[
+            TaskDraft(id="review-1", title="Review notes", durationMin=30),
+            TaskDraft(id="study", title="Study algorithms", durationMin=60),
+            TaskDraft(id="review-2", title="Review notes", durationMin=25),
+        ],
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("follow_up", "first_duration", "second_duration"),
+    [
+        ("First one.", 20, 25),
+        ("1st one.", 20, 25),
+        ("Second one.", 30, 20),
+        ("2nd one.", 30, 20),
+        ("Change the first Review notes to 20 minutes.", 20, 25),
+    ],
+)
+async def test_edit_04_pending_ordinal_selects_only_one_duplicate(
+    monkeypatch, follow_up, first_duration, second_duration
+):
+    monkeypatch.setattr(editor, "get_budget_mode", AsyncMock(return_value=BudgetMode.LEAN))
+    original = "Change Review notes to 20 minutes."
+
+    result = await editor.edit(
+        f"{original}\n{follow_up}", _duplicate_notes_draft(), _context()
+    )
+
+    assert result.question is None
+    assert result.preview is None
+    assert [(task.id, task.durationMin) for task in result.draft.tasks] == [
+        ("review-1", first_duration),
+        ("study", 60),
+        ("review-2", second_duration),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_edit_04_still_ambiguous_follow_up_keeps_clarification(monkeypatch):
+    monkeypatch.setattr(editor, "get_budget_mode", AsyncMock(return_value=BudgetMode.LEAN))
+    result = await editor.edit(
+        "Change Review notes to 20 minutes.\nThe Review notes one.",
+        _duplicate_notes_draft(),
+        _context(),
+    )
+    assert result.question == "Which task did you mean?"
+    assert [(task.id, task.durationMin) for task in result.draft.tasks] == [
+        ("review-1", 30), ("study", 60), ("review-2", 25)
+    ]
+
+
 @pytest.mark.asyncio
 async def test_lean_editor_does_not_use_llm_for_ambiguous_edit(monkeypatch):
     provider = AsyncMock()
