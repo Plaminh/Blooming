@@ -165,7 +165,9 @@ def _parsed_from_llm(value: LLMDayPlan, ctx: ChatContext, message: str) -> Parse
 
     return ParsedPlan(
         tasks=tuple(final_tasks),
-        windows=tuple(value.windows),
+        # Preserve an explicit deterministic availability window when the LLM
+        # omits it; a supplied LLM window remains authoritative.
+        windows=tuple(value.windows or parser_plan.windows),
         plan_date_offset=max(ctx.default_date_offset, parser_plan.plan_date_offset),
         confidence=1.0,
         assumptions=tuple(value.assumptions),

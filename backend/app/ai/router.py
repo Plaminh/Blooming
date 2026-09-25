@@ -81,6 +81,16 @@ RECURRENCE_RE = (
     r"|moi thu (?:[2-7]|hai|ba|tu|nam|sau|bay)|moi chu nhat)\b"
 )
 RECURRING_NOUN_RE = r"\b(viec lap lai|lich lap lai|lap lai|recurring|repeating|repeat)\b"
+DAY_TARGET_RE = (
+    r"\b(today|tomorrow|hom nay|ngay mai|"
+    r"monday|tuesday|wednesday|thursday|friday|saturday|sunday|"
+    r"thu [2-7]|chu nhat|\d{4}-\d{2}-\d{2})\b"
+)
+SCHEDULING_DETAIL_RE = (
+    r"\b\d+(?:\.\d+)?\s*(?:minutes?|mins?|hours?|hrs?|phut|gio|tieng|p|h)\b"
+    r"|\b(?:from|tu)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s+(?:to|den)\s+"
+    r"\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b"
+)
 
 ROUTER_SYSTEM_PROMPT = """Classify only the latest user intent. Reply with one JSON intent.
 Never execute an action. A short bare imperative describing concrete work that could become
@@ -124,6 +134,11 @@ def detect_lang(text: str) -> Literal["vi", "en"]:
     ):
         return "vi"
     return "en"
+
+
+def is_self_contained_day_plan(message: str) -> bool:
+    text = normalize(message)
+    return bool(re.search(DAY_TARGET_RE, text) and re.search(SCHEDULING_DETAIL_RE, text))
 
 
 def route(
@@ -205,6 +220,11 @@ def route(
         return Route("HELP_FEATURE", 0.9, flags=frozenset(flags))
     if planning:
         return Route("PLAN_DAY", 0.94, flags=frozenset(flags))
+    # A day target plus concrete scheduling detail is a self-contained new
+    # plan, even when a draft exists. Keep this ahead of the has-draft edit
+    # fallback so stale draft state cannot hijack an explicit replacement.
+    if is_self_contained_day_plan(message):
+        return Route("PLAN_DAY", 0.9, flags=frozenset(flags))
     if re.search(RECURRENCE_RE, text) and re.search(
         r"\b\d+\s*(?:p|phut|minutes?|mins?|h|gio|tieng)\b|\b(hoc|lam|doc|tap|study|read|work|practice|exercise)\b",
         text,

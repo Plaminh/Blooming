@@ -550,8 +550,13 @@ def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
                 trailing_day = day
 
         interval_start, interval_end = None, None
+        interval_is_global = False
         window_match = WINDOW_RE.search(segment)
         if window_match:
+            # A leading "from X to Y" after the day marker describes the
+            # day's availability ("Today from 7 to 9, review ..."). An
+            # interval following a task name remains a fixed task interval.
+            interval_is_global = not segment[:window_match.start()].strip()
             interval_start = _clock(window_match.group(1), window_match.group(2))
             interval_end = _clock(window_match.group(3), window_match.group(4))
             segment = _cut(segment, window_match)
@@ -602,7 +607,10 @@ def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
             continue
 
         fixed_end = None
-        if interval_start and interval_end:
+        if interval_start and interval_end and interval_is_global:
+            if interval_start < interval_end:
+                windows.append((interval_start, interval_end))
+        elif interval_start and interval_end:
             fixed_start = interval_start
             fixed_end = interval_end
             if duration is None:

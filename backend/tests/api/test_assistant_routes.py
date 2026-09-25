@@ -342,6 +342,64 @@ async def test_edit_04_session_clarification_resolves_duplicate_by_ordinal(
 
 
 @pytest.mark.asyncio
+async def test_new_explicit_today_plan_clears_stale_edit_clarification(
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    db_session,
+):
+    plan_date = date.today().isoformat()
+    conflicting_draft = {
+        "type": "today", "planDate": plan_date, "timezone": "UTC",
+        "windows": [{"start": "09:00", "end": "12:00"}],
+        "tasks": [
+            {
+                "id": "old-1", "title": "Review notes", "durationMin": 60,
+                "schedulingType": "FIXED", "fixedStart": f"{plan_date}T09:00:00",
+                "fixedEnd": f"{plan_date}T10:00:00",
+            },
+            {
+                "id": "old-2", "title": "Review notes", "durationMin": 60,
+                "schedulingType": "FIXED", "fixedStart": f"{plan_date}T09:30:00",
+                "fixedEnd": f"{plan_date}T10:30:00",
+            },
+        ],
+    }
+    first = await async_client.post(
+        "/api/v1/assistant/chat", headers=auth_headers,
+        json={
+            "message": "Change Review notes to 20 minutes.",
+            "current_draft": conflicting_draft,
+        },
+    )
+    first_body = first.json()
+    assert first.status_code == 200, first.text
+    assert first_body["question"] == "Which task did you mean?"
+
+    second = await async_client.post(
+        "/api/v1/assistant/chat", headers=auth_headers,
+        json={
+            "message": "Today from 7 PM to 9 PM, review database systems for 1 hour.",
+            "session_id": first_body["session_id"],
+            "current_draft": first_body["draft"],
+        },
+    )
+    body = second.json()
+    assert second.status_code == 200, second.text
+    assert body["intent"] == "PLAN_DAY"
+    assert body["question"] is None
+    assert body["preview"] is None
+    assert [(task["title"], task["durationMin"]) for task in body["draft"]["tasks"]] == [
+        ("Review database systems", 60)
+    ]
+    assert body["draft"]["windows"] == [{"start": "19:00", "end": "21:00"}]
+
+    state = await db_session.get(PlanningSession, UUID(body["session_id"]))
+    await db_session.refresh(state)
+    assert state.status == "OPEN"
+    assert state.pending_intent is None
+
+
+@pytest.mark.asyncio
 async def test_successful_today_save_completes_planning_session(
     async_client: AsyncClient,
     auth_headers: dict[str, str],

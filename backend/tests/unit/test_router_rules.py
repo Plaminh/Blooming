@@ -99,6 +99,16 @@ def test_normalization_and_precedence():
     assert route("I want to hurt myself; plan my day").intent == "CRISIS"
 
 
+def test_self_contained_today_plan_beats_existing_draft_edit_fallback():
+    selected = route(
+        "Today from 7 PM to 9 PM, review database systems for 1 hour.",
+        has_draft=True,
+        awaiting_answer=True,
+    )
+    assert selected.intent == "PLAN_DAY"
+    assert selected.confidence >= 0.7
+
+
 def test_chitchat_templates_return_to_planning_without_model():
     assert "forecast" in chitchat_reply("How is the weather?", "en")
     assert "sắp xếp" in chitchat_reply("Kể chuyện cười", "vi")

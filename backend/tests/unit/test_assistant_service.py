@@ -88,6 +88,60 @@ async def test_pending_edit_combines_original_request_with_ordinal_answer(monkey
     )
 
 
+@pytest.mark.asyncio
+async def test_explicit_today_plan_replaces_conflicting_draft_and_pending_edit(monkeypatch):
+    old_draft = TodayDraft(
+        planDate="2026-09-25",
+        windows=[AvailabilityWindowDraft(start="09:00", end="12:00")],
+        tasks=[
+            TaskDraft(
+                id="old-1", title="Old fixed task", durationMin=60,
+                schedulingType="FIXED", fixedStart="2026-09-25T09:00:00",
+                fixedEnd="2026-09-25T10:00:00",
+            ),
+            TaskDraft(
+                id="old-2", title="Conflicting fixed task", durationMin=60,
+                schedulingType="FIXED", fixedStart="2026-09-25T09:30:00",
+                fixedEnd="2026-09-25T10:30:00",
+            ),
+        ],
+    )
+    new_draft = TodayDraft(
+        planDate="2026-09-25",
+        windows=[AvailabilityWindowDraft(start="19:00", end="21:00")],
+        tasks=[TaskDraft(id="new-1", title="Review database systems", durationMin=60)],
+    )
+    planner = AsyncMock(return_value=ChatResponse(
+        reply="Draft ready", intent="PLAN_DAY", draft=new_draft, preview=None,
+    ))
+    monkeypatch.setattr(assistant_service, "build_context", AsyncMock(return_value=object()))
+    monkeypatch.setattr(assistant_service, "plan_day", planner)
+
+    result = await assistant_service.chat(
+        ChatRequest(
+            message="Today from 7 PM to 9 PM, review database systems for 1 hour.",
+            current_draft=old_draft,
+        ),
+        db=AsyncMock(),
+        user_id=uuid4(),
+        history=[{"role": "user", "content": "Change the conflicting task."}],
+        pending_intent="EDIT_DRAFT",
+        pending_message="Change the conflicting task.",
+    )
+
+    assert result.intent == "PLAN_DAY"
+    assert result.draft == new_draft
+    assert result.preview is None
+    assert [task.title for task in result.draft.tasks] == ["Review database systems"]
+    planner.assert_awaited_once_with(
+        "Today from 7 PM to 9 PM, review database systems for 1 hour.",
+        ANY,
+        "en",
+        history=None,
+        light=False,
+    )
+
+
 def _existing_draft() -> TodayDraft:
     return TodayDraft(
         planDate="2026-09-21",
