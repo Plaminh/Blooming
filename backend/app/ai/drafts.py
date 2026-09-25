@@ -171,7 +171,9 @@ def _task_draft(
             )
         else:
             fixed_end = fixed_start + timedelta(minutes=duration)
-        if fixed_end <= fixed_start or fixed_end.date() != day:
+        if (item.source_task_id or item.recurring_task_id) and (
+            fixed_end <= fixed_start or fixed_end.date() != day
+        ):
             # A carried task whose window no longer fits the day is flexible.
             fixed_start = fixed_end = None
     deadline = (

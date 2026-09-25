@@ -1,0 +1,271 @@
+{
+  "workflow": "companion",
+  "specName": "Refactor Today Planning to LLM-First",
+  "branch": "fix-bug",
+  "currentStep": "implement",
+  "status": "completed",
+  "history": [
+    {
+      "step": "tasks",
+      "substep": null,
+      "kind": "complete",
+      "by": "extension",
+      "at": "2026-09-25T07:50:47.267Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "kind": "start",
+      "by": "extension",
+      "at": "2026-09-25T07:54:19.908Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T001",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:03.651Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T002",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:19.535Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T003",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:20.252Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T004",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:20.876Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T005",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:21.722Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T006",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:22.517Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T007",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:23.505Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T008",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:24.561Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T009",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:25.231Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T010",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:26.153Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T011",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:27.273Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T012",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:28.397Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T013",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:29.709Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "task": "T014",
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:30.959Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "kind": "complete",
+      "by": "ai",
+      "at": "2026-09-25T08:05:31.167Z"
+    }
+  ],
+  "telemetryInstanceId": "af17ba1d-1f14-472a-be60-08151d458ad0",
+  "currentTask": "T010",
+  "task_summaries": {
+    "T001": {
+      "status": "DONE",
+      "did": "Lock PLAN_DAY LLM-first contract in test suites",
+      "files": [
+        "backend/tests/unit/test_block10_parser.py",
+        "backend/tests/api/test_block_9_integration.py",
+        "backend/tests/api/test_block_8_daily_plan.py"
+      ]
+    },
+    "T002": {
+      "status": "DONE",
+      "did": "Verify and refine LLM structured schema",
+      "files": [
+        "backend/app/ai/handlers/planner.py"
+      ]
+    },
+    "T003": {
+      "status": "DONE",
+      "did": "Refactor planner.plan_day for LLM-first",
+      "files": [
+        "backend/app/ai/handlers/planner.py"
+      ]
+    },
+    "T004": {
+      "status": "DONE",
+      "did": "Add natural-language semantic robustness tests",
+      "files": [
+        "backend/tests/unit/test_today_llm_first.py"
+      ]
+    },
+    "T005": {
+      "status": "DONE",
+      "did": "Test and implement invalid LLM output and repair",
+      "files": [
+        "backend/app/ai/handlers/planner.py"
+      ]
+    },
+    "T006": {
+      "status": "DONE",
+      "did": "Ensure application-owned fields are rejected",
+      "files": [
+        "backend/app/ai/handlers/planner.py"
+      ]
+    },
+    "T007": {
+      "status": "DONE",
+      "did": "Preserve deterministic TodayDraft assembly",
+      "files": [
+        "backend/app/ai/handlers/planner.py"
+      ]
+    },
+    "T008": {
+      "status": "DONE",
+      "did": "Verify scheduler boundary and preview=null",
+      "files": [
+        "backend/tests/api/test_today_preview.py"
+      ]
+    },
+    "T009": {
+      "status": "DONE",
+      "did": "Verify persistence boundary and zero writes",
+      "files": [
+        "backend/tests/api/test_deferred_save.py"
+      ]
+    },
+    "T010": {
+      "status": "DONE",
+      "did": "Degraded parser fallback on provider failure",
+      "files": [
+        "backend/app/ai/handlers/planner.py"
+      ]
+    },
+    "T011": {
+      "status": "DONE",
+      "did": "Implement clarification fallback",
+      "files": [
+        "backend/app/ai/handlers/planner.py"
+      ]
+    },
+    "T012": {
+      "status": "DONE",
+      "did": "Verify frontend and API compatibility",
+      "files": [
+        "frontend/src/lib/features/mr-bloom/stores/mrBloomStore.test.ts"
+      ]
+    },
+    "T013": {
+      "status": "DONE",
+      "did": "Clean up obsolete parser-first assumptions",
+      "files": [
+        "backend/app/ai/handlers/planner.py"
+      ]
+    },
+    "T014": {
+      "status": "DONE",
+      "did": "Execute full regression test suites",
+      "files": [
+        "backend/tests/"
+      ]
+    }
+  },
+  "decisions": [
+    {
+      "decision": "Make planner LLM primary extraction path for PLAN_DAY",
+      "why": "Spec requirement to support natural language planning without regex expansions",
+      "rejected": "Parser-first cascade"
+    }
+  ],
+  "verified": [
+    {
+      "what": "All 612 backend tests passing",
+      "command": "pytest backend/tests/",
+      "result": "612 passed"
+    },
+    {
+      "what": "All 81 frontend mr-bloom tests passing",
+      "command": "npx vitest run src/lib/features/mr-bloom/",
+      "result": "81 passed"
+    }
+  ],
+  "step_summaries": {
+    "implement": {
+      "summary": "Refactored Today planning to LLM-first with deterministic code authority and degraded parser fallback"
+    }
+  },
+  "last_action": "all 14 tasks done, 612 backend tests and 81 frontend tests pass"
+}

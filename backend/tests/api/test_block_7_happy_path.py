@@ -10,12 +10,28 @@ from app.ai.parser import parse
 from datetime import datetime
 
 
-# Helper to spy on LLM calls and fail if called
+# Helper to spy on LLM calls and return a valid generic plan
 @pytest.fixture
-def no_llm_spy(monkeypatch):
-    spy = AsyncMock(
-        side_effect=Exception("LLM provider was called! Zero LLM calls allowed.")
-    )
+def llm_spy(monkeypatch):
+    spy = AsyncMock(return_value={
+        "reply": "Here is your plan.",
+        "tasks": [
+            {
+                "title": "I need to read chapter 3",
+                "duration_min": 45,
+                "importance": "CORE",
+                "priority": "MEDIUM"
+            },
+            {
+                "title": "review flashcards",
+                "duration_min": 30,
+                "importance": "CORE",
+                "priority": "MEDIUM"
+            }
+        ],
+        "windows": [],
+        "assumptions": []
+    })
     monkeypatch.setattr(llm_provider, "call", spy)
     return spy
 
@@ -32,7 +48,7 @@ async def test_ps_019_parser_determinism():
 
 @pytest.mark.asyncio
 async def test_ps_003_valid_simple_request_accepted(
-    async_client: AsyncClient, auth_headers: dict[str, str], no_llm_spy
+    async_client: AsyncClient, auth_headers: dict[str, str], llm_spy
 ):
     """PS-003: A valid simple request is accepted without LLM."""
     chat_payload = {
@@ -44,13 +60,13 @@ async def test_ps_003_valid_simple_request_accepted(
     assert res.status_code == 200
     data = res.json()
     assert data["intent"] == "PLAN_DAY"
-    assert data["tier"] == "PARSER"
-    no_llm_spy.assert_not_called()
+    assert data["tier"] == "LLM"
+    llm_spy.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_td_001_deterministic_parser_produces_correct_draft(
-    async_client: AsyncClient, auth_headers: dict[str, str], no_llm_spy
+    async_client: AsyncClient, auth_headers: dict[str, str], llm_spy
 ):
     """TD-001: The deterministic parser produces the correct TodayDraft."""
     chat_payload = {
@@ -74,7 +90,7 @@ async def test_td_019_draft_does_not_persist(
     auth_headers: dict[str, str],
     db_session,
     test_user: User,
-    no_llm_spy,
+    llm_spy,
 ):
     """TD-019: Creating a draft does not create plan/task database records."""
     chat_payload = {
@@ -103,7 +119,7 @@ async def test_pv_001_preview_returns_scheduler_blocks_no_persistence(
     auth_headers: dict[str, str],
     db_session,
     test_user: User,
-    no_llm_spy,
+    llm_spy,
 ):
     """PV-001: Preview returns scheduler-derived time blocks and does not persist."""
     from unittest.mock import patch
@@ -172,7 +188,7 @@ async def test_sv_001_save_creates_real_plan_and_tasks(
     auth_headers: dict[str, str],
     db_session,
     test_user: User,
-    no_llm_spy,
+    llm_spy,
 ):
     """SV-001: Save creates a real plan and its tasks matching preview exactly."""
     res = await async_client.post(
@@ -216,7 +232,7 @@ async def test_sv_001_save_creates_real_plan_and_tasks(
     assert len(tasks) == 2
 
     assert plans[0].user_id == user_id
-    assert tasks[0].title == "Today I need to read chapter 3"
+    assert tasks[0].title == "I need to read chapter 3"
     assert tasks[0].estimated_duration_minutes == 45
     assert tasks[1].title == "review flashcards"
     assert tasks[1].estimated_duration_minutes == 30
@@ -228,7 +244,7 @@ async def test_sv_010_repeated_save_idempotency(
     auth_headers: dict[str, str],
     db_session,
     test_user: User,
-    no_llm_spy,
+    llm_spy,
 ):
     """SV-010: Repeated Save submissions must return exactly 409 and not create duplicates."""
     res = await async_client.post(
@@ -282,7 +298,7 @@ async def test_reload_verification(
     auth_headers: dict[str, str],
     db_session,
     test_user: User,
-    no_llm_spy,
+    llm_spy,
 ):
     """Assert GET Today returns the exact expected tasks."""
     res = await async_client.post(
@@ -315,7 +331,7 @@ async def test_reload_verification(
     blocks = today_data["blocks"]
     task_blocks = [b for b in blocks if b["block_type"] == "TASK"]
     assert len(task_blocks) == 2
-    assert task_blocks[0]["title"] == "Today I need to read chapter 3"
+    assert task_blocks[0]["title"] == "I need to read chapter 3"
     assert task_blocks[0]["estimated_duration_minutes"] == 45
     assert task_blocks[1]["title"] == "review flashcards"
     assert task_blocks[1]["estimated_duration_minutes"] == 30

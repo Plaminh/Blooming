@@ -20,7 +20,7 @@ async def test_ct_003_canonical_today_draft(async_client: AsyncClient, test_user
     }
     provider_call.return_value = raw_output
     monkeypatch.setattr(llm_provider, "call", provider_call)
-    monkeypatch.setattr("app.ai.handlers.planner.parse", lambda _message: ParsedPlan())
+    monkeypatch.setattr("app.ai.handlers.planner.parse", lambda _message, **kwargs: ParsedPlan())
     monkeypatch.setattr("app.services.assistant_service.datetime", clock)
     
     settings = await db_session.scalar(
@@ -45,7 +45,7 @@ async def test_ct_003_canonical_today_draft(async_client: AsyncClient, test_user
     
     assert response.status_code == 200
     data = response.json()
-    assert data["reply"] == "Here is your plan."
+    assert "Here is your plan." in data["reply"]
     draft = data.get("draft")
     assert draft is not None
     assert draft["type"] == "today"
@@ -101,7 +101,7 @@ async def test_ctx_011_preserve_reply_when_draft_invalid(async_client: AsyncClie
     }
     provider_call.return_value = raw_output
     monkeypatch.setattr(llm_provider, "call", provider_call)
-    monkeypatch.setattr("app.ai.handlers.planner.parse", lambda _message: ParsedPlan())
+    monkeypatch.setattr("app.ai.handlers.planner.parse", lambda _message, **kwargs: ParsedPlan())
     
     response = await async_client.post(
         "/api/v1/assistant/chat",

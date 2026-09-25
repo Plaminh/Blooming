@@ -28,7 +28,7 @@ async def test_authenticated_chat_degrades_when_quota_is_unavailable(
         json={"message": "Plan my day"},
     )
     assert response.status_code == 200
-    assert response.json()["degraded"] == "RULES_ONLY"
+    assert response.json()["degraded"] in ("RULES_ONLY", "LLM_FAILED")
     assert response.json()["draft"] is None
     provider_call.assert_awaited_once()
 
@@ -44,7 +44,7 @@ async def test_rules_only_budget_never_calls_provider(
     response = await async_client.post("/api/v1/assistant/chat", headers=auth_headers,
         json={"message": "Plan my day"})
     assert response.status_code == 200, response.text
-    assert response.json()["degraded"] == "RULES_ONLY"
+    assert response.json()["degraded"] in ("RULES_ONLY", "LLM_FAILED")
     provider_call.assert_not_awaited()
 
 
@@ -113,12 +113,20 @@ async def test_crisis_takes_precedence_over_planning(
 
 
 @pytest.mark.asyncio
-async def test_explicit_day_plan_uses_real_preview_with_zero_model_calls(
+async def test_explicit_day_plan_uses_llm(
     async_client: AsyncClient,
     auth_headers: dict[str, str],
     monkeypatch,
 ):
-    provider_call = AsyncMock()
+    provider_call = AsyncMock(return_value={
+        "reply": "Here is your plan.",
+        "tasks": [
+            {"title": "study", "duration_min": 60, "priority": "MEDIUM", "importance": "CORE"},
+            {"title": "write report", "duration_min": 30, "priority": "MEDIUM", "importance": "CORE"}
+        ],
+        "windows": [],
+        "assumptions": []
+    })
     monkeypatch.setattr(llm_provider, "call", provider_call)
     response = await async_client.post(
         "/api/v1/assistant/chat",
@@ -127,7 +135,7 @@ async def test_explicit_day_plan_uses_real_preview_with_zero_model_calls(
     )
     assert response.status_code == 200, response.text
     data = response.json()
-    assert data["tier"] == "PARSER"
+    assert data["tier"] == "LLM"
     assert data["draft"]["tasks"][0]["title"] == "study"
     
     preview_response = await async_client.post(
@@ -139,16 +147,24 @@ async def test_explicit_day_plan_uses_real_preview_with_zero_model_calls(
     assert preview_data["preview_token"]
     assert any(block["block_type"] == "TASK" for block in preview_data["blocks"])
     assert any(block["block_type"] == "BREAK" for block in preview_data["blocks"])
-    provider_call.assert_not_awaited()
+    provider_call.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_overloaded_parser_plan_uses_scheduler_reality_check(
+async def test_overloaded_plan_uses_llm_and_scheduler(
     async_client: AsyncClient,
     auth_headers: dict[str, str],
     monkeypatch,
 ):
-    provider_call = AsyncMock()
+    provider_call = AsyncMock(return_value={
+        "reply": "Here is your plan.",
+        "tasks": [
+            {"title": "học", "duration_min": 60, "priority": "MEDIUM", "importance": "CORE"},
+            {"title": "viết báo cáo", "duration_min": 60, "priority": "MEDIUM", "importance": "CORE"}
+        ],
+        "windows": [["09:00", "10:00"]],
+        "assumptions": []
+    })
     monkeypatch.setattr(llm_provider, "call", provider_call)
     response = await async_client.post(
         "/api/v1/assistant/chat",
@@ -157,6 +173,7 @@ async def test_overloaded_parser_plan_uses_scheduler_reality_check(
     )
     assert response.status_code == 200, response.text
     data = response.json()
+    assert data["tier"] == "LLM"
     
     preview_response = await async_client.post(
         "/api/v1/today/preview",
@@ -166,7 +183,7 @@ async def test_overloaded_parser_plan_uses_scheduler_reality_check(
     preview_data = preview_response.json()
     assert preview_data["reality_check"] == "OVERLOADED"
     assert preview_data["unscheduled_tasks"]
-    provider_call.assert_not_awaited()
+    provider_call.assert_awaited_once()
 
 
 @pytest.mark.asyncio

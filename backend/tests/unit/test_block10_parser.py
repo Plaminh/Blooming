@@ -121,12 +121,11 @@ def test_ps_014_pure_question_lowers_confidence():
 # (Unit-level provider spy — no DB required)
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_ps_016_high_confidence_zero_llm():
-    """High-confidence fully-specified input must not call LLM provider."""
+async def test_ps_016_high_confidence_uses_llm():
+    """High-confidence fully-specified input must still call LLM provider as the primary extraction path."""
     from app.ai.handlers import planner
     from app.ai.context import ChatContext
-
-    spy = AsyncMock(side_effect=AssertionError("LLM must not be called for high-confidence input"))
+    from app.ai.budget import BudgetMode
 
     ctx = ChatContext(
         db=AsyncMock(),
@@ -138,19 +137,38 @@ async def test_ps_016_high_confidence_zero_llm():
         default_date_offset=0,
     )
 
-    with patch.object(planner.llm_provider, "call", spy):
+    llm_payload = {
+        "reply": "I've planned your tasks.",
+        "tasks": [
+            {
+                "title": "Read",
+                "duration_min": 45,
+                "importance": "CORE",
+                "priority": "MEDIUM"
+            },
+            {
+                "title": "Code",
+                "duration_min": 60,
+                "importance": "CORE",
+                "priority": "MEDIUM"
+            }
+        ]
+    }
+
+    mock_llm = AsyncMock(return_value=llm_payload)
+
+    with patch.object(planner.llm_provider, "call", mock_llm):
         with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
             with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                # This message must produce confidence >= 0.8 and skip LLM
                 response = await planner.plan_day(
                     "Read 45 min and code 60 min",
                     ctx,
                     "en",
                 )
 
-    spy.assert_not_called()
+    mock_llm.assert_awaited_once()
     assert response.draft is not None
-    assert response.tier == "PARSER"
+    assert response.tier == "LLM"
 
 
 # ---------------------------------------------------------------------------
@@ -193,9 +211,9 @@ async def test_ps_017_low_confidence_calls_llm():
 
 
 # ---------------------------------------------------------------------------
-# PS-018 — LLM enrichment must not delete parser-discovered tasks
+# PS-018 — LLM-first deterministic normalization preserves semantic tasks and user provenance
 # ---------------------------------------------------------------------------
-def test_ps_018_llm_preserves_parser_tasks():
+def test_ps_018_llm_first_normalization():
     from app.ai.handlers.planner import _parsed_from_llm, LLMDayPlan, LLMTask
     from app.ai.context import ChatContext
     from uuid import uuid4
@@ -213,7 +231,7 @@ def test_ps_018_llm_preserves_parser_tasks():
         default_date_offset=0,
     )
 
-    # Parser finds A and B ("Task A 30m" and "Task B"). LLM only returns A and invents C.
+    # LLM extracts Task A and Task C.
     llm_plan = LLMDayPlan(
         reply="Plan",
         tasks=[
@@ -222,24 +240,20 @@ def test_ps_018_llm_preserves_parser_tasks():
         ]
     )
 
-    result = _parsed_from_llm(llm_plan, ctx, "Task A 30m\nTask B")
+    result = _parsed_from_llm(llm_plan, ctx, "Task A 30m\nTask C 15m")
 
-    # Output must have A, B, and C exactly once.
+    # Output has A and C from LLM extraction
     titles = [t.title for t in result.tasks]
-    assert len(titles) == 3
-    assert titles == ["Task A", "Task B", "Task C"]  # Preserves parser order, then adds LLM inventions
-
+    assert titles == ["Task A", "Task C"]
 
     task_a = next(t for t in result.tasks if t.title == "Task A")
     assert task_a.source == "USER"
     assert task_a.duration_min == 30
-
-    task_b = next(t for t in result.tasks if t.title == "Task B")
-    # Parser had no duration for B -> RULE
-    assert task_b.source == "RULE"
+    assert task_a.importance == "CORE"
 
     task_c = next(t for t in result.tasks if t.title == "Task C")
-    assert task_c.source == "AI"
+    assert task_c.importance == "OPTIONAL"
+    assert task_c.duration_min == 15
 
 # ---------------------------------------------------------------------------
 # PS-019 — Deterministic repeat output (parser level)
@@ -258,12 +272,15 @@ def test_ps_019_deterministic_repeat_output():
 # PS-020 — High-confidence (≥ 0.8, no unresolved) skips LLM
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_ps_020_high_confidence_skips_llm():
-    """Confidence ≥ 0.8 with no unresolved tasks routes to PARSER tier."""
+async def test_ps_020_llm_failure_falls_back_to_parser():
+    """If LLM extraction fails (e.g., timeout or unparseable), it must fallback to the PARSER tier gracefully."""
     from app.ai.handlers import planner
     from app.ai.context import ChatContext
+    from app.ai.providers import LLMError
+    from app.ai.budget import BudgetMode
 
-    no_llm = AsyncMock(side_effect=AssertionError("LLM called on high-confidence input"))
+    # Simulate an LLM provider timeout/failure
+    failing_llm = AsyncMock(side_effect=LLMError("Provider timeout"))
 
     ctx = ChatContext(
         db=AsyncMock(),
@@ -275,7 +292,7 @@ async def test_ps_020_high_confidence_skips_llm():
         default_date_offset=0,
     )
 
-    with patch.object(planner.llm_provider, "call", no_llm):
+    with patch.object(planner.llm_provider, "call", failing_llm):
         with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
             with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq")):
                 result = await planner.plan_day(
@@ -284,8 +301,9 @@ async def test_ps_020_high_confidence_skips_llm():
                     "en",
                 )
 
-    no_llm.assert_not_called()
+    failing_llm.assert_awaited_once()
     assert result.tier == "PARSER"
+    assert result.degraded == "LLM_FAILED"
 
 
 # ---------------------------------------------------------------------------

@@ -421,7 +421,7 @@ def _clean_title(title: str) -> str:
     title = LEADING_FILLER_RE.sub("", title)
     title = LEADING_PRONOUN_RE.sub("", title)
     title = TRAILING_FILLER_RE.sub("", title)
-    return re.sub(r"\s+", " ", title).strip(" .:-,")
+    return re.sub(r"\s+", " ", title).strip(" .:-,?!\t\n")
 
 
 def smart_split(text: str) -> list[str]:
@@ -439,6 +439,44 @@ def smart_split(text: str) -> list[str]:
                 start = match.end()
         parts.append(chunk[start:])
     return parts
+
+
+def extract_day_ref(message: str) -> tuple[DayRef | None, int]:
+    """Isolate calendar date/day resolution from full task parsing."""
+    text = unicodedata.normalize("NFC", message.strip())
+    text = PREFIX_RE.sub("", text)
+    text = _collapse_weekday_lists(text)
+
+    named_days: list[DayRef] = []
+    trailing_day: DayRef | None = None
+    first_has_day = False
+
+    segments = smart_split(text)
+    for position, raw in enumerate(segments):
+        segment = re.sub(r"^\s*(?:[-*•]|\d+[.)])\s*", "", raw).strip(" .:-")
+        segment = PREFIX_RE.sub("", segment)
+        if not segment:
+            continue
+        day, _, _, trailing = _take_day(segment)
+        if day is not None:
+            named_days.append(day)
+            if position == 0:
+                first_has_day = True
+            if trailing and position == len(segments) - 1:
+                trailing_day = day
+
+    distinct_days = list(dict.fromkeys(named_days))
+    message_day = (
+        distinct_days[0]
+        if len(distinct_days) == 1 and (trailing_day is not None or first_has_day or len(segments) == 1)
+        else (distinct_days[0] if len(distinct_days) == 1 else None)
+    )
+    offset = (
+        message_day.value
+        if message_day is not None and message_day.kind == "offset"
+        else 0
+    )
+    return message_day, offset
 
 
 def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
@@ -558,7 +596,7 @@ def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
             "i am available", "im available", "my availability is", "toi ranh", "minh ranh", "available", "toi co the lam"
         }
 
-        if len(title) < 2 or normalize(title) in {"hom nay", "today", "toi", "i", "can", "muon", "minh"} or is_avail:
+        if len(title) < 2 or not any(c.isalnum() for c in title) or normalize(title) in {"hom nay", "today", "toi", "i", "can", "muon", "minh"} or is_avail:
             if interval_start and interval_end and interval_start < interval_end:
                 windows.append((interval_start, interval_end))
             continue

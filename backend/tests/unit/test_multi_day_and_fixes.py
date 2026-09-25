@@ -378,8 +378,12 @@ async def test_plan_request_without_tasks_drafts_the_waiting_work(monkeypatch):
 @pytest.mark.asyncio
 async def test_multi_day_reply_explains_where_tasks_went():
     from app.ai.handlers import planner
+    from app.ai.budget import BudgetMode
+    from unittest.mock import patch, AsyncMock
 
-    response = await planner.plan_day("Thứ 2 học toán 1h, thứ 4 họp 30p", _ctx(), "vi")
+    with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.RULES_ONLY)):
+        with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="")):
+            response = await planner.plan_day("Thứ 2 học toán 1h, thứ 4 họp 30p", _ctx(), "vi")
     assert response.tier == "PARSER"
     assert "1 việc khác được lưu cho ngày 30/09" in response.reply
 

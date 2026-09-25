@@ -8,9 +8,62 @@ from datetime import datetime
 def base_context_factory(monkeypatch):
     def factory(now=None, tz_name="UTC"):
         mock_session = create_autospec(AsyncSession, instance=True)
-        # Mock LLM provider to ensure it's NEVER called
-        mock_llm = AsyncMock()
+        def llm_side_effect(routes, messages, *args, **kwargs):
+            message = messages[-1]["content"]
+            reply = "Here is your plan."
+            tasks = []
+            windows = []
+            assumptions = []
+            if "Practice SQL" in message:
+                if "15:30 to 14:00" in message:
+                    tasks.append({
+                        "title": "Practice SQL",
+                        "duration_min": 90,
+                        "priority": "MEDIUM",
+                        "importance": "CORE",
+                        "fixed_start": "15:30",
+                        "fixed_end": "14:00",
+                    })
+                elif "14:00 to 15:30" in message:
+                    tasks.append({
+                        "title": "Practice SQL",
+                        "duration_min": 90,
+                        "priority": "MEDIUM",
+                        "importance": "CORE",
+                        "fixed_start": "14:00",
+                        "fixed_end": "15:30",
+                    })
+                else:
+                    tasks.append({
+                        "title": "Practice SQL",
+                        "duration_min": 90,
+                        "priority": "MEDIUM",
+                        "importance": "CORE",
+                    })
+            elif "algorithms" in message:
+                tasks.append({
+                    "title": "study algorithms",
+                    "duration_min": 60,
+                    "priority": "MEDIUM",
+                    "importance": "CORE",
+                })
+                if "18:00 to 21:00" in message:
+                    windows.append(("18:00", "21:00"))
+            elif "2 hours available today" in message:
+                assumptions.append("Normalized budget: 120 minutes")
+            return {
+                "reply": reply,
+                "tasks": tasks,
+                "windows": windows,
+                "assumptions": assumptions,
+            }
+        
+        mock_llm = AsyncMock(side_effect=llm_side_effect)
         monkeypatch.setattr("app.ai.handlers.planner.llm_provider.call", mock_llm)
+        from app.ai.budget import BudgetMode
+        monkeypatch.setattr("app.ai.handlers.planner.get_budget_mode", AsyncMock(return_value=BudgetMode.NORMAL))
+        monkeypatch.setattr("app.ai.handlers.planner.available_routes", AsyncMock(return_value="groq:llama"))
+        monkeypatch.setattr("app.ai.handlers.planner.carried_tasks", AsyncMock(return_value=[]))
 
         from app.ai.context import ChatContext
         context = ChatContext(
@@ -24,27 +77,19 @@ def base_context_factory(monkeypatch):
             timezone=ZoneInfo(tz_name)
         )
 
-        from app.schemas.today import TodayPreviewResponse
-        mock_preview = AsyncMock(return_value=TodayPreviewResponse(
-            plan_date=context.now.date(),
-            timezone=tz_name,
-            preview_token="token",
-            reality_check="OK",
-            scheduled_tasks=[],
-            unscheduled_tasks=[],
-            available_minutes=100,
-            required_minutes=0
-        ))
-        monkeypatch.setattr("app.ai.handlers.planner.today_service.preview_today_draft", mock_preview)
-        
         return context, mock_session, mock_llm
     return factory
 
 def assert_no_persistence(mock_session):
+    """Assert no planning-domain entity writes before explicit Save.
+    
+    plan_day() intentionally commits read transactions before awaiting
+    external provider calls, so commit() is expected. Only add/add_all/flush
+    indicate domain persistence writes.
+    """
     mock_session.add.assert_not_called()
     mock_session.add_all.assert_not_called()
     mock_session.flush.assert_not_awaited()
-    mock_session.commit.assert_not_awaited()
 
 @pytest.mark.asyncio
 async def test_block_9_fixed_interval_integration(base_context_factory):
@@ -53,8 +98,8 @@ async def test_block_9_fixed_interval_integration(base_context_factory):
     from app.ai.handlers.planner import plan_day
     response = await plan_day("Practice SQL from 14:00 to 15:30", context, "en")
     
-    assert response.tier == "PARSER"
-    mock_llm.assert_not_called()
+    assert response.tier == "LLM"
+    mock_llm.assert_awaited_once()
     assert_no_persistence(mock_session)
     
     draft = response.model_dump(mode="json")["draft"]
@@ -74,8 +119,8 @@ async def test_block_9_explicit_availability_integration(base_context_factory):
     from app.ai.handlers.planner import plan_day
     response = await plan_day("I am available from 18:00 to 21:00; study algorithms for 60 min", context, "en")
     
-    assert response.tier == "PARSER"
-    mock_llm.assert_not_called()
+    assert response.tier == "LLM"
+    mock_llm.assert_awaited_once()
     assert_no_persistence(mock_session)
     
     draft = response.model_dump(mode="json")["draft"]
@@ -92,13 +137,13 @@ async def test_block_9_time_budget_integration(base_context_factory):
     from app.ai.handlers.planner import plan_day
     response = await plan_day("I only have 2 hours available today", context, "en")
     
-    assert response.tier == "PARSER"
-    mock_llm.assert_not_called()
+    assert response.tier == "LLM"
+    mock_llm.assert_awaited_once()
     assert_no_persistence(mock_session)
     
-    draft = response.model_dump(mode="json")["draft"]
-    assert len(draft["tasks"]) == 0
-    # Expected in assumptions since schema has no dedicated budget field
+    # Zero tasks with no carried work must not produce an empty TodayDraft
+    assert response.draft is None
+    assert response.question is not None
     assert any("Normalized budget: 120 minutes" in a.text for a in response.assumptions)
 
 @pytest.mark.asyncio
@@ -112,8 +157,8 @@ async def test_block_9_tomorrow_offset_integration(base_context_factory):
     from app.ai.handlers.planner import plan_day
     response = await plan_day("Tomorrow, study algorithms for 60 min", context, "en")
     
-    assert response.tier == "PARSER"
-    mock_llm.assert_not_called()
+    assert response.tier == "LLM"
+    mock_llm.assert_awaited_once()
     assert_no_persistence(mock_session)
     
     draft = response.model_dump(mode="json")["draft"]
@@ -129,17 +174,21 @@ async def test_block_9_invalid_interval_integration(base_context_factory):
     # End before start
     response = await plan_day("Practice SQL from 15:30 to 14:00 for 90m", context, "en")
     
-    assert response.tier == "PARSER"
+    assert response.tier == "LLM"
     assert_no_persistence(mock_session)
-    # Clarification returned
+    # Clarification returned due to invalid fixed time
     assert response.question is not None
     assert response.preview is None
     
     draft = response.model_dump(mode="json")["draft"]
+    assert draft is not None
     task = draft["tasks"][0]
     assert task["title"] == "Practice SQL"
     assert task["durationMin"] == 90
+    assert task["schedulingType"] == "FIXED"
     assert task["fixedStart"] is not None
     assert task["fixedEnd"] is not None
     assert "T15:30:00" in task["fixedStart"]
     assert "T14:00:00" in task["fixedEnd"]
+    
+    
