@@ -49,8 +49,8 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
     AI_ROUTE_ROUTER: str = "groq:llama-3.1-8b-instant"
     AI_ROUTE_CHITCHAT: str = "groq:llama-3.1-8b-instant"
-    AI_ROUTE_PLANNER_LITE: str = "groq:llama-3.1-8b-instant"
-    AI_ROUTE_PLANNER: str = "groq:openai/gpt-oss-20b,groq:openai/gpt-oss-120b"
+    AI_ROUTE_PLANNER_LITE: str = "groq:openai/gpt-oss-20b"
+    AI_ROUTE_PLANNER: str = "groq:openai/gpt-oss-120b"
     AI_ROUTE_EDITOR: str = "groq:openai/gpt-oss-20b,groq:openai/gpt-oss-120b"
     AI_STRICT_MODELS: list[str] = ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]
     AI_TOKEN_BUDGET_24H: dict[str, int] = {

@@ -66,7 +66,14 @@ def strictify_schema(schema: dict) -> dict:
         if "prefixItems" in node:
             # Fixed tuples are validated by Pydantic after the response arrives.
             items = node.pop("prefixItems")
-            node["items"] = items[0] if len(items) == 1 else {"anyOf": items}
+            # Pydantic emits two identical string schemas for tuple[str, str].
+            # Collapsing those to a duplicate ``anyOf`` is rejected by Groq's
+            # strict-schema endpoint. Heterogeneous tuples still need anyOf.
+            node["items"] = (
+                items[0]
+                if len(items) == 1 or all(item == items[0] for item in items[1:])
+                else {"anyOf": items}
+            )
         if node.get("type") == "object" or "properties" in node:
             properties = node.get("properties", {})
             node["required"] = list(properties)

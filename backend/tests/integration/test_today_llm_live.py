@@ -18,8 +18,73 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from unittest.mock import AsyncMock, create_autospec
 
 from app.ai.context import ChatContext
+from app.ai.budget import BudgetMode
 from app.ai.handlers import planner
 from app.ai.validators import check_today
+
+
+@pytest.mark.skipif(
+    os.environ.get("RUN_LIVE_LLM_TESTS") != "1",
+    reason="Live LLM tests are opt-in to avoid paid provider calls in standard CI. Set RUN_LIVE_LLM_TESTS=1 to run.",
+)
+@pytest.mark.parametrize(
+    "phrase,window,tasks",
+    [
+        (
+            "Today I need to study algorithms for 1 hour, write the report for 45 minutes, "
+            "and optionally read a book for 30 minutes. I am available from 1 PM to 5 PM.",
+            ("13:00", "17:00"),
+            [("algorithm", 60, "CORE"), ("report", 45, "CORE"), ("book", 30, "OPTIONAL")],
+        ),
+        (
+            "My afternoon is open between 2 PM and 6 PM. Practice data structures for 90 minutes, "
+            "finish my assignment for an hour, and if time allows read documentation for 20 minutes.",
+            ("14:00", "18:00"),
+            [("data structure", 90, "CORE"), ("assignment", 60, "CORE"), ("documentation", 20, "OPTIONAL")],
+        ),
+        (
+            "I'm free 9 AM through noon today. Spend 50 minutes on database exercises and maybe "
+            "review my notes for half an hour.",
+            ("09:00", "12:00"),
+            [("database", 50, "CORE"), ("notes", 30, "OPTIONAL")],
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_live_today_semantic_pipeline(monkeypatch, phrase, window, tasks):
+    """Real provider semantics survive the complete planner-to-draft pipeline."""
+    mock_db = create_autospec(AsyncSession, instance=True)
+    mock_db.commit = AsyncMock()
+    monkeypatch.setattr(planner, "get_budget_mode", AsyncMock(return_value=BudgetMode.NORMAL))
+    monkeypatch.setattr(planner, "available_routes", AsyncMock(return_value=planner.settings.AI_ROUTE_PLANNER_LITE))
+    monkeypatch.setattr(planner, "carried_tasks", AsyncMock(return_value=[]))
+    ctx = ChatContext(
+        db=mock_db,
+        user_id=uuid4(),
+        now=datetime(2026, 9, 25, 9, 0, tzinfo=ZoneInfo("Asia/Ho_Chi_Minh")),
+        timezone=ZoneInfo("Asia/Ho_Chi_Minh"),
+        break_minutes=5,
+        default_windows=(("08:00", "18:00"),),
+        default_date_offset=0,
+    )
+
+    response = await planner.plan_day(phrase, ctx, "en")
+    await planner.llm_provider.close_client()
+
+    assert response.tier == "LLM"
+    assert response.degraded is None
+    assert response.preview is None
+    assert response.draft is not None
+    assert [(item.start, item.end) for item in response.draft.windows] == [window]
+    assert response.assumptions == []
+    assert len(response.draft.tasks) == len(tasks)
+    for task, (title_fragment, duration, importance) in zip(response.draft.tasks, tasks, strict=True):
+        assert title_fragment in task.title.lower()
+        assert task.durationMin == duration
+        assert task.importance == importance
+        assert task.fixedStart is None
+        assert task.fixedEnd is None
+    assert check_today(response.draft) == []
 
 
 @pytest.mark.skipif(

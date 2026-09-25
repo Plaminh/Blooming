@@ -209,6 +209,51 @@ async def test_today_assembly_deterministic_ids_and_boundaries(base_context):
     base_context.db.flush.assert_not_awaited()
 
 
+@pytest.mark.asyncio
+async def test_today_01_exact_request_uses_llm_semantics_without_parser_corruption(base_context):
+    """TODAY-01 stays on the LLM path and preserves its semantic extraction."""
+    message = (
+        "Today I need to study algorithms for 1 hour, write the report for 45 minutes, "
+        "and optionally read a book for 30 minutes. I am available from 1 PM to 5 PM."
+    )
+    mock_llm = AsyncMock(return_value={
+        "reply": "I drafted the three requested tasks.",
+        "windows": [["13:00", "17:00"]],
+        "tasks": [
+            {"title": "Study algorithms", "duration_min": 60, "duration_is_explicit": True, "importance": "CORE"},
+            {"title": "Write the report", "duration_min": 45, "duration_is_explicit": True, "importance": "CORE"},
+            {"title": "Read a book", "duration_min": 30, "duration_is_explicit": True, "importance": "OPTIONAL"},
+        ],
+        "assumptions": [],
+    })
+
+    with patch.object(planner.llm_provider, "call", mock_llm):
+        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
+            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:model")):
+                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
+                    response = await planner.plan_day(message, base_context, "en")
+
+    mock_llm.assert_awaited_once()
+    assert response.tier == "LLM"
+    assert response.degraded is None
+    assert response.preview is None
+    assert response.draft is not None
+    assert [(window.start, window.end) for window in response.draft.windows] == [("13:00", "17:00")]
+    assert [
+        (task.id, task.title, task.durationMin, task.importance, task.fixedStart, task.fixedEnd)
+        for task in response.draft.tasks
+    ] == [
+        ("d1", "Study algorithms", 60, "CORE", None, None),
+        ("d2", "Write the report", 45, "CORE", None, None),
+        ("d3", "Read a book", 30, "OPTIONAL", None, None),
+    ]
+    assert response.assumptions == []
+    assert check_today(response.draft) == []
+    base_context.db.add.assert_not_called()
+    base_context.db.add_all.assert_not_called()
+    base_context.db.flush.assert_not_awaited()
+
+
 # ===========================================================================
 # Group 5: Natural-Language Robustness Tests (Semantic Variations)
 # ===========================================================================

@@ -167,6 +167,8 @@ def test_strict_schema_recursively_requires_nullable_fields_and_closes_objects()
     assert task["additionalProperties"] is False
     assert "default" not in task["properties"]["priority"]
     assert "prefixItems" not in schema["properties"]["windows"]["items"]
+    assert schema["properties"]["windows"]["items"]["items"] == {"type": "string"}
+    assert "anyOf" not in schema["properties"]["windows"]["items"]["items"]
 
 
 @pytest.mark.asyncio

@@ -24,7 +24,7 @@ def _db_with_usage(rows, user_calls=0):
 
 @pytest.mark.asyncio
 async def test_budget_thresholds_are_evaluated_per_model():
-    small = "llama-3.1-8b-instant"
+    small = "openai/gpt-oss-20b"
     small_cap = settings.AI_TOKEN_BUDGET_24H[small]
     db = _db_with_usage([(small, small_cap * 0.72)])
     assert await get_budget_mode(db, uuid4(), "PLANNER") == BudgetMode.LEAN

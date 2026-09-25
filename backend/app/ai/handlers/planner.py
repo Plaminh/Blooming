@@ -21,10 +21,21 @@ from app.schemas.drafts import TodayDraft
 
 class LLMTask(BaseModel):
     model_config = {"extra": "ignore"}
-    title: str = Field(min_length=1, max_length=200)
-    duration_min: int = Field(ge=5, le=480)
+    title: str = Field(
+        min_length=1,
+        max_length=200,
+        description="Clean actionable task name only; omit conversational, optionality, and duration wording.",
+    )
+    duration_min: int = Field(ge=5, le=480, description="Requested task duration in minutes.")
+    duration_is_explicit: bool | None = Field(
+        default=None,
+        description="True only when the user explicitly supplied this task's duration.",
+    )
     priority: Literal["LOW", "MEDIUM", "HIGH", "URGENT"] = "MEDIUM"
-    importance: Literal["CORE", "OPTIONAL"] = "CORE"
+    importance: Literal["CORE", "OPTIONAL"] = Field(
+        default="CORE",
+        description="OPTIONAL for tasks qualified by optionally, maybe, or if time allows; otherwise CORE.",
+    )
     category: Literal["Learning", "Work", "Personal"] | None = None
     fixed_start: str | None = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     fixed_end: str | None = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
@@ -34,7 +45,11 @@ class LLMTask(BaseModel):
 class LLMDayPlan(BaseModel):
     model_config = {"extra": "ignore"}
     reply: str = Field(default="", max_length=1000)
-    windows: list[tuple[str, str]] = Field(default_factory=list, max_length=4)
+    windows: list[tuple[str, str]] = Field(
+        default_factory=list,
+        max_length=4,
+        description="User's global availability windows as 24-hour HH:MM start/end pairs, never task constraints.",
+    )
     tasks: list[LLMTask] = Field(default_factory=list, max_length=15)
     assumptions: list[str] = Field(default_factory=list, max_length=6)
 
@@ -43,6 +58,21 @@ PURE_PLAN_COMMAND_RE = re.compile(
     r"^\s*(?:hãy\s+|please\s+)?(?:lập\s*lịch|lên\s*kế\s*hoạch|xếp\s*lịch|sắp\s*xếp\s*lịch|plan|schedule)"
     r"(?:\s+(?:cho\s+)?(?:hôm\s*nay|ngày\s*hôm\s*nay|today|my\s*day|my\s*work|work))?\s*[:：.?!]*\s*$",
     re.IGNORECASE,
+)
+
+DAY_PLAN_SYSTEM_PROMPT = (
+    "Extract the user's day-planning meaning into the supplied schema. "
+    "Treat statements such as 'I am available/free from X to Y' or 'between X and Y' "
+    "as global availability in windows, not as a task's fixed_start/fixed_end. Convert times "
+    "to 24-hour HH:MM. Use clean imperative task titles: remove conversational lead-ins "
+    "such as 'Today I need to', duration phrases, and optionality qualifiers. Mark tasks "
+    "introduced by 'optionally', 'maybe', 'if there is time', 'if I have time', or "
+    "'if time allows' as OPTIONAL; otherwise use CORE. Preserve each explicit duration in "
+    "minutes and set duration_is_explicit=true for it; set false only when the duration was "
+    "estimated by the model. Only use fixed_start/fixed_end when the user assigns that time specifically "
+    "to one task. Do not schedule flexible tasks inside a global availability window. Do not "
+    "invent tasks, availability, or assumptions. Code owns scheduling, dates, IDs, duration "
+    "provenance, and totals. Do not claim anything was saved."
 )
 
 
@@ -64,16 +94,21 @@ def _parsed_from_llm(value: LLMDayPlan, ctx: ChatContext, message: str) -> Parse
             continue
         seen.add(norm_title)
 
+        # New structured responses own provenance. The parser lookup is retained
+        # only for older/mock responses that predate duration_is_explicit.
         p_match = parser_by_title.get(norm_title)
-        is_user_explicit = (
-            p_match is not None and p_match.source == "USER" and p_match.duration_min is not None
+        legacy_user_explicit = (
+            l_task.duration_is_explicit is None
+            and p_match is not None
+            and p_match.source == "USER"
+            and p_match.duration_min is not None
         )
         duration = max(5, min(l_task.duration_min, 480))
         final_tasks.append(
             ParsedTask(
                 title=l_task.title.strip()[:200],
                 duration_min=duration,
-                source="USER" if is_user_explicit else "AI",
+                source="USER" if l_task.duration_is_explicit or legacy_user_explicit else "AI",
                 importance=l_task.importance,
                 priority="HIGH" if l_task.priority == "URGENT" else l_task.priority,
                 category=l_task.category,
@@ -110,7 +145,7 @@ async def _llm_plan(
     messages = [
         {
             "role": "system",
-            "content": "Extract only the user's day planning tasks. Code owns scheduling, dates, IDs, duration provenance and totals. Do not claim anything was saved.",
+            "content": DAY_PLAN_SYSTEM_PROMPT,
         },
         *(history or [])[-4:],
         {"role": "user", "content": message},
