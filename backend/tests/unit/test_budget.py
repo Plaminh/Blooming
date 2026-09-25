@@ -54,15 +54,22 @@ async def test_exhausted_model_is_removed_without_blocking_other_models():
 async def test_user_call_cap_is_isolated_from_other_users():
     capped_user = uuid4()
     other_user = uuid4()
-    cap = settings.AI_USER_CALLS_PER_DAY["PLANNER"]
+    cap = settings.AI_USER_CALLS_PER_DAY["CHITCHAT"]
     capped_db = _db_with_usage([], user_calls=cap)
     other_db = _db_with_usage([], user_calls=0)
     assert (
-        await get_budget_mode(capped_db, capped_user, "PLANNER")
+        await get_budget_mode(capped_db, capped_user, "CHITCHAT")
         == BudgetMode.RULES_ONLY
     )
-    assert await get_budget_mode(other_db, other_user, "PLANNER") == BudgetMode.NORMAL
+    assert await get_budget_mode(other_db, other_user, "CHITCHAT") == BudgetMode.NORMAL
     assert "ai_usage_log.user_id" in str(capped_db.scalar.call_args.args[0]).lower()
+
+
+@pytest.mark.asyncio
+async def test_planner_has_no_per_user_call_cap():
+    db = _db_with_usage([], user_calls=1_000_000)
+    assert "PLANNER" not in settings.AI_USER_CALLS_PER_DAY
+    assert await get_budget_mode(db, uuid4(), "PLANNER") == BudgetMode.NORMAL
 
 
 @pytest.mark.asyncio

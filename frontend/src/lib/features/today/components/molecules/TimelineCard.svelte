@@ -14,6 +14,8 @@
 <button
   class="task-card {task.status}"
   class:selected
+  data-testid={task.iconRef === 'break' ? 'timeline-break' : 'timeline-task'}
+  data-start-time={task.startTime}
   style:top={`${top}px`}
   onclick={() => onSelect(task.id)}
   aria-pressed={selected}

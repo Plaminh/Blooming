@@ -1,15 +1,18 @@
 <script lang="ts">
   import PageHeading from '$lib/shared/components/atoms/PageHeading.svelte';
   import type { Task } from '$lib/features/today/types';
-  import { minutesBetween } from '$lib/features/today/timeline';
+  import { createTimelineGeometry, timeInTimezone } from '$lib/features/today/timeline';
+  import { onMount } from 'svelte';
   import DateNavigation from '../atoms/DateNavigation.svelte';
   import TimelineHourLabel from '../atoms/TimelineHourLabel.svelte';
   import TimelineCard from '../molecules/TimelineCard.svelte';
 
-  let { tasks, currentDate, isToday = true, selectedTaskId, isLoading = false, loadError = null, onSelect, onDateChange }: {
+  let { tasks, currentDate, isToday = true, planTimezone = 'UTC', now, selectedTaskId, isLoading = false, loadError = null, onSelect, onDateChange }: {
     tasks: Task[];
     currentDate: Date;
     isToday?: boolean;
+    planTimezone?: string;
+    now?: Date;
     selectedTaskId: string;
     isLoading?: boolean;
     loadError?: string | null;
@@ -20,28 +23,16 @@
   const formattedDate = $derived(
     currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
   );
+  let clock = $state(new Date());
+  const effectiveNow = $derived(now ?? clock);
+  const currentTime = $derived(isToday ? timeInTimezone(effectiveNow, planTimezone) : undefined);
+  const geometry = $derived(createTimelineGeometry(tasks, currentTime));
 
-  const cardTop = 8;
-  const cardHeight = 66;
-  const timelineStart = '09:00';
-  const hourStep = 70;
-  const markerTopOffset = (cardHeight - 24) / 2;
-  const timeTop = (time: string) => cardTop + minutesBetween(timelineStart, time) * hourStep / 60;
-  const markerDefinitions = [
-    { hour: '09:00', kind: 'active' },
-    { hour: '10:00', kind: 'completed' },
-    { hour: '11:00', kind: 'upcoming' },
-    { hour: '12:00', kind: 'upcoming' },
-    { hour: '13:00', kind: 'active' },
-    { hour: '14:00', kind: 'small' },
-    { hour: '15:00', kind: 'small' },
-    { hour: '16:00', kind: 'small' }
-  ] as const;
-  const markers = markerDefinitions.map((marker) => ({
-    ...marker,
-    top: timeTop(marker.hour) + markerTopOffset
-  }));
-  const rulerHeight = markers[markers.length - 1].top + 24 + cardTop;
+  onMount(() => {
+    if (now) return;
+    const timer = window.setInterval(() => (clock = new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  });
 </script>
 
 <section class="timeline-container" aria-labelledby="today-heading">
@@ -54,13 +45,22 @@
   </header>
 
   <div class="timeline-view">
-    <div class="timeline-canvas" style:min-height={`${rulerHeight}px`}>
+    <div class="timeline-canvas" data-range={`${geometry.start}-${geometry.end}`} style:min-height={`${geometry.height}px`}>
       <span class="axis-line" aria-hidden="true"></span>
-      {#each markers as marker}
-        <div class="marker" style:top={`${marker.top}px`}>
-          <TimelineHourLabel hour={marker.hour} kind={marker.kind} />
+      {#each geometry.hours as hour}
+        <div class="marker" data-hour={hour} style:top={`${geometry.topFor(hour) - 12}px`}>
+          <TimelineHourLabel {hour} kind="small" />
         </div>
       {/each}
+
+      {#if currentTime}
+        <div
+          class="current-time-marker"
+          data-testid="current-time-marker"
+          aria-label={`Current time ${currentTime}`}
+          style:top={`${geometry.topFor(currentTime)}px`}
+        ><span></span></div>
+      {/if}
 
       {#if isLoading}
         <p class="empty-state">Loading schedule...</p>
@@ -68,7 +68,7 @@
         <p class="empty-state" style="color: var(--bloom-error)">{loadError}</p>
       {:else if tasks.length}
         {#each tasks as task (task.id)}
-          <TimelineCard {task} top={timeTop(task.startTime)} selected={selectedTaskId === task.id} {onSelect} />
+          <TimelineCard {task} top={geometry.topFor(task.startTime)} selected={selectedTaskId === task.id} {onSelect} />
         {/each}
       {:else}
         <p class="empty-state">No tasks scheduled for this day.</p>
@@ -111,13 +111,34 @@
   }
   .axis-line {
     position: absolute;
-    top: 29px;
-    bottom: 14px;
+    top: 8px;
+    bottom: 8px;
     left: 91px;
     width: 4px;
     background: #b9c1c8;
   }
   .marker { position: absolute; left: 0; z-index: 2; }
+  .current-time-marker {
+    position: absolute;
+    right: 12px;
+    left: 85px;
+    z-index: 4;
+    height: 2px;
+    background: #24abe7;
+    transform: translateY(-1px);
+    pointer-events: none;
+  }
+  .current-time-marker span {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 14px;
+    height: 14px;
+    border: 3px solid #24abe7;
+    border-radius: 50%;
+    background: #fffdf5;
+    transform: translate(-50%, -50%);
+  }
   .empty-state {
     position: absolute;
     inset: 110px 20px 0 132px;

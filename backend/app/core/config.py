@@ -54,13 +54,22 @@ class Settings(BaseSettings):
     AI_ROUTE_EDITOR: str = "groq:openai/gpt-oss-20b,groq:openai/gpt-oss-120b"
     AI_STRICT_MODELS: list[str] = ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]
     AI_TOKEN_BUDGET_24H: dict[str, int] = {
-        "openai/gpt-oss-20b": 160_000, "openai/gpt-oss-120b": 160_000, "llama-3.1-8b-instant": 400_000}
-    AI_USER_CALLS_PER_DAY: dict[str, int] = {"PLANNER": 10, "EDITOR": 10, "CHITCHAT": 15, "ROUTER": 40}
+        "openai/gpt-oss-20b": 1_600_000,
+        "openai/gpt-oss-120b": 1_600_000,
+        "llama-3.1-8b-instant": 4_000_000,
+    }
+    # Planning is intentionally unlimited per user. Model-level rolling token
+    # budgets still protect provider capacity and trigger graceful degradation.
+    AI_USER_CALLS_PER_DAY: dict[str, int] = {
+        "EDITOR": 100,
+        "CHITCHAT": 150,
+        "ROUTER": 400,
+    }
     AI_TIMEOUT_SECONDS: float = 20.0
     # Total provider time for one chat turn, across router, cascade and repair.
     # The desktop client aborts chat requests after 75s, so keep this well below.
     AI_REQUEST_BUDGET_SECONDS: float = 45.0
-    AI_CHAT_RATE_LIMIT_PER_MIN: int = 12
+    AI_CHAT_RATE_LIMIT_PER_MIN: int = 120
     AI_BUDGET_LEAN_THRESHOLD: float = 0.70
     AI_BUDGET_RULES_ONLY_THRESHOLD: float = 0.85
     AI_NUDGE_COOLDOWN_MINUTES: int = 30

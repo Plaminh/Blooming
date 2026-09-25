@@ -9,6 +9,7 @@
   import { desktop } from "$lib/platform/desktopWindow";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
+  import NotificationToast from "$lib/shared/components/atoms/NotificationToast.svelte";
   let rail: RightRail;
 
   let currentDate = $state(new Date());
@@ -68,8 +69,9 @@
     planTimezone = data.timezone ?? "UTC";
     const [year, month, day] = data.plan_date.split("-").map(Number);
     currentDate = new Date(year, month - 1, day, 12);
-    replanWarning = data.unscheduled_tasks?.length
-      ? `${data.unscheduled_tasks.length} task(s) could not be scheduled. Completed work is saved. Adjust availability and replan. ${data.reasons?.map((reason) => `${reason.task_id}: ${reason.code}${reason.dependency_id ? ` (dependency ${reason.dependency_id})` : ""}`).join("; ") ?? ""}`
+    const unscheduledCount = data.unscheduled_tasks?.length ?? 0;
+    replanWarning = unscheduledCount
+      ? `${unscheduledCount} ${unscheduledCount === 1 ? "task couldn't" : "tasks couldn't"} fit today. Your scheduled work was saved. Adjust your availability or replan.`
       : null;
     if (data.status !== "NO_PLAN" && data.blocks) {
       tasks = data.blocks.map((b) => {
@@ -250,27 +252,20 @@
 
 <div class="today-content">
   {#if replanWarning}
-    <div class="toast-error" role="status" aria-live="polite">{replanWarning}</div>
+    <NotificationToast message={replanWarning} severity="warning" />
   {/if}
   {#if syncWarning}
-    <div class="toast-error" role="status" aria-live="polite">
-      {syncWarning}
-      <button aria-label="Dismiss warning" onclick={() => (syncWarning = null)}
-        >×</button
-      >
-    </div>
+    <NotificationToast message={syncWarning} severity="warning" dismissLabel="Dismiss warning" onDismiss={() => (syncWarning = null)} />
   {/if}
   {#if actionError}
-    <div class="toast-error" role="alert" aria-live="assertive">
-      {actionError}
-      <button aria-label="Close" onclick={() => (actionError = null)}>×</button>
-    </div>
+    <NotificationToast message={actionError} severity="error" dismissLabel="Close" onDismiss={() => (actionError = null)} />
   {/if}
   <main class="today-main">
     <TodayTimeline
       {tasks}
       {currentDate}
       isToday={requestedDate === null}
+      {planTimezone}
       {selectedTaskId}
       {isLoading}
       {loadError}
@@ -324,27 +319,5 @@
   .today-rail {
     min-width: 0;
     min-height: 0;
-  }
-  .toast-error {
-    position: absolute;
-    top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--bloom-error, #fde8e8);
-    color: var(--bloom-text-dark-blue, #064798);
-    padding: 12px 24px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .toast-error button {
-    background: transparent;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    color: inherit;
   }
 </style>

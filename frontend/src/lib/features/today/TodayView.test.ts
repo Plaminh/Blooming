@@ -153,4 +153,35 @@ describe('Today Screen Feature', () => {
       planned_break_seconds: 15 * 60,
     }));
   });
+
+  it('renders insufficient-time partial schedules as warnings after load', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      plan_date: '2024-04-23', status: 'ACTIVE', timezone: 'UTC', blocks: mockBlocks,
+      unscheduled_tasks: [{ draft_task_id: 'd3', title: 'Optional reading', reason: 'INSUFFICIENT_TIME' }],
+      reasons: [{ code: 'INSUFFICIENT_TIME', task_id: 'd3' }]
+    } as any);
+
+    render(TodayPage);
+
+    const notice = await screen.findByRole('status');
+    expect(notice).toHaveAttribute('data-severity', 'warning');
+    expect(notice).toHaveTextContent(
+      "1 task couldn't fit today. Your scheduled work was saved. Adjust your availability or replan."
+    );
+    expect(notice).not.toHaveTextContent('INSUFFICIENT_TIME');
+    expect(notice).not.toHaveTextContent('d3');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('keeps action and network failures at error severity', async () => {
+    vi.mocked(api.post).mockRejectedValue(new Error('Network unavailable'));
+    render(TodayPage);
+    await waitFor(() => expect(screen.getAllByText('Study databases').length).toBeGreaterThan(0));
+
+    await fireEvent.click(screen.getByText(/START FOCUS/));
+
+    const notice = await screen.findByRole('alert');
+    expect(notice).toHaveAttribute('data-severity', 'error');
+    expect(notice).toHaveTextContent('Network unavailable');
+  });
 });
