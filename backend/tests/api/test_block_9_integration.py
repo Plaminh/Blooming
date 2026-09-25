@@ -174,7 +174,8 @@ async def test_block_9_invalid_interval_integration(base_context_factory):
     # End before start
     response = await plan_day("Practice SQL from 15:30 to 14:00 for 90m", context, "en")
     
-    assert response.tier == "LLM"
+    assert response.tier == "PARSER"
+    assert response.degraded == "LLM_FAILED"
     assert_no_persistence(mock_session)
     # Clarification returned due to invalid fixed time
     assert response.question is not None

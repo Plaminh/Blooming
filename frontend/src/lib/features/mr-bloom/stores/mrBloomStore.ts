@@ -6,6 +6,7 @@ import {
   type AssistantAssumption, type AssistantSession, saveRoadmap, type ChatResponse
 } from '$lib/api';
 import type { IconName } from '$lib/shared/components/atoms/AppIcon.svelte';
+import { goto } from '$app/navigation';
 
 export type { TodayDraft, RoadmapDraft } from '$lib/api';
 export type DraftTask = TaskDraft;
@@ -315,6 +316,12 @@ function createMrBloomStore() {
         suggestions: [], assumptions: [],
         chatHistory: [...state.chatHistory, { id: crypto.randomUUID(), role: 'assistant', content: 'Your schedule was saved to Today.', timestamp: timeLabel() }]
       }));
+      void Promise.resolve(
+        goto(`/today?date=${encodeURIComponent(snapshot.activeDraft.planDate)}`)
+      ).catch(() => {
+        // The save is already committed; a navigation failure must not turn it
+        // into a failed/retried replacement.
+      });
     } catch (error) {
       if (error instanceof APIError && error.status === 409 && apiErrorCode(error) === 'PLAN_EXISTS') {
         update(state => ({ ...state, needsReplace: true, error: null }));

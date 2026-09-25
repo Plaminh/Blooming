@@ -2,9 +2,10 @@
 
 import re
 from dataclasses import replace
+from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from app.ai.budget import BudgetMode, available_routes, get_budget_mode
 from app.ai.carryover import carried_tasks
@@ -26,7 +27,12 @@ class LLMTask(BaseModel):
         max_length=200,
         description="Clean actionable task name only; omit conversational, optionality, and duration wording.",
     )
-    duration_min: int = Field(ge=5, le=480, description="Requested task duration in minutes.")
+    duration_min: int | None = Field(
+        default=None,
+        ge=5,
+        le=480,
+        description="Task duration in minutes; may be null only when both fixed times provide it.",
+    )
     duration_is_explicit: bool | None = Field(
         default=None,
         description="True only when the user explicitly supplied this task's duration.",
@@ -37,9 +43,39 @@ class LLMTask(BaseModel):
         description="OPTIONAL for tasks qualified by optionally, maybe, or if time allows; otherwise CORE.",
     )
     category: Literal["Learning", "Work", "Personal"] | None = None
-    fixed_start: str | None = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
-    fixed_end: str | None = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
-    deadline: str | None = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    fixed_start: str | None = Field(
+        None,
+        pattern=r"^([01]\d|2[0-3]):[0-5]\d$",
+        description="Exact start of this task, only when the user assigns a task-specific interval.",
+    )
+    fixed_end: str | None = Field(
+        None,
+        pattern=r"^([01]\d|2[0-3]):[0-5]\d$",
+        description="Exact end of this task; must accompany fixed_start, never a deadline.",
+    )
+    deadline: str | None = Field(
+        None,
+        pattern=r"^([01]\d|2[0-3]):[0-5]\d$",
+        description="Latest completion time from wording such as 'before noon'; not a fixed end.",
+    )
+
+    @model_validator(mode="after")
+    def validate_fixed_interval(self) -> "LLMTask":
+        if (self.fixed_start is None) != (self.fixed_end is None):
+            raise ValueError("fixed_start and fixed_end must be supplied together")
+        if self.fixed_start is not None and self.fixed_end is not None:
+            start = datetime.strptime(self.fixed_start, "%H:%M")
+            end = datetime.strptime(self.fixed_end, "%H:%M")
+            if end <= start:
+                raise ValueError("fixed_end must be later than fixed_start on the same day")
+            interval_minutes = int((end - start).total_seconds() // 60)
+            if not 5 <= interval_minutes <= 480:
+                raise ValueError("fixed interval duration must be between 5 and 480 minutes")
+            self.duration_min = interval_minutes
+            self.duration_is_explicit = True
+        if self.duration_min is None:
+            raise ValueError("duration_min is required for a flexible task")
+        return self
 
 
 class LLMDayPlan(BaseModel):
@@ -64,7 +100,12 @@ DAY_PLAN_SYSTEM_PROMPT = (
     "Extract the user's day-planning meaning into the supplied schema. "
     "Treat statements such as 'I am available/free from X to Y' or 'between X and Y' "
     "as global availability in windows, not as a task's fixed_start/fixed_end. Convert times "
-    "to 24-hour HH:MM. Use clean imperative task titles: remove conversational lead-ins "
+    "to 24-hour HH:MM. A task-specific event such as 'I have a meeting from 9 AM to 10 AM' "
+    "is a task named 'Meeting' with fixed_start=09:00 and fixed_end=10:00; include it even "
+    "when no separate duration is stated, because its duration comes from the interval. "
+    "Wording such as 'finish the report before noon' sets deadline=12:00 and does not set "
+    "fixed_start or fixed_end. Global availability, fixed task intervals, and deadlines are distinct. "
+    "Use clean imperative task titles: remove conversational lead-ins "
     "such as 'Today I need to', duration phrases, and optionality qualifiers. Mark tasks "
     "introduced by 'optionally', 'maybe', 'if there is time', 'if I have time', or "
     "'if time allows' as OPTIONAL; otherwise use CORE. Preserve each explicit duration in "
@@ -103,6 +144,7 @@ def _parsed_from_llm(value: LLMDayPlan, ctx: ChatContext, message: str) -> Parse
             and p_match.source == "USER"
             and p_match.duration_min is not None
         )
+        assert l_task.duration_min is not None  # Enforced by LLMTask validation.
         duration = max(5, min(l_task.duration_min, 480))
         final_tasks.append(
             ParsedTask(
@@ -170,6 +212,21 @@ async def _llm_plan(
         value = LLMDayPlan.model_validate(raw)
         return _parsed_from_llm(value, ctx, original_message or message), value.reply
     except ValidationError as first_error:
+        validation_messages = [
+            str(error.get("ctx", {}).get("error", error.get("msg", "")))
+            for error in first_error.errors(include_url=False)
+        ]
+        impossible_interval = any(
+            "fixed_end must be later" in message
+            or "fixed interval duration" in message
+            for message in validation_messages
+        )
+        if impossible_interval:
+            return (
+                (ParsedPlan(confidence=0.0), reply)
+                if isinstance(reply, str) and reply.strip()
+                else None
+            )
         if mode != BudgetMode.NORMAL:
             return (
                 (ParsedPlan(confidence=0.0), reply)
@@ -180,7 +237,12 @@ async def _llm_plan(
             {"role": "assistant", "content": str(raw)},
             {
                 "role": "user",
-                "content": f"Repair only the JSON structure once. Validation errors: {first_error.errors(include_url=False)}",
+                "content": (
+                    "Repair the structured extraction once without dropping any user-mentioned task "
+                    "or changing its semantic kind. Keep task-specific intervals fixed, global windows "
+                    "global, and 'before' times as deadlines. Validation errors: "
+                    f"{first_error.errors(include_url=False)}"
+                ),
             },
         ]
         try:

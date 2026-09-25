@@ -15,6 +15,7 @@ Covers Task Groups:
 from __future__ import annotations
 
 import pytest
+from dataclasses import replace
 from datetime import datetime
 from unittest.mock import AsyncMock, patch, MagicMock
 from uuid import uuid4
@@ -65,6 +66,7 @@ def test_schema_valid_tasks_and_windows():
                 "importance": "CORE",
                 "category": "Work",
                 "fixed_start": "13:00",
+                "fixed_end": "15:00",
                 "deadline": "15:00",
             },
             {
@@ -83,6 +85,24 @@ def test_schema_valid_tasks_and_windows():
     assert plan.tasks[0].fixed_start == "13:00"
     assert plan.tasks[1].importance == "OPTIONAL"
     assert plan.windows == [("13:00", "17:00")]
+
+
+def test_schema_derives_duration_and_rejects_partial_or_impossible_fixed_intervals():
+    meeting = LLMTask(
+        title="Meeting", duration_min=None, fixed_start="09:00", fixed_end="10:00"
+    )
+    assert meeting.duration_min == 60
+    assert meeting.duration_is_explicit is True
+
+    with pytest.raises(ValidationError, match="must be supplied together"):
+        LLMTask(title="Partial meeting", duration_min=60, fixed_start="09:00")
+    with pytest.raises(ValidationError, match="later than fixed_start"):
+        LLMTask(
+            title="Impossible meeting",
+            duration_min=60,
+            fixed_start="10:00",
+            fixed_end="09:00",
+        )
 
 
 def test_schema_duration_bounds():
@@ -186,6 +206,7 @@ async def test_today_assembly_deterministic_ids_and_boundaries(base_context):
                         "en",
                     )
 
+    mock_llm.assert_awaited_once()
     assert response.tier == "LLM"
     # Invariant: preview must be None (scheduler is not run during draft creation)
     assert response.preview is None
@@ -252,6 +273,63 @@ async def test_today_01_exact_request_uses_llm_semantics_without_parser_corrupti
     base_context.db.add.assert_not_called()
     base_context.db.add_all.assert_not_called()
     base_context.db.flush.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_parse_02_preserves_fixed_meeting_through_today_draft(base_context):
+    """A task-specific interval remains distinct from availability and a deadline."""
+    base_context = replace(
+        base_context,
+        now=datetime(2026, 9, 25, 7, 0, tzinfo=ZoneInfo("Asia/Ho_Chi_Minh")),
+    )
+    message = (
+        "Today I am available from 8 AM to 1 PM.\n"
+        "I have a meeting from 9 AM to 10 AM.\n"
+        "Finish the report for 60 minutes before noon.\n"
+        "Study algorithms for 45 minutes."
+    )
+    mock_llm = AsyncMock(return_value={
+        "reply": "I extracted your availability and three tasks.",
+        "windows": [["08:00", "13:00"]],
+        "tasks": [
+            {
+                "title": "Meeting", "duration_min": None,
+                "fixed_start": "09:00", "fixed_end": "10:00",
+            },
+            {
+                "title": "Finish the report", "duration_min": 60,
+                "duration_is_explicit": True, "deadline": "12:00",
+            },
+            {
+                "title": "Study algorithms", "duration_min": 45,
+                "duration_is_explicit": True,
+            },
+        ],
+        "assumptions": [],
+    })
+
+    with patch.object(planner.llm_provider, "call", mock_llm):
+        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
+            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:model")):
+                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
+                    response = await planner.plan_day(message, base_context, "en")
+
+    mock_llm.assert_awaited_once()
+    assert response.tier == "LLM"
+    assert response.degraded is None
+    assert response.preview is None
+    assert response.draft is not None
+    assert [(window.start, window.end) for window in response.draft.windows] == [("08:00", "13:00")]
+    assert len(response.draft.tasks) == 3
+    meeting, report, study = response.draft.tasks
+    assert (meeting.title, meeting.durationMin, meeting.schedulingType) == ("Meeting", 60, "FIXED")
+    assert meeting.fixedStart.strftime("%H:%M") == "09:00"
+    assert meeting.fixedEnd.strftime("%H:%M") == "10:00"
+    assert report.title == "Finish the report"
+    assert report.deadline.strftime("%H:%M") == "12:00"
+    assert (study.title, study.durationMin) == ("Study algorithms", 45)
+    assert not any("Moved to tomorrow" in item.text for item in response.assumptions)
+    assert check_today(response.draft) == []
 
 
 # ===========================================================================
@@ -603,7 +681,9 @@ async def test_invalid_fixed_interval_not_silently_converted_to_flexible(base_co
                 with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
                     response = await planner.plan_day("Practice SQL from 15:30 to 14:00 for 90m", base_context, "en")
 
-    assert response.tier == "LLM"
+    mock_llm.assert_awaited_once()  # A semantically impossible interval is not auto-reinterpreted.
+    assert response.tier == "PARSER"
+    assert response.degraded == "LLM_FAILED"
     assert response.draft is not None
     task = response.draft.tasks[0]
     assert task.schedulingType == "FIXED"

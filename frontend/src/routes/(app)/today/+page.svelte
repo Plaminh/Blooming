@@ -142,6 +142,10 @@
   }
 
   onMount(() => {
+    const requested = new URLSearchParams(window.location.search).get("date");
+    requestedDate = requested && /^\d{4}-\d{2}-\d{2}$/.test(requested)
+      ? requested
+      : null;
     void updateSchedule();
     let disposed = false;
     let cleanup = () => {};

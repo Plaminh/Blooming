@@ -9,7 +9,7 @@ No mocked scheduler results are used as evidence of correctness.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
@@ -17,9 +17,6 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from app.ai.context import ChatContext
-from app.ai.drafts import assemble_today
-from app.ai.parser import ParsedPlan, ParsedTask
-from app.ai.validators import check_today
 from app.core.scheduler import DeterministicScheduler, ScheduleTask, ScheduleWindow
 from app.schemas.drafts import (
     AvailabilityWindowDraft,
@@ -172,6 +169,42 @@ def test_pv_005_block_type_fixed_event():
     assert fixed_blocks[0].start_at == fixed_start
     assert fixed_blocks[0].end_at == fixed_end
     assert fixed_blocks[0].task_id == task.id
+
+
+def test_parse_02_fixed_meeting_is_reserved_before_flexible_work():
+    """PARSE-02 scheduler regression: flexible work cannot overlap the fixed meeting."""
+    meeting_id, report_id, study_id = uuid4(), uuid4(), uuid4()
+    tasks = [
+        ScheduleTask(
+            id=meeting_id, title="Meeting", estimated_duration_minutes=60,
+            priority="MEDIUM", scheduling_type="FIXED", created_at=_dt(7),
+            fixed_start_at=_dt(9), fixed_end_at=_dt(10),
+        ),
+        ScheduleTask(
+            id=report_id, title="Finish the report", estimated_duration_minutes=60,
+            priority="MEDIUM", scheduling_type="FLEXIBLE",
+            created_at=_dt(7, 1),
+        ),
+        ScheduleTask(
+            id=study_id, title="Study algorithms", estimated_duration_minutes=45,
+            priority="MEDIUM", scheduling_type="FLEXIBLE",
+            created_at=_dt(7, 2),
+        ),
+    ]
+
+    result = DeterministicScheduler().schedule(tasks, [_window(8, 13)])
+
+    assert result.unscheduled_tasks == []
+    meeting = next(block for block in result.blocks if block.task_id == meeting_id)
+    report = next(block for block in result.blocks if block.task_id == report_id)
+    assert (meeting.block_type, meeting.start_at, meeting.end_at) == (
+        "FIXED_EVENT", _dt(9), _dt(10)
+    )
+    assert report.end_at <= _dt(12)
+    for block in result.blocks:
+        assert _dt(8) <= block.start_at < block.end_at <= _dt(13)
+        if block.task_id != meeting_id:
+            assert block.end_at <= meeting.start_at or block.start_at >= meeting.end_at
 
 
 # ===========================================================================

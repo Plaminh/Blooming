@@ -2,6 +2,9 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { get } from 'svelte/store';
 import { api, saveTodayPlan, type TodayDraft } from '$lib/api';
 import { mrBloomStore } from './mrBloomStore';
+import { goto } from '$app/navigation';
+
+vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 
 vi.mock('$lib/api', () => ({
   APIError: class APIError extends Error {
@@ -335,6 +338,8 @@ test('PLAN_EXISTS opens confirmation; cancel preserves state; confirm replaces o
   await mrBloomStore.confirmReplace();
   expect(saveTodayPlan).toHaveBeenLastCalledWith(null, 'reviewed', saveableDraft, true);
   expect(saveTodayPlan).toHaveBeenCalledTimes(2);
+  expect(goto).toHaveBeenCalledOnce();
+  expect(goto).toHaveBeenCalledWith('/today?date=2026-09-20');
 });
 
 test('milestone add uses the next free deterministic ID and edits preserve it', () => {

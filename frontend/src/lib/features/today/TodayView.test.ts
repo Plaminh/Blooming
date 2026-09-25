@@ -36,6 +36,7 @@ const mockBlocks = [
 describe('Today Screen Feature', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    window.history.replaceState({}, '', '/today');
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2024-04-23T09:00:00Z'));
     HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
@@ -152,6 +153,16 @@ describe('Today Screen Feature', () => {
       planned_focus_seconds: 45 * 60,
       planned_break_seconds: 15 * 60,
     }));
+  });
+
+  it('loads the saved target date supplied after replacement navigation', async () => {
+    window.history.replaceState({}, '', '/today?date=2024-04-24');
+    render(TodayPage);
+
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith('/today?date=2024-04-24');
+    });
+    expect(screen.getByText('Wed, Apr 24, 2024')).toBeInTheDocument();
   });
 
   it('renders insufficient-time partial schedules as warnings after load', async () => {

@@ -279,6 +279,117 @@ async def test_edited_draft_in_same_session(async_client: AsyncClient, auth_head
     tasks_res2 = await db_session.execute(select(Task).where(Task.title == "Task 2"))
     assert tasks_res2.scalars().first() is not None
 
+
+async def test_replace_existing_preserves_completed_history_and_replaces_future_work(
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    test_user: dict,
+    db_session: AsyncSession,
+):
+    target_date = date.today() + timedelta(days=1)
+    original = TodayDraft(
+        type="today",
+        planDate=target_date,
+        timezone="UTC",
+        windows=[AvailabilityWindowDraft(start="08:00", end="18:00")],
+        tasks=[
+            TaskDraft(id="old-done", title="Completed history", durationMin=30, priority="HIGH"),
+            TaskDraft(id="old-future", title="Old unfinished future work", durationMin=60),
+        ],
+    ).model_dump(mode="json")
+    original_token = await get_preview_token(async_client, auth_headers, original)
+    original_save = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": original_token, "draft": original},
+    )
+    assert original_save.status_code == 200, original_save.text
+
+    plan = await db_session.scalar(
+        select(DailyPlan).where(
+            DailyPlan.user_id == test_user.id,
+            DailyPlan.plan_date == target_date,
+            DailyPlan.status == "ACTIVE",
+        )
+    )
+    assert plan is not None
+    original_plan_id = plan.id
+    completed_block = await db_session.scalar(
+        select(PlanBlock).where(
+            PlanBlock.daily_plan_id == plan.id,
+            PlanBlock.title == "Completed history",
+        )
+    )
+    assert completed_block is not None
+    completed_block.status = "COMPLETED"
+    completed_block.completed_at = datetime.now(timezone.utc)
+    completed_task = await db_session.get(Task, completed_block.task_id)
+    assert completed_task is not None
+    completed_task.status = "COMPLETED"
+    completed_task.completed_at = datetime.now(timezone.utc)
+    await db_session.commit()
+
+    replacement = TodayDraft(
+        type="today",
+        planDate=target_date,
+        timezone="UTC",
+        windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
+        tasks=[TaskDraft(id="new-task", title="New reviewed work", durationMin=45)],
+    ).model_dump(mode="json")
+    replacement_token = await get_preview_token(async_client, auth_headers, replacement)
+    rejected = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": replacement_token, "draft": replacement},
+    )
+    assert rejected.status_code == 409
+    assert rejected.json()["detail"]["code"] == "PLAN_EXISTS"
+
+    unchanged = await async_client.get(
+        f"/api/v1/today?date={target_date.isoformat()}", headers=auth_headers
+    )
+    assert {block["title"] for block in unchanged.json()["blocks"] if block["block_type"] == "TASK"} == {
+        "Completed history", "Old unfinished future work"
+    }
+
+    payload = {
+        "preview_token": replacement_token,
+        "idempotency_key": replacement_token,
+        "draft": replacement,
+        "replace_existing": True,
+    }
+    replaced = await async_client.post(
+        "/api/v1/today/save", headers=auth_headers, json=payload
+    )
+    assert replaced.status_code == 200, replaced.text
+    titles = {block["title"] for block in replaced.json()["blocks"] if block["block_type"] == "TASK"}
+    assert titles == {"Completed history", "New reviewed work"}
+
+    retry = await async_client.post(
+        "/api/v1/today/save", headers=auth_headers, json=payload
+    )
+    assert retry.status_code == 200, retry.text
+    reloaded = await async_client.get(
+        f"/api/v1/today?date={target_date.isoformat()}", headers=auth_headers
+    )
+    assert reloaded.status_code == 200
+    reloaded_titles = [
+        block["title"] for block in reloaded.json()["blocks"] if block["block_type"] == "TASK"
+    ]
+    assert sorted(reloaded_titles) == ["Completed history", "New reviewed work"]
+
+    active_plans = (
+        await db_session.scalars(
+            select(DailyPlan).where(
+                DailyPlan.user_id == test_user.id,
+                DailyPlan.plan_date == target_date,
+                DailyPlan.status.in_(("DRAFT", "CONFIRMED", "ACTIVE")),
+            )
+        )
+    ).all()
+    assert len(active_plans) == 1
+    assert active_plans[0].id == original_plan_id
+
 async def test_fixed_datetimes(async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict):
     aware_dt = datetime.now(timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0)
     deadline_date = date.today()
