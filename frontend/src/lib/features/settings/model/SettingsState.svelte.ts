@@ -1,10 +1,12 @@
 import { getContext, setContext } from "svelte";
 import type { SettingsProfile } from "../types";
-import { desktop, type NativeSettings } from "$lib/platform/desktopWindow";
+import { desktop } from "$lib/platform/desktopWindow";
 import type { UserSettingsResponse } from "$lib/api/types";
 import { get } from "svelte/store";
 import { authStore } from "$lib/shared/stores/authStore";
 import { deviceTimezone, requestApproximateDeviceLocation } from "$lib/shared/deviceLocation";
+import { isValidTimezone, normalizeTimezone } from "$lib/shared/timezones";
+import { authoritativeSettings, settingsResponseToProfile } from './userSettingsMapping';
 
 const SETTINGS_KEY = "bloom_settings";
 
@@ -52,6 +54,12 @@ export class SettingsState {
     }
     this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
 
+    const cached = get(authoritativeSettings);
+    if (cached) {
+      this.savedSettings = settingsResponseToProfile(cached, get(authStore).user?.email || '', this.savedSettings.emailReminders);
+      this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
+    }
+
     // Load local desktop-only preferences first
     if (typeof localStorage !== "undefined") {
       const localPrefsStr = localStorage.getItem(SETTINGS_KEY);
@@ -75,29 +83,9 @@ export class SettingsState {
       const { api } = await import("$lib/api");
       const stored: UserSettingsResponse | null = await api.get("/me/settings");
       if (stored) {
-        // Map backend schema to frontend schema if needed
-        const mappedSettings = {
-          email: get(authStore).user?.email || "",
-          mrBloomName: stored.mr_bloom_display_name || "Mr. Bloom",
-          timezone: stored.timezone || deviceTimezone(),
-          focusDurationMinutes: stored.default_focus_minutes || 25,
-          breakDurationMinutes: stored.default_break_minutes || 5,
-          startAtLogin: stored.launch_on_startup ?? true,
-          keepWidgetOnTop: stored.widget_always_on_top ?? true,
-          milestoneReminderLeadTimeMinutes:
-            stored.milestone_reminder_lead_time_minutes ?? 1440,
-          emailReminders: this.savedSettings.emailReminders, // Keep local pref
-          weatherEnabled: stored.weather_enabled ?? false,
-          weatherLocation: stored.weather_location ?? "",
-          weatherLocationName: stored.weather_location_name ?? null,
-          weatherLat: stored.weather_lat ?? null,
-          weatherLon: stored.weather_lon ?? null,
-          sceneSeason: stored.scene_season || "AUTO",
-          weatherAnimationEnabled: stored.weather_animation_enabled ?? true,
-        };
-        this.savedSettings = { ...this.savedSettings, ...mappedSettings };
+        authoritativeSettings.set(stored);
+        this.savedSettings = settingsResponseToProfile(stored, get(authStore).user?.email || '', this.savedSettings.emailReminders);
         this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
-        this.draftSettings.timezone = deviceTimezone();
         try {
           await desktop.reconcileSettings(stored);
         } catch {
@@ -120,7 +108,13 @@ export class SettingsState {
       breakDurationMinutes,
       milestoneReminderLeadTimeMinutes,
       weatherLocation,
+      timezone,
     } = this.draftSettings;
+
+    if (!isValidTimezone(timezone)) {
+      this.validationErrors.timezone = "Select a valid IANA timezone.";
+      isValid = false;
+    }
 
     if (!mrBloomName || mrBloomName.trim() === "") {
       this.validationErrors.mrBloomName = "Name cannot be empty.";
@@ -167,7 +161,6 @@ export class SettingsState {
   cancel() {
     this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
     this.locationPickerVersion += 1;
-    this.draftSettings.timezone = deviceTimezone();
     this.validationErrors = {};
     this.saveSuccessMessage = null;
     this.saveErrorMessage = null;
@@ -201,11 +194,9 @@ export class SettingsState {
     this.saveSuccessMessage = null;
     this.saveErrorMessage = null;
     this.syncWarning = null;
-    let previousNativeSettings: NativeSettings | null = null;
-
     try {
       this.draftSettings.mrBloomName = this.draftSettings.mrBloomName.trim();
-      this.draftSettings.timezone = deviceTimezone();
+      this.draftSettings.timezone = normalizeTimezone(this.draftSettings.timezone);
 
       const { api } = await import("$lib/api");
 
@@ -228,22 +219,15 @@ export class SettingsState {
         weather_animation_enabled: this.draftSettings.weatherAnimationEnabled,
       };
 
-      previousNativeSettings = await desktop.readSettings();
+      const stored = await api.put("/me/settings", payload) as UserSettingsResponse;
+      authoritativeSettings.set(stored);
+      this.savedSettings = settingsResponseToProfile(stored, get(authStore).user?.email || '', this.draftSettings.emailReminders);
+      this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
       try {
-        await desktop.reconcileSettings(payload);
-        await api.put("/me/settings", payload);
-      } catch (error) {
-        if (previousNativeSettings) {
-          try {
-            await desktop.reconcileSettings(previousNativeSettings);
-          } catch {
-            this.syncWarning =
-              "Previous desktop settings could not be restored. Reopen Settings to synchronize.";
-          }
-        }
-        throw error;
+        await desktop.reconcileSettings(stored);
+      } catch {
+        this.syncWarning = "Settings saved, but desktop settings could not be synchronized.";
       }
-      this.savedSettings = JSON.parse(JSON.stringify(this.draftSettings));
       this.saveSuccessMessage = "Settings saved successfully.";
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('blooming:settings-updated'));
       try {

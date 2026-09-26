@@ -100,6 +100,15 @@ describe('SettingsState', () => {
   });
 
   it('saves successfully', async () => {
+    vi.mocked(api.put).mockResolvedValue({
+      mr_bloom_display_name: 'Saved Name', timezone: 'Asia/Ho_Chi_Minh',
+      default_focus_minutes: 50, default_break_minutes: 10,
+      launch_on_startup: true, widget_always_on_top: true,
+      milestone_reminder_lead_time_minutes: 1440, weather_enabled: true,
+      weather_location: 'Ho Chi Minh City', weather_location_name: 'Ho Chi Minh City, Vietnam',
+      weather_lat: 10.82, weather_lon: 106.63, scene_season: 'AUTO',
+      weather_animation_enabled: false,
+    });
     const notifyWidget = vi.spyOn(desktop, 'settingsUpdated').mockResolvedValue();
     state.draftSettings.mrBloomName = 'Saved Name';
     state.draftSettings.weatherEnabled = true;
@@ -112,6 +121,8 @@ describe('SettingsState', () => {
     
     expect(success).toBe(true);
     expect(state.savedSettings.mrBloomName).toBe('Saved Name');
+    expect(state.savedSettings.timezone).toBe('Asia/Ho_Chi_Minh');
+    expect(state.savedSettings.focusDurationMinutes).toBe(50);
     expect(state.isDirty).toBe(false);
     expect(api.put).toHaveBeenCalledWith('/me/settings', expect.objectContaining({
       weather_enabled: true,

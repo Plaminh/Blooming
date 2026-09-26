@@ -4,7 +4,7 @@
   import ToggleSwitch from '../atoms/ToggleSwitch.svelte';
   import WeatherLocationPicker from '../molecules/WeatherLocationPicker.svelte';
   import { getSettingsState } from '../../model/SettingsState.svelte';
-  import { deviceTimezone } from '$lib/shared/deviceLocation';
+  import TimezonePicker from '$lib/features/onboarding-setup/components/molecules/TimezonePicker.svelte';
 
   const settingsState = getSettingsState();
 
@@ -26,7 +26,10 @@
 
     <div class="device-row">
       <span>Timezone</span>
-      <output aria-label="Device timezone">{deviceTimezone()}</output>
+      <div>
+        <TimezonePicker id="settings-timezone" bind:value={settingsState.draftSettings.timezone} error={settingsState.validationErrors.timezone} />
+        {#if settingsState.validationErrors.timezone}<span class="location-error" role="alert">{settingsState.validationErrors.timezone}</span>{/if}
+      </div>
     </div>
 
     <div class="settings-group">
@@ -40,6 +43,7 @@
       {/if}
       {#key settingsState.locationPickerVersion}
       <WeatherLocationPicker
+        initialValue={settingsState.draftSettings.weatherLocationName ?? ''}
         onInvalidate={() => {
           settingsState.draftSettings.weatherLocationName = null;
           settingsState.draftSettings.weatherLat = null;
@@ -144,14 +148,6 @@
     font-family: var(--bloom-body-font);
     font-size: 16px;
     font-weight: 600;
-  }
-
-  .device-row output {
-    padding: 10px 14px;
-    border: 1px solid var(--bloom-border-subtle);
-    border-radius: 4px;
-    background: var(--bloom-surface-cream-alt);
-    font-weight: 400;
   }
 
   .location-error { color: var(--bloom-error); }

@@ -4,23 +4,28 @@
   import OnboardingSetupView from '$lib/features/onboarding-setup/components/pages/OnboardingSetupView.svelte';
   import type { OnboardingSetupData } from '$lib/features/onboarding-setup/model/OnboardingSetupState.svelte';
   import { desktop } from '$lib/platform/desktopWindow';
+  import type { UserSettingsResponse } from '$lib/api/types';
+  import { onMount } from 'svelte';
+  import { authoritativeSettings, onboardingToSettingsPayload, settingsResponseToOnboarding } from '$lib/features/settings/model/userSettingsMapping';
+
+  let initialData = $state<Partial<OnboardingSetupData> | null>(null);
+  let loadError = $state('');
+
+  onMount(async () => {
+    try {
+      const saved = await api.get('/me/settings') as UserSettingsResponse;
+      authoritativeSettings.set(saved);
+      initialData = settingsResponseToOnboarding(saved);
+    } catch (error) {
+      loadError = error instanceof Error ? error.message : 'Could not load your saved settings.';
+    }
+  });
 
   async function handleFinish(data: OnboardingSetupData) {
-    const defaultFocusMinutes = data.focusPreset === '50 / 10' ? 50 : 25;
-    const defaultBreakMinutes = data.focusPreset === '50 / 10' ? 10 : 5;
-    
-    await api.put('/me/settings', {
-      mr_bloom_display_name: data.name,
-      timezone: data.timezone,
-      default_focus_minutes: defaultFocusMinutes,
-      default_break_minutes: defaultBreakMinutes,
-      launch_on_startup: data.startAtLogin,
-      widget_always_on_top: data.keepWidgetOnTop,
-      weather_location_name: data.weatherLocationName,
-      weather_lat: data.weatherLat,
-      weather_lon: data.weatherLon,
-      weather_enabled: data.weatherLat !== null && data.weatherLon !== null,
-    });
+    const payload = onboardingToSettingsPayload(data);
+    const saved = await api.put('/me/settings', payload) as UserSettingsResponse;
+    authoritativeSettings.set(saved);
+    try { await desktop.reconcileSettings(saved); } catch { /* Backend save remains authoritative. */ }
     if (typeof window !== 'undefined') window.dispatchEvent(new Event('blooming:settings-updated'));
     try {
       await desktop.settingsUpdated();
@@ -31,13 +36,16 @@
     goto('/today');
   }
 
-  function handleBack() {
-    goto('/');
-  }
 </script>
 
 <svelte:head>
   <title>Blooming Onboarding</title>
 </svelte:head>
 
-<OnboardingSetupView onFinish={handleFinish} onBack={handleBack} />
+{#if initialData}
+  <OnboardingSetupView {initialData} onFinish={handleFinish} />
+{:else if loadError}
+  <div class="load-error" role="alert">{loadError} <button onclick={() => location.reload()}>Retry</button></div>
+{:else}
+  <div class="loading" role="status">Loading your settings…</div>
+{/if}

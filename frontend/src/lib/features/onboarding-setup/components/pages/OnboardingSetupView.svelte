@@ -6,24 +6,27 @@
   import DesktopAppShell from '$lib/shared/components/organisms/DesktopAppShell.svelte';
   import OnboardingBrandPanel from '../organisms/OnboardingBrandPanel.svelte';
   import OnboardingSetupForm from '../organisms/OnboardingSetupForm.svelte';
+  import { validateOnboarding, type OnboardingErrors } from '../../model/validation';
 
   let {
     initialData,
     onFinish,
-    onBack,
     windowService = desktopWindowService,
   }: {
     initialData?: Partial<OnboardingSetupData>;
     onFinish?: (data: OnboardingSetupData) => void | Promise<void>;
-    onBack?: () => void;
     windowService?: DesktopWindowService;
   } = $props();
 
   let pending = $state(false);
   let errorMessage = $state<string | null>(null);
+  let validationErrors = $state<OnboardingErrors>({});
   const setupState = new OnboardingSetupState(untrack(() => initialData));
 
   async function handleFinish() {
+    if (pending) return;
+    validationErrors = validateOnboarding(setupState.data);
+    if (Object.keys(validationErrors).length) return;
     pending = true;
     errorMessage = null;
     try {
@@ -37,9 +40,6 @@
     }
   }
 
-  function handleBack() {
-    if (!pending) onBack?.();
-  }
 </script>
 
 <DesktopAppShell variant="compact" showSidebar={false} {windowService}>
@@ -47,11 +47,11 @@
     <OnboardingBrandPanel />
     <div class="form-col">
       {#if errorMessage}
-        <div class="error-banner" aria-live="assertive">
+        <div class="error-banner" role="alert" aria-live="assertive">
           {errorMessage}
         </div>
       {/if}
-      <OnboardingSetupForm state={setupState} {pending} onFinish={handleFinish} onBack={handleBack} />
+      <OnboardingSetupForm state={setupState} {pending} errors={validationErrors} onFinish={handleFinish} />
     </div>
   </main>
 </DesktopAppShell>

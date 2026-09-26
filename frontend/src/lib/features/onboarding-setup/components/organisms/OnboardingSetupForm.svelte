@@ -2,22 +2,23 @@
   import type { OnboardingSetupState } from '../../model/OnboardingSetupState.svelte';
   import Button from '../atoms/Button.svelte';
   import Checkbox from '../atoms/Checkbox.svelte';
-  import Input from '../atoms/Input.svelte';
   import WeatherLocationPicker from '$lib/features/settings/components/molecules/WeatherLocationPicker.svelte';
   import FormField from '../molecules/FormField.svelte';
   import PresetSelector from '../molecules/PresetSelector.svelte';
-  import StepProgress from '../molecules/StepProgress.svelte';
+  import TimezonePicker from '../molecules/TimezonePicker.svelte';
+  import type { OnboardingErrors } from '../../model/validation';
+  import { validateOnboarding } from '../../model/validation';
 
   let {
     state: setupState,
     pending = false,
+    errors = {},
     onFinish,
-    onBack,
   }: {
     state: OnboardingSetupState;
     pending?: boolean;
+    errors?: OnboardingErrors;
     onFinish: () => void;
-    onBack: () => void;
   } = $props();
 
 
@@ -26,42 +27,22 @@
       ? 'Work for 25 minutes, take a 5-minute break.'
       : setupState.focusPreset === '50 / 10'
         ? 'Work for 50 minutes, take a 10-minute break.'
-        : 'Configure your own focus and break durations later.',
+        : 'Choose focus and break durations that suit you.',
   );
 
-  function submit(event: SubmitEvent) {
+  function preventSubmit(event: SubmitEvent) {
     event.preventDefault();
-    onFinish();
   }
+  let formValid = $derived(Object.keys(validateOnboarding(setupState.data)).length === 0);
 </script>
 
-<form class="setup-form-container" aria-label="Blooming setup" onsubmit={submit}>
-  <div class="stepper-slot">
-    <StepProgress currentStep={1} />
-  </div>
-
+<form class="setup-form-container" aria-label="Blooming setup" data-scrollable="true" onsubmit={preventSubmit}>
   <header class="form-header">
     <h2 class="form-title">Make Blooming yours</h2>
     <p class="form-subtitle">A few quick choices to get started.</p>
   </header>
 
   <div class="form-content">
-    <div class="field-row name-row">
-      <FormField
-        id="name-input"
-        label="Mr. Bloom's name"
-        description="This is what we'll call your friend."
-        descriptionId="name-description"
-      >
-        <Input
-          id="name-input"
-          bind:value={setupState.name}
-          ariaDescribedby="name-description"
-          disabled={pending}
-        />
-      </FormField>
-    </div>
-
     <div class="field-row timezone-row">
       <FormField
         id="timezone-value"
@@ -69,18 +50,20 @@
         description="Detected from this device for reminders and daily planning."
         descriptionId="timezone-description"
       >
-        <output id="timezone-value" class="device-timezone" aria-describedby="timezone-description">{setupState.timezone}</output>
+        <TimezonePicker id="timezone-value" bind:value={setupState.timezone} disabled={pending}
+          describedby="timezone-description timezone-error" error={errors.timezone} />
+        {#if errors.timezone}<span id="timezone-error" class="field-error" role="alert">{errors.timezone}</span>{/if}
       </FormField>
     </div>
 
     <div class="field-row">
       <FormField
         id="weather-location"
-        label="Weather location (optional)"
-        description="Use device location, or enter a city for widget weather."
+        label="Weather location"
+        description="Select a city or use approximate device location for widget weather."
         descriptionId="weather-location-description"
       >
-        <WeatherLocationPicker disabled={pending}
+        <WeatherLocationPicker disabled={pending} initialValue={setupState.weatherLocationName ?? ''}
           onInvalidate={() => {
             setupState.weatherLocationName = null;
             setupState.weatherLat = null;
@@ -91,6 +74,7 @@
             setupState.weatherLat = place.lat;
             setupState.weatherLon = place.lon;
           }} />
+        {#if errors.weatherLocation}<span class="field-error" role="alert">{errors.weatherLocation}</span>{/if}
       </FormField>
     </div>
 
@@ -107,6 +91,18 @@
           describedby="preset-description"
           disabled={pending}
         />
+        {#if setupState.focusPreset === 'CUSTOM'}
+          <div class="custom-values">
+            <label for="custom-focus">Focus minutes
+              <input id="custom-focus" type="number" min="1" max="720" bind:value={setupState.focusMinutes} disabled={pending} />
+              {#if errors.focusMinutes}<span class="field-error" role="alert">{errors.focusMinutes}</span>{/if}
+            </label>
+            <label for="custom-break">Break minutes
+              <input id="custom-break" type="number" min="0" max="180" bind:value={setupState.breakMinutes} disabled={pending} />
+              {#if errors.breakMinutes}<span class="field-error" role="alert">{errors.breakMinutes}</span>{/if}
+            </label>
+          </div>
+        {/if}
       </FormField>
     </div>
 
@@ -135,32 +131,33 @@
   <footer class="form-footer">
     <div class="footer-divider"></div>
     <div class="footer-actions">
-      <Button type="button" variant="secondary" onclick={onBack} disabled={pending}>BACK</Button>
-      <Button type="submit" variant="primary" disabled={pending}>FINISH</Button>
+      <Button type="button" variant="primary" onclick={onFinish} disabled={pending || !formValid}>{pending ? 'SAVING…' : 'FINISH'}</Button>
     </div>
   </footer>
 </form>
 
 <style>
   .setup-form-container {
-    position: relative;
+    box-sizing: border-box;
+    display: flex;
     width: 100%;
     height: 100%;
     margin: 0;
-    overflow: hidden;
+    padding: 35px 31px 15px 60px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    flex-direction: column;
+    scrollbar-color: var(--bloom-border-dark) var(--bloom-surface-cream);
+    scrollbar-width: thin;
+    overscroll-behavior: contain;
   }
 
-  .stepper-slot {
-    position: absolute;
-    top: 30px;
-    left: 44px;
-    width: 790px;
-  }
+  .setup-form-container::-webkit-scrollbar { width: 10px; }
+  .setup-form-container::-webkit-scrollbar-track { background: var(--bloom-surface-cream); }
+  .setup-form-container::-webkit-scrollbar-thumb { border: 2px solid var(--bloom-surface-cream); border-radius: 8px; background: var(--bloom-border-dark); }
 
   .form-header {
-    position: absolute;
-    top: 145px;
-    left: 60px;
+    flex: 0 0 auto;
   }
 
   .form-title {
@@ -182,30 +179,19 @@
   }
 
   .form-content {
-    position: absolute;
-    top: 250px;
-    bottom: 95px;
-    left: 60px;
-    width: 755px;
-    overflow-y: auto;
-    padding-right: 8px;
+    width: 100%;
+    margin-top: 35px;
+    flex: 0 0 auto;
   }
 
   .timezone-row {
     margin-top: 14px;
   }
 
-  .device-timezone {
-    display: flex;
-    min-height: 42px;
-    align-items: center;
-    padding: 0 14px;
-    border: 1px solid var(--bloom-border-subtle);
-    border-radius: var(--bloom-radius);
-    background: var(--bloom-surface-cream-alt);
-    color: var(--bloom-text-control-blue);
-    font: 19px var(--bloom-body-font);
-  }
+  .field-error { display: block; margin-top: 4px; color: var(--bloom-error); font-size: 14px; }
+  .custom-values { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .custom-values label { color: var(--bloom-text-dark-blue); font-size: 14px; font-weight: 600; }
+  .custom-values input { box-sizing: border-box; width: 100%; height: 38px; margin-top: 4px; padding: 0 10px; border: 1px solid var(--bloom-border-subtle); border-radius: var(--bloom-radius); background: var(--bloom-surface-cream-alt); font: 17px var(--bloom-body-font); }
 
   .preset-row {
     margin-top: 22px;
@@ -222,10 +208,9 @@
   }
 
   .form-footer {
-    position: absolute;
-    right: 31px;
-    bottom: 15px;
-    left: 28px;
+    width: 100%;
+    margin-top: 26px;
+    flex: 0 0 auto;
   }
 
   .footer-divider {
@@ -238,10 +223,6 @@
     display: flex;
     justify-content: flex-end;
     gap: 14px;
-  }
-
-  .footer-actions :global(.btn-secondary) {
-    width: 167px;
   }
 
   .footer-actions :global(.btn-primary) {
