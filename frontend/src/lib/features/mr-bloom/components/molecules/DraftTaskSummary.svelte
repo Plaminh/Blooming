@@ -3,7 +3,7 @@
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
   import { clockOf, recurrenceLabel } from '../../model/draftLabels';
 
-  let { task }: { task: DraftTask } = $props();
+  let { task, selected = false }: { task: DraftTask, selected?: boolean } = $props();
   let repeats = $derived(recurrenceLabel(task.recurrence));
   let title = $state('');
   let lastTaskTitle: string | null = $state(null);
@@ -55,9 +55,17 @@
       scheduling_type: fixedStart || fixedEnd ? 'FIXED' : 'FLEXIBLE'
     }]);
   }
+  let element: HTMLElement | null = null;
+  $effect(() => {
+    if (selected && element && typeof element.scrollIntoView === 'function') {
+      element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  });
 </script>
 
-<article class="draft-task-row">
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<article class="draft-task-row" class:selected bind:this={element} onclick={() => mrBloomStore.selectTask(task.sourceTaskId || task.id)}>
   <div class="main-row">
     <span class="task-icon"><AppIcon name="document" size="task-type" /></span>
     <input
@@ -146,6 +154,7 @@
   }
 
   .draft-task-row:hover { border-color: #9fcfe4; }
+  .draft-task-row.selected { border-color: #00aeea; box-shadow: 0 0 0 1px #00aeea; }
 
   .main-row {
     display: grid;

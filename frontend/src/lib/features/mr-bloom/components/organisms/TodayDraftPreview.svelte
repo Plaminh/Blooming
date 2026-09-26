@@ -57,7 +57,7 @@
 
       <div class="tasks-list">
         {#each draft.tasks as task (task.id)}
-          <DraftTaskSummary {task} />
+          <DraftTaskSummary {task} selected={task.id === $mrBloomStore.selectedTaskId || task.sourceTaskId === $mrBloomStore.selectedTaskId} />
         {/each}
         {#if !hasTasks}
           <div class="empty-tasks-prompt">

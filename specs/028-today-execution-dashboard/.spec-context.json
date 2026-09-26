@@ -1,0 +1,45 @@
+{
+  "workflow": "speckit",
+  "specName": "Refactor Today into an Execution-Only Dashboard",
+  "branch": "dev",
+  "currentStep": "implement",
+  "status": "implemented",
+  "history": [
+    {
+      "step": "specify",
+      "substep": null,
+      "kind": "start",
+      "by": "extension",
+      "at": "2026-09-26T09:41:39.884Z"
+    },
+    {
+      "step": "plan",
+      "substep": null,
+      "kind": "start",
+      "by": "extension",
+      "at": "2026-09-26T09:49:11.599Z"
+    },
+    {
+      "step": "tasks",
+      "substep": null,
+      "kind": "start",
+      "by": "extension",
+      "at": "2026-09-26T09:51:10.819Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "kind": "start",
+      "by": "extension",
+      "at": "2026-09-26T09:56:15.482Z"
+    },
+    {
+      "step": "implement",
+      "substep": null,
+      "kind": "complete",
+      "by": "extension",
+      "at": "2026-09-26T10:57:35.455Z"
+    }
+  ],
+  "telemetryInstanceId": "335dea8a-970f-4d2c-9f83-70e7d04fc948"
+}

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query
 
 from app.api.deps import CurrentUser, SessionDep
 from app.schemas.planning import TaskResponse
+from app.schemas.drafts import TodayDraft
 from app.schemas.today import (
     TodayNoPlanResponse,
     TodayPreviewRequest,
@@ -29,6 +30,17 @@ async def preview_today_draft(*, db: SessionDep, current_user: CurrentUser, obj_
 async def save_today_draft(*, db: SessionDep, current_user: CurrentUser, obj_in: TodaySaveRequest):
     return await today_service.save_today_draft(db, current_user.id, obj_in)
 
+
+@router.get("/draft", response_model=TodayDraft)
+async def get_today_draft(
+    *,
+    db: SessionDep,
+    current_user: CurrentUser,
+    local_date: Annotated[date | None, Query(alias="date")] = None,
+):
+    return await today_service.get_today_draft(
+        db=db, user_id=current_user.id, local_date=local_date
+    )
 
 @router.get("", response_model=TodayResponse | TodayNoPlanResponse)
 async def get_today(
@@ -69,5 +81,6 @@ async def replan_today(
     *,
     db: SessionDep,
     current_user: CurrentUser,
+    target_date: Annotated[date | None, Query(alias="target_date")] = None,
 ):
-    return await today_service.replan_today(db=db, user_id=current_user.id)
+    return await today_service.replan_today(db=db, user_id=current_user.id, local_date=target_date)

@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { Category, TodayTaskEdit } from "$lib/api/types";
   import type { Task, FocusPreset } from "$lib/features/today/types";
   import AppIcon from "$lib/shared/components/atoms/AppIcon.svelte";
   import FocusPresetOption from "../atoms/FocusPresetOption.svelte";
   import NextSessionSummary from "../molecules/NextSessionSummary.svelte";
   import CustomFocusDialog from './CustomFocusDialog.svelte';
+
   let {
     task,
     nextTask,
@@ -14,8 +14,11 @@
     onPresetSelect,
     onCustomSaved,
     onStartFocus,
-    onSaveTask,
+    onMarkComplete,
+    onAdjustWithMrBloom,
     focusDisabled = false,
+    markCompleteDisabled = false,
+    adjustDisabled = false,
   }: {
     task: Task | undefined;
     nextTask: Task | undefined;
@@ -25,8 +28,11 @@
     onPresetSelect: (preset: FocusPreset) => void;
     onCustomSaved: (focusMinutes: number, breakMinutes: number) => void;
     onStartFocus: () => void;
-    onSaveTask: (id: string, updates: TodayTaskEdit) => Promise<void>;
+    onMarkComplete?: (taskId: string) => Promise<void> | void;
+    onAdjustWithMrBloom?: (taskId: string) => void;
     focusDisabled?: boolean;
+    markCompleteDisabled?: boolean;
+    adjustDisabled?: boolean;
   } = $props();
 
   const presets = [
@@ -40,62 +46,11 @@
     { id: "Custom", label: "CUSTOM", focus: "Set your own", break: "timer" },
   ] as const;
 
-  let isEditing = $state(false);
-  let editCategory = $state<Category>(null);
-  let editTitle = $state("");
-  let editDuration = $state(25);
-  let editTaskId = $state<string | null>(null);
-  let saveError = $state<string | null>(null);
-  let editDescription = $state<string>("");
-  let isSaving = $state(false);
   let customDialogOpen = $state(false);
 
   function selectFocusPreset(preset: FocusPreset) {
     if (preset === 'Custom') customDialogOpen = true;
     else onPresetSelect(preset);
-  }
-
-  export function startEditing() {
-    if (!task?.task_id || isSaving || isEditing) return;
-    editTaskId = task.task_id;
-    editTitle = task.title;
-    editDuration = task.estimatedDurationMinutes ?? 25;
-    editCategory = task.category;
-    editDescription = task.description ?? "";
-    saveError = null;
-    isEditing = true;
-  }
-
-  async function handleSave() {
-    if (!editTaskId || isSaving) return;
-    if (
-      !editTitle.trim() ||
-      editTitle.length > 200 ||
-      !Number.isInteger(editDuration) ||
-      editDuration < 1 ||
-      editDuration > 10080
-    ) {
-      saveError = "Enter a title and a duration between 1 and 10080 minutes.";
-      return;
-    }
-    isSaving = true;
-    saveError = null;
-    try {
-      await onSaveTask(editTaskId, {
-        title: editTitle.trim(),
-        estimated_duration_minutes: editDuration,
-        category: editCategory,
-        description: editDescription || null,
-      });
-      isEditing = false;
-    } catch (error: unknown) {
-      saveError =
-        error instanceof Error
-          ? error.message
-          : "Failed to save. Your draft is preserved.";
-    } finally {
-      isSaving = false;
-    }
   }
 </script>
 
@@ -103,46 +58,13 @@
   <section class="panel task-details" aria-labelledby="task-details-heading">
     <header class="panel-strip">
       <h2 id="task-details-heading">TASK DETAILS</h2>
-      {#if task}
-        {#if isEditing}
-          <button class="edit-toggle" onclick={handleSave} disabled={isSaving}
-            >Save</button
-          >
-          <button
-            class="edit-toggle"
-            onclick={() => (isEditing = false)}
-            disabled={isSaving}>Cancel</button
-          >
-        {:else}
-          <button
-            class="edit-toggle"
-            onclick={startEditing}
-            disabled={!task.task_id}
-            aria-label="Edit task"
-          >
-            <AppIcon name="pencil" scale={0.8} />
-          </button>
-        {/if}
-      {/if}
     </header>
     <div class="task-body">
-      {#if saveError}<p role="alert">{saveError}</p>{/if}
-      {#if isEditing}
-        <label>Title <input bind:value={editTitle} maxlength="200" /></label>
-        <label
-          >Duration (minutes) <input
-            type="number"
-            bind:value={editDuration}
-            min="1"
-            max="10080"
-          /></label
-        >
-      {/if}
       {#if task}
         <div class="task-summary">
-          <span class="detail-icon"
-            ><AppIcon name={task.iconRef} size="detail" /></span
-          >
+          <span class="detail-icon">
+            <AppIcon name={task.iconRef} size="detail" />
+          </span>
           <div>
             <h3>{task.title}</h3>
             <p class="task-time">
@@ -156,37 +78,35 @@
         <div class="meta-row">
           <AppIcon name="category" scale={0.72} />
           <span class="meta-label">Category</span>
-          {#if isEditing}
-            <select
-              aria-label="Category"
-              bind:value={editCategory}
-              class="category-select"
-            >
-              <option value={null}>Uncategorized</option>
-              <option value="Learning">Learning</option>
-              <option value="Work">Work</option>
-              <option value="Personal">Personal</option>
-            </select>
-          {:else}
-            <span class="category-badge"
-              >{task.category ?? "Uncategorized"}</span
-            >
-          {/if}
+          <span class="category-badge">{task.category ?? "Uncategorized"}</span>
         </div>
         <div class="meta-row notes-row">
           <AppIcon name="notes" scale={0.72} />
           <span class="meta-label">Notes</span>
-          {#if isEditing}
-            <textarea
-              aria-label="Notes"
-              bind:value={editDescription}
-              class="notes-textarea"
-              placeholder="Add notes..."></textarea>
-          {:else}
-            <span class="note-copy">{task.notes ?? "No additional notes."}</span
-            >
-          {/if}
+          <span class="note-copy">{task.notes || "No additional notes."}</span>
         </div>
+        {#if task.task_id}
+          <div class="task-actions">
+            <button
+              class="action-btn mark-complete"
+              data-testid="mark-complete-btn"
+              onclick={() => task?.task_id && onMarkComplete?.(task.task_id)}
+              disabled={!task?.task_id || task.status === 'completed' || markCompleteDisabled}
+            >
+              <AppIcon name="check" scale={0.75} />
+              <span>{task.status === 'completed' ? 'COMPLETED' : 'MARK COMPLETE'}</span>
+            </button>
+            <button
+              class="action-btn adjust-bloom"
+              data-testid="rail-adjust-bloom-btn"
+              onclick={() => task?.task_id && onAdjustWithMrBloom?.(task.task_id)}
+              disabled={!task?.task_id || adjustDisabled}
+            >
+              <AppIcon name="replan" scale={0.75} />
+              <span>ADJUST WITH MR. BLOOM</span>
+            </button>
+          </div>
+        {/if}
       {:else}
         <p class="empty-state">No task selected.</p>
       {/if}
@@ -229,7 +149,7 @@
       <button
         class="start-focus"
         onclick={onStartFocus}
-        disabled={!task?.task_id || focusDisabled}
+        disabled={!task?.task_id || task?.status === 'completed' || focusDisabled}
       >
         <span class="play" aria-hidden="true"></span>
         <span>START FOCUS</span>
@@ -248,7 +168,7 @@
   .right-rail-container {
     display: grid;
     height: 100%;
-    grid-template-rows: 210px 82px 190px;
+    grid-template-rows: minmax(0, 1fr) 82px 190px;
     gap: 8px;
   }
   .panel {
@@ -326,7 +246,7 @@
   }
   .meta-row {
     display: grid;
-    min-height: 31px;
+    min-height: 28px;
     grid-template-columns: 28px 74px 1fr;
     align-items: center;
     font-family: var(--bloom-body-font);
@@ -354,6 +274,47 @@
     color: #074da0;
     line-height: 1.3;
   }
+  .task-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed #d7d7d1;
+  }
+  .action-btn {
+    display: flex;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 10px;
+    border-radius: 4px;
+    font-family: var(--bloom-body-font);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .mark-complete {
+    border: 1px solid #177d4d;
+    background: #eef8ee;
+    color: #167d4a;
+  }
+  .mark-complete:hover:not(:disabled) {
+    background: #e1f3e1;
+  }
+  .adjust-bloom {
+    border: 1px solid #aaa79f;
+    background: var(--bloom-action-secondary-bg);
+    color: #074a88;
+  }
+  .adjust-bloom:hover:not(:disabled) {
+    background: #f0ebe1;
+  }
   .plain-header {
     height: 32px;
     padding-top: 1px;
@@ -362,43 +323,6 @@
     color: #06447f;
   }
 
-  .edit-toggle {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 4px;
-    color: white;
-    cursor: pointer;
-    font-size: 12px;
-    padding: 2px 8px;
-    margin-left: 5px;
-  }
-  .edit-toggle:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-  .edit-toggle:disabled {
-    opacity: 0.5;
-  }
-
-  .category-select {
-    justify-self: start;
-    padding: 2px 6px;
-    border-radius: 4px;
-    border: 1px solid #cceafe;
-    background: #fff;
-    color: #0750a8;
-  }
-  .notes-textarea {
-    width: 100%;
-    min-height: 60px;
-    margin-top: 3px;
-    padding: 4px 6px;
-    border: 1px solid #cceafe;
-    border-radius: 4px;
-    background: #fff;
-    color: #074da0;
-    font-family: inherit;
-    resize: vertical;
-  }
   .focus-body {
     padding: 3px 10px 7px;
   }
@@ -431,7 +355,8 @@
     opacity: 0.55;
     cursor: not-allowed;
   }
-  .start-focus:focus-visible {
+  .start-focus:focus-visible,
+  .action-btn:focus-visible {
     outline: 2px solid #00aeea;
     outline-offset: 2px;
   }

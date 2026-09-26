@@ -22,12 +22,6 @@ export interface GardenState {
 
 export type GrowthStage = "SPROUTING" | "GROWING" | "BLOOMING" | "FLOURISHING";
 
-export interface TodayTaskEdit {
-  title?: string;
-  estimated_duration_minutes?: number;
-  category?: Category;
-  description?: string | null;
-}
 export interface TodayBlock {
   id: string;
   task_id: string | null;

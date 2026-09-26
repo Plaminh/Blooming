@@ -185,6 +185,85 @@ class TodayService:
         """Ownership-scoped lookup used when restoring a persisted preview."""
         return await crud_daily_plan.get_by_date(db, user_id, plan_date)
 
+    async def get_today_draft(
+        self, db: AsyncSession, user_id: UUID, local_date: date | None = None
+    ) -> dict:
+        from app.schemas.drafts import (
+            TodayDraft, TaskDraft, AvailabilityWindowDraft,
+        )
+        settings = await db.scalar(
+            select(UserSettings).where(UserSettings.user_id == user_id)
+        )
+        tz = safe_timezone(settings.timezone if settings else "UTC")
+        if local_date is None:
+            local_date = datetime.now(tz).date()
+
+        plan = await crud_daily_plan.get_by_date(db, user_id, local_date)
+        if not plan or plan.status not in USABLE_PLAN_STATUSES:
+            return TodayDraft(
+                planDate=local_date,
+                timezone=str(tz),
+                windows=[],
+                tasks=[],
+                deferred_tasks=[]
+            ).model_dump(mode="json")
+            
+        await db.refresh(plan, ["plan_blocks", "availability_windows"])
+        
+        # Load tasks from blocks
+        task_ids = {b.task_id for b in plan.plan_blocks if b.task_id}
+        tasks = {}
+        if task_ids:
+            tasks_list = (await db.scalars(
+                select(Task)
+                .options(selectinload(Task.dependencies))
+                .where(Task.id.in_(task_ids))
+            )).all()
+            tasks = {t.id: t for t in tasks_list}
+            
+        draft_tasks = []
+        for b in sorted(plan.plan_blocks, key=lambda x: x.position):
+            if b.block_type == "TASK" and b.task_id and b.task_id in tasks:
+                t = tasks[b.task_id]
+                draft_tasks.append(
+                    TaskDraft(
+                        id=str(t.id),
+                        title=t.title,
+                        durationMin=t.estimated_duration_minutes,
+                        priority=t.priority,
+                        importance=t.importance,
+                        category=t.category,
+                        estimateSource="USER" if t.source == "MANUAL" else "AI",
+                        breakAfterMin=t.preferred_break_duration_minutes,
+                        deadline=t.deadline_at,
+                        schedulingType=t.scheduling_type,
+                        fixedStart=t.fixed_start_at,
+                        fixedEnd=t.fixed_end_at,
+                        dependencies=[str(d.depends_on_task_id) for d in t.dependencies],
+                        splittable=t.is_splittable,
+                        sourceTaskId=str(t.id),
+                        recurringTaskId=str(t.recurring_task_id) if t.recurring_task_id else None,
+                    )
+                )
+
+        windows = []
+        for w in plan.availability_windows:
+            windows.append(
+                AvailabilityWindowDraft(
+                    start=w.available_start_at.astimezone(tz).strftime("%H:%M"),
+                    end=w.available_end_at.astimezone(tz).strftime("%H:%M")
+                )
+            )
+
+        draft = TodayDraft(
+            planDate=plan.plan_date,
+            timezone=plan.timezone_snapshot,
+            windows=windows,
+            tasks=draft_tasks,
+            deferred_tasks=[]
+        )
+        return draft.model_dump(mode="json")
+
     async def get_today(
         self, db: AsyncSession, user_id: UUID, local_date: date | None = None
     ) -> dict:
@@ -348,7 +427,7 @@ class TodayService:
         return task_db
 
     async def replan_today(
-        self, db: AsyncSession, user_id: UUID, commit: bool = True
+        self, db: AsyncSession, user_id: UUID, local_date: date | None = None, commit: bool = True
     ) -> dict:
         from app.db.models.users import User
 
@@ -357,9 +436,11 @@ class TodayService:
             select(UserSettings).where(UserSettings.user_id == user_id)
         )
         now = datetime.now(timezone.utc)
-        local_date = now.astimezone(
-            safe_timezone(settings.timezone if settings else "UTC")
-        ).date()
+        if local_date is None:
+            local_date = now.astimezone(
+                safe_timezone(settings.timezone if settings else "UTC")
+            ).date()
+        
         plan = await crud_daily_plan.get_by_date(db, user_id, local_date)
         if not plan or plan.status not in USABLE_PLAN_STATUSES:
             return {"plan_date": local_date, "status": "NO_PLAN"}

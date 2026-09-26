@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 import {
   api, APIError, previewTodayPlan, saveTodayPlan,
   type TodayDraft, type RoadmapDraft, type TaskDraft, type MilestoneDraft,
-  type AssistantDraft, type TodayPreviewResponse, type AssistantSuggestion,
+  type AssistantDraft, type TodayPreviewResponse, type TodayResponse, type AssistantSuggestion,
   type AssistantAssumption, type AssistantSession, saveRoadmap, type ChatResponse
 } from '$lib/api';
 import type { IconName } from '$lib/shared/components/atoms/AppIcon.svelte';
@@ -45,6 +45,7 @@ export interface MrBloomState {
   isPreviewPending?: boolean;
   isSavePending?: boolean;
   error?: string | null;
+  selectedTaskId: string | null;
 }
 
 function timeLabel() {
@@ -120,7 +121,8 @@ function createMrBloomStore() {
     isWaitingForResponse: false, activeDraft: null, preview: null,
     previewMode: 'placeholder', sessionId: null, degraded: null,
     suggestions: [], assumptions: [], needsReplace: false,
-    isDraftMutationPending: false, isPreviewPending: false, isSavePending: false, error: null
+    isDraftMutationPending: false, isPreviewPending: false, isSavePending: false, error: null,
+    selectedTaskId: null
   };
   const { subscribe, set, update } = writable<MrBloomState>(initial);
   let draftRevision = 0;
@@ -308,6 +310,55 @@ function createMrBloomStore() {
       update(state => { content = state.chatHistory.find(item => item.id === id && item.status === 'failed')?.content ?? ''; return state; });
       if (content) await submit(content, id);
     },
+    loadPlanForAdjustment: async (date: string, taskId?: string | null) => {
+      const version = ++latestRequestVersion;
+      try {
+        const data = await api.get(`/today/draft?date=${encodeURIComponent(date)}`) as TodayDraft;
+        if (version !== latestRequestVersion) return;
+        if (!data.tasks?.length) {
+          update(state => ({ ...state, error: 'No plan found for this date.' }));
+          return;
+        }
+        
+        // Add unique random IDs to tasks (so they function properly in UI)
+        // while sourceTaskId is already populated for saving back correctly.
+        data.tasks = data.tasks.map(t => ({
+          ...t,
+          id: t.id || crypto.randomUUID()
+        }));
+
+        let validTaskId: string | null = null;
+        if (taskId) {
+          const taskMatch = data.tasks.find(t => t.id === taskId || t.sourceTaskId === taskId);
+          if (taskMatch) {
+            validTaskId = taskMatch.id;
+          }
+        }
+
+        const adjustMessage = validTaskId
+          ? `Loaded plan for ${date}. Task selected for adjustment.`
+          : `Loaded plan for ${date}. You can edit tasks, adjust durations, or ask me to replan.`;
+        update(state => ({
+          ...state,
+          activeDraft: data,
+          preview: null,
+          previewMode: 'today',
+          needsReplace: false, // Wait for 409 and user confirmation
+          error: null,
+          selectedTaskId: validTaskId,
+          chatHistory: [...state.chatHistory, {
+            id: crypto.randomUUID(), role: 'assistant',
+            content: adjustMessage, timestamp: timeLabel()
+          }]
+        }));
+      } catch (error) {
+        if (version !== latestRequestVersion) return;
+        update(state => ({
+          ...state,
+          error: error instanceof Error ? error.message : 'Failed to load plan for adjustment.'
+        }));
+      }
+    },
     restoreLatestSession: async () => {
       let shouldRestore = false;
       update(state => {
@@ -315,6 +366,17 @@ function createMrBloomStore() {
         return state;
       });
       if (!shouldRestore) return;
+
+      // Check for Today → Mr. Bloom handoff via URL params
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const date = params.get('date');
+        if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          const taskId = params.get('taskId');
+          await store.loadPlanForAdjustment(date, taskId);
+          return;
+        }
+      }
       
       const version = ++latestRequestVersion;
       try {
@@ -488,7 +550,8 @@ function createMrBloomStore() {
       }
       return submit(suggestion.label);
     },
-    backToTasks: () => update(state => ({ ...state, previewMode: 'today' }))
+    backToTasks: () => update(state => ({ ...state, previewMode: 'today' })),
+    selectTask: (taskId: string | null) => update(state => ({ ...state, selectedTaskId: taskId }))
   };
   return store;
 }

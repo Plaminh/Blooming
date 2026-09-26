@@ -470,29 +470,116 @@ Each test specifies three verification checkpoints:
 
 ---
 
-#### TODAY-UI-03 — Edit Task Metadata Directly from Today Right Rail
+#### TODAY-UI-03 — Today Task Details Are Read-Only
 **Priority:** High  
 **Environment:** Either  
 **Precondition:**  
 - Today page displays a pending task "Draft Architecture" (45 min, Category: Work).
 
 **Actions:**
-1. Select "Draft Architecture".
-2. In the Right Rail, click the Edit button (or pencil icon).
-3. Change title to "Draft System Architecture V2".
-4. Change duration to `60` minutes.
-5. Add description / notes: "Include database schema and ERD".
-6. Click "Save" in the Right Rail.
+1. Select "Draft Architecture" on the timeline.
+2. Inspect the Right Rail task details panel.
+3. Verify all metadata fields (title, time range, duration, category, notes).
 
 **Expected output:**
-- Task card updates title to "Draft System Architecture V2" and duration to `(60 min)`.
-- Updates persist across page refresh (`F5`).
-- Cross-window update signal `desktop.scheduleUpdated()` is emitted.
+- Right Rail shows task title as plain text heading, not an editable input.
+- Time range and duration displayed as static text (e.g., "09:00 – 09:45 (45 min)").
+- Category displayed as a badge, not a dropdown/select.
+- Notes displayed as static text, not a textarea.
+- No pencil/edit toggle icon exists anywhere in the Right Rail.
+- No "EDIT MANUALLY" button exists in Bottom Actions.
+- No "Save" or "Cancel" buttons exist in the Right Rail.
+- No "Delete" button or action exists in the Right Rail.
+- Execution actions present: "MARK COMPLETE", "ADJUST WITH MR. BLOOM", "START FOCUS".
 
 **Verification:**
-- **UI:** Timeline card and right rail show new title and 60 min.
-- **Network/API:** `PATCH /api/v1/today/tasks/<TASK_ID>` returns `HTTP 200 OK` with updated title, estimated duration, and description.
-- **DB:** `SELECT title, estimated_duration_minutes, description FROM tasks WHERE id = <TASK_ID>;` reflects updated fields.
+- **UI:** All task metadata is rendered as non-interactive text; no form controls exist for editing task properties.
+- **Network/API:** No `PATCH /api/v1/today/tasks/<TASK_ID>` call is made when inspecting the task.
+
+**Cleanup:**
+- None.
+
+---
+
+#### TODAY-UI-03a — Mark Task Complete from Today
+**Priority:** High  
+**Environment:** Either  
+**Precondition:**  
+- Today page displays a pending (upcoming/active) task with a valid `task_id`.
+
+**Actions:**
+1. Select the task on the timeline.
+2. In the Right Rail, click "MARK COMPLETE".
+
+**Expected output:**
+- Task status updates to "completed" in the Right Rail and on the timeline card.
+- "MARK COMPLETE" button changes to "COMPLETED" and becomes disabled.
+- "START FOCUS" button becomes disabled for the completed task.
+- Schedule update signal `desktop.scheduleUpdated()` is emitted.
+
+**Verification:**
+- **UI:** Task card shows completed styling; MARK COMPLETE button disabled and reads "COMPLETED".
+- **Network/API:** `PATCH /api/v1/today/tasks/<TASK_ID>/status` called with `{ status: "COMPLETED" }` and returns `HTTP 200 OK`.
+- **DB:** `SELECT status FROM plan_blocks WHERE task_id = <TASK_ID>;` shows `COMPLETED`.
+
+**Cleanup:**
+- None.
+
+---
+
+#### TODAY-UI-03b — Quick Replan from Today
+**Priority:** High  
+**Environment:** Either  
+**Precondition:**  
+- Today page displays a plan with at least one uncompleted task.
+
+**Actions:**
+1. In Bottom Actions, click "QUICK REPLAN".
+2. Observe the timeline refresh.
+
+**Expected output:**
+- Timeline blocks update with recalculated start/end times from current time forward.
+- Completed tasks remain in their original positions.
+- If any tasks overflow available time, a warning notification appears.
+- Schedule update signal `desktop.scheduleUpdated()` is emitted.
+
+**Verification:**
+- **UI:** Timeline blocks reflect new scheduling; warning shown if tasks overflow.
+- **Network/API:** `POST /api/v1/today/replan` called and returns updated plan with recalculated blocks.
+- **DB:** `SELECT planned_start_at, planned_end_at FROM plan_blocks WHERE daily_plan_id = <PLAN_ID> AND status != 'COMPLETED' ORDER BY position;` shows updated times.
+
+**Cleanup:**
+- None.
+
+---
+
+#### TODAY-UI-03c — Adjust Existing Plan with Mr. Bloom
+**Priority:** High  
+**Environment:** Either  
+**Precondition:**  
+- Today page displays a saved plan with at least one task.
+
+**Actions:**
+1. Select a task on the timeline.
+2. In the Right Rail, click "ADJUST WITH MR. BLOOM".
+3. Observe navigation to Mr. Bloom.
+4. In Mr. Bloom, verify the plan is loaded as a TodayDraft.
+5. Make an edit (e.g., change task duration via chat).
+6. Click "Generate Timeline" to get a scheduler preview.
+7. Click "Save" to commit the updated plan.
+8. Verify navigation returns to `/today`.
+
+**Expected output:**
+- Step 2-3: Browser navigates to `/mr-bloom?date=YYYY-MM-DD&taskId=<TASK_ID>`.
+- Step 4: Mr. Bloom right panel shows TodayDraftPreview with tasks from the existing plan. Chat displays "Loaded plan for YYYY-MM-DD. Task selected for adjustment."
+- Step 6: Scheduler generates a fresh timeline preview (preview invalidation works).
+- Step 7: Plan saves via `POST /api/v1/today/save` with `replace_existing: true`.
+- Step 8: Navigates back to `/today?date=YYYY-MM-DD` showing the updated schedule.
+
+**Verification:**
+- **UI:** Full round-trip: Today → Mr. Bloom (with plan loaded) → edit → preview → save → Today (updated).
+- **Network/API:** `GET /api/v1/today?date=...` loads plan into draft; `POST /api/v1/today/preview` generates preview; `POST /api/v1/today/save` commits changes.
+- **DB:** Plan blocks reflect the edits after save.
 
 **Cleanup:**
 - None.
@@ -849,7 +936,7 @@ Each test specifies three verification checkpoints:
 - Two pending tasks remain: "Heavy Refactor" (90 min) and "Final Testing" (30 min).
 
 **Actions:**
-1. Trigger re-plan via `POST /today/replan` (or complete a focus run with `should_replan: true`).
+1. Trigger re-plan via `POST /today/replan?target_date=YYYY-MM-DD` (or complete a focus run with `should_replan: true`).
 2. Inspect Today page response.
 
 **Expected output:**

@@ -1,24 +1,28 @@
 <script lang="ts">
   import AppIcon from "$lib/shared/components/atoms/AppIcon.svelte";
   let {
-    onEdit,
-    onReplan,
+    onQuickReplan,
+    onAdjustWithMrBloom,
     disabled = false,
+    replanDisabled = false,
+    adjustDisabled = false,
   }: {
-    onEdit: () => void;
-    onReplan: () => void;
+    onQuickReplan: () => void;
+    onAdjustWithMrBloom: () => void;
     disabled?: boolean;
+    replanDisabled?: boolean;
+    adjustDisabled?: boolean;
   } = $props();
 </script>
 
 <footer class="bottom-actions">
-  <button class="action edit" onclick={onEdit}>
-    <AppIcon name="pencil" scale={0.7} />
-    <span>EDIT MANUALLY</span>
+  <button class="action quick-replan" data-testid="quick-replan-btn" onclick={onQuickReplan} disabled={disabled || replanDisabled}>
+    <AppIcon name="clock" scale={0.7} />
+    <span>QUICK REPLAN</span>
   </button>
-  <button class="action replan" onclick={onReplan} {disabled}>
+  <button class="action adjust" data-testid="bottom-adjust-bloom-btn" onclick={onAdjustWithMrBloom} disabled={disabled || adjustDisabled}>
     <AppIcon name="replan" scale={0.7} />
-    <span>REPLAN WITH MR. BLOOM</span>
+    <span>ADJUST WITH MR. BLOOM</span>
   </button>
 </footer>
 
@@ -41,24 +45,28 @@
     padding: 0 18px;
     border: 1px solid #aaa79f;
     border-radius: 4px;
-    background: var(--bloom-action-secondary-bg);
-    color: #074a88;
     font-family: var(--bloom-body-font);
     font-size: 16px;
     font-weight: 700;
     white-space: nowrap;
     cursor: pointer;
   }
-  .edit {
-    width: 210px;
+  .action:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
-  .replan {
-    width: 264px;
+  .quick-replan {
+    width: 210px;
+    background: var(--bloom-action-secondary-bg);
+    color: #074a88;
+  }
+  .adjust {
+    width: 280px;
     border-color: #177d4d;
     background: var(--bloom-action-primary-bg);
     color: #eff9ee;
   }
-  .action:hover {
+  .action:hover:not(:disabled) {
     filter: brightness(1.04);
   }
   .action:focus-visible {

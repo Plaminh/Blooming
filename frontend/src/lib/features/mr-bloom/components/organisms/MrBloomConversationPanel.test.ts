@@ -22,7 +22,7 @@ beforeEach(() => {
     degraded: null, 
     suggestions: [], 
     assumptions: [], 
-    needsReplace: false, 
+    needsReplace: false, selectedTaskId: null, 
     error: null 
   });
 });

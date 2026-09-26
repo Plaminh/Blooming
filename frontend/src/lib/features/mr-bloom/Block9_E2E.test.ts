@@ -44,7 +44,7 @@ describe('Block 9 E2E: time constraints and lifecycle', () => {
     mrBloomStore.set({
       chatHistory: [], isWaitingForResponse: false, activeDraft: null, preview: null,
       previewMode: 'placeholder', sessionId: null, degraded: null, suggestions: [], assumptions: [],
-      needsReplace: false, isDraftMutationPending: false, isPreviewPending: false, isSavePending: false, error: null
+      needsReplace: false, selectedTaskId: null, isDraftMutationPending: false, isPreviewPending: false, isSavePending: false, error: null
     });
     (api.get as any).mockImplementation(async (url: string) => {
       if (url === '/me/settings') return { default_focus_minutes: 50, default_break_minutes: 10 };

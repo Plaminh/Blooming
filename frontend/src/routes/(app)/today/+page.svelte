@@ -5,12 +5,11 @@
   import type { FocusPreset, Task } from "$lib/features/today/types";
   import { api } from "$lib/api";
 
-  import type { TodayResponse, TodayTaskEdit } from "$lib/api/types";
+  import type { TodayResponse } from "$lib/api/types";
   import { desktop } from "$lib/platform/desktopWindow";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import NotificationToast from "$lib/shared/components/atoms/NotificationToast.svelte";
-  let rail: RightRail;
 
   let currentDate = $state(new Date());
   let requestedDate = $state<string | null>(null);
@@ -30,6 +29,30 @@
     tasks.find((task) => task.id === selectedTaskId),
   );
   const nextTask = $derived(tasks.find((task) => task.status === "upcoming"));
+
+  const activeDateString = $derived.by(() => {
+    if (!currentDate) return null;
+    return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+  });
+
+  const todayString = $derived.by(() => {
+    try {
+      return new Date().toLocaleString('en-CA', { timeZone: planTimezone || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' });
+    } catch {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    }
+  });
+
+  const isHistoricalDate = $derived.by(() => {
+    if (!activeDateString) return false;
+    return activeDateString < todayString;
+  });
+
+  const isExecutionDate = $derived.by(() => {
+    if (!activeDateString) return false;
+    return activeDateString === todayString;
+  });
 
   let currentRequestId = 0;
 
@@ -183,32 +206,51 @@
     }
   }
 
-  async function handleSaveTask(id: string, updates: TodayTaskEdit) {
+  async function handleMarkComplete(taskId: string) {
+    if (!taskId || isPending) return;
+    isPending = true;
+    actionError = null;
     syncWarning = null;
-    await api.patch(`/today/tasks/${id}`, updates);
-    tasks = tasks.map((task) =>
-      task.task_id === id
-        ? {
-            ...task,
-            title: updates.title ?? task.title,
-            estimatedDurationMinutes:
-              updates.estimated_duration_minutes ??
-              task.estimatedDurationMinutes,
-            category:
-              updates.category === undefined ? task.category : updates.category,
-            description:
-              updates.description === undefined
-                ? task.description
-                : (updates.description ?? ""),
-            notes:
-              updates.description === undefined
-                ? task.notes
-                : (updates.description ?? ""),
-          }
-        : task,
-    );
-    // Resolve the editor save before attempting cross-window synchronization.
-    void syncWidget("Saved, but widget sync failed.");
+    try {
+      await api.patch(`/today/tasks/${taskId}/status`, { status: "COMPLETED" });
+      tasks = tasks.map((task) =>
+        task.task_id === taskId
+          ? { ...task, status: "completed" }
+          : task,
+      );
+      void syncWidget("Task completed, but widget sync failed.");
+    } catch (err: unknown) {
+      actionError =
+        err instanceof Error ? err.message : "Failed to mark task complete.";
+    } finally {
+      isPending = false;
+    }
+  }
+
+  async function handleQuickReplan() {
+    if (!isExecutionDate) return;
+    if (isPending) return;
+    isPending = true;
+    actionError = null;
+    syncWarning = null;
+    try {
+      const dateStr = requestedDate || `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+      const data: TodayResponse = await api.post(`/today/replan?target_date=${dateStr}`);
+      applySchedule(data);
+      void syncWidget("Replan completed, but widget sync failed.");
+    } catch (err: unknown) {
+      actionError =
+        err instanceof Error ? err.message : "Quick replan failed.";
+    } finally {
+      isPending = false;
+    }
+  }
+
+  function handleAdjustWithMrBloom(taskId?: string) {
+    const dateStr = requestedDate ?? `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+    const params = new URLSearchParams({ date: dateStr });
+    if (taskId) params.set("taskId", taskId);
+    void goto(`/mr-bloom?${params.toString()}`);
   }
 
   async function handleStartFocus() {
@@ -277,14 +319,15 @@
       onDateChange={handleDateChange}
     />
     <BottomActions
-      onEdit={() => rail?.startEditing()}
-      onReplan={() => { void goto('/mr-bloom'); }}
+      onQuickReplan={handleQuickReplan}
+      onAdjustWithMrBloom={() => handleAdjustWithMrBloom()}
       disabled={isPending}
+      replanDisabled={!isExecutionDate}
+      adjustDisabled={isHistoricalDate}
     />
   </main>
   <aside class="today-rail">
     <RightRail
-      bind:this={rail}
       task={selectedTask}
       {nextTask}
       {selectedFocusPreset}
@@ -297,8 +340,11 @@
         selectedFocusPreset = 'Custom';
       }}
       onStartFocus={handleStartFocus}
-      focusDisabled={isPending || focusStarted}
-      onSaveTask={handleSaveTask}
+      onMarkComplete={handleMarkComplete}
+      onAdjustWithMrBloom={handleAdjustWithMrBloom}
+      focusDisabled={isPending || focusStarted || !isExecutionDate}
+      markCompleteDisabled={!isExecutionDate}
+      adjustDisabled={isHistoricalDate}
     />
   </aside>
 </div>

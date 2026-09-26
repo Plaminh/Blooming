@@ -26,7 +26,7 @@ describe('PlanDraftPreview save to goals', () => {
         milestones: [
           { id: 'm1', title: 'M1', targetDate: '2024-04-30', expectedOutcome: 'First result' }
         ]
-      }, preview: null, sessionId: null, degraded: null, suggestions: [], assumptions: [], needsReplace: false
+      }, preview: null, sessionId: null, degraded: null, suggestions: [], assumptions: [], needsReplace: false, selectedTaskId: null
     });
   });
 

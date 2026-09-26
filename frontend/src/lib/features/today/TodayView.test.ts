@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, screen, waitFor } from '@testing-library/svelte';
 import TodayPage from "../../../routes/(app)/today/+page.svelte";
 import { api } from '$lib/api';
+import * as navigation from '$app/navigation';
+
+vi.mock('$app/navigation', () => ({
+  goto: vi.fn()
+}));
 
 vi.mock('$lib/api', () => ({
   api: {
@@ -194,5 +199,66 @@ describe('Today Screen Feature', () => {
     const notice = await screen.findByRole('alert');
     expect(notice).toHaveAttribute('data-severity', 'error');
     expect(notice).toHaveTextContent('Network unavailable');
+  });
+
+  it('marks task complete and updates status', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ id: '1', status: 'COMPLETED' } as any);
+    render(TodayPage);
+    await waitFor(() => expect(screen.getAllByText('Study databases').length).toBeGreaterThan(0));
+
+    const markCompleteBtn = screen.getByTestId('mark-complete-btn');
+    await fireEvent.click(markCompleteBtn);
+
+    expect(api.patch).toHaveBeenCalledWith('/today/tasks/1/status', { status: 'COMPLETED' });
+    await waitFor(() => {
+      expect(screen.getByTestId('mark-complete-btn')).toBeDisabled();
+      expect(screen.getByTestId('mark-complete-btn')).toHaveTextContent('COMPLETED');
+    });
+  });
+
+  it('executes quick replan and refreshes schedule', async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      plan_date: '2024-04-23',
+      status: 'ACTIVE',
+      timezone: 'UTC',
+      blocks: [
+        {
+          id: '1',
+          task_id: '1',
+          title: 'Study databases (Replanned)',
+          planned_start_at: '2024-04-23T09:30:00Z',
+          planned_end_at: '2024-04-23T10:30:00Z',
+          status: 'ACTIVE',
+          block_type: 'WORK'
+        }
+      ]
+    } as any);
+
+    render(TodayPage);
+    await waitFor(() => expect(screen.getAllByText('Study databases').length).toBeGreaterThan(0));
+
+    const quickReplanBtn = screen.getByTestId('quick-replan-btn');
+    await fireEvent.click(quickReplanBtn);
+
+    const todayStr = (new Date()).toLocaleDateString('en-CA');
+    expect(api.post).toHaveBeenCalledWith(`/today/replan?target_date=${todayStr}`);
+    await waitFor(() => {
+      expect(screen.getAllByText('Study databases (Replanned)').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('navigates to Mr. Bloom carrying date and taskId when Adjust is clicked', async () => {
+    render(TodayPage);
+    await waitFor(() => expect(screen.getAllByText('Study databases').length).toBeGreaterThan(0));
+
+    // Right Rail Adjust button with taskId
+    const adjustRailBtn = screen.getByTestId('rail-adjust-bloom-btn');
+    await fireEvent.click(adjustRailBtn);
+    expect(navigation.goto).toHaveBeenCalledWith('/mr-bloom?date=2024-04-23&taskId=1');
+
+    // Bottom Actions Adjust button without taskId
+    const adjustBottomBtn = screen.getByTestId('bottom-adjust-bloom-btn');
+    await fireEvent.click(adjustBottomBtn);
+    expect(navigation.goto).toHaveBeenCalledWith('/mr-bloom?date=2024-04-23');
   });
 });

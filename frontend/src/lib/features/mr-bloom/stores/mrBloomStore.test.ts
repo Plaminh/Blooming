@@ -22,7 +22,7 @@ const saveableDraft: TodayDraft = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mrBloomStore.set({ chatHistory: [], isWaitingForResponse: false, activeDraft: null, preview: null, previewMode: 'placeholder', sessionId: null, degraded: null, suggestions: [], assumptions: [], needsReplace: false, error: null });
+  mrBloomStore.set({ chatHistory: [], isWaitingForResponse: false, activeDraft: null, preview: null, previewMode: 'placeholder', sessionId: null, degraded: null, suggestions: [], assumptions: [], needsReplace: false, selectedTaskId: null, error: null });
 });
 
 test('sends the message to the backend and shows its draft', async () => {
@@ -401,4 +401,112 @@ test('a failed reply that arrives after a save still releases the composer', asy
   await pending;
 
   expect(get(mrBloomStore).isWaitingForResponse).toBe(false);
+});
+
+test('loadPlanForAdjustment converts persisted plan blocks into a TodayDraft', async () => {
+  vi.mocked(api.get).mockResolvedValue({
+    type: 'today',
+    planDate: '2026-09-26',
+    timezone: 'Asia/Ho_Chi_Minh',
+    windows: [],
+    tasks: [
+      {
+        id: 'task-abc',
+        title: 'Study for exam',
+        durationMin: 45,
+        category: 'Learning',
+        priority: 'URGENT',
+        importance: 'CORE',
+        estimateSource: 'USER',
+        breakAfterMin: 10,
+        deadline: '2026-09-26T18:00:00Z',
+        schedulingType: 'FIXED',
+        fixedStart: '2026-09-26T09:00:00+07:00',
+        fixedEnd: '2026-09-26T09:45:00+07:00',
+        dependencies: ['task-dep'],
+        splittable: false,
+        sourceTaskId: 'task-abc'
+      }
+    ],
+    deferred_tasks: []
+  });
+
+  await mrBloomStore.loadPlanForAdjustment('2026-09-26', 'task-abc');
+  const state = get(mrBloomStore);
+
+  expect(api.get).toHaveBeenCalledWith('/today/draft?date=2026-09-26');
+  expect(state.activeDraft?.type).toBe('today');
+  expect(state.previewMode).toBe('today');
+  expect(state.preview).toBeNull();
+  expect(state.error).toBeNull();
+
+  const draft = state.activeDraft as TodayDraft;
+  expect(draft.planDate).toBe('2026-09-26');
+  expect(draft.timezone).toBe('Asia/Ho_Chi_Minh');
+  expect(draft.tasks).toHaveLength(1);
+  expect(draft.tasks[0].id).not.toBeNull();
+  expect(draft.tasks[0].title).toBe('Study for exam');
+  expect(draft.tasks[0].durationMin).toBe(45);
+  expect(draft.tasks[0].category).toBe('Learning');
+  expect(draft.tasks[0].importance).toBe('CORE');
+  expect(draft.tasks[0].breakAfterMin).toBe(10);
+  expect(draft.tasks[0].priority).toBe('URGENT');
+  expect(draft.tasks[0].schedulingType).toBe('FIXED');
+  expect(draft.tasks[0].dependencies).toEqual(['task-dep']);
+  
+  // Chat message indicates task-specific adjustment
+  expect(state.chatHistory.some(m => m.content.includes('Task selected for adjustment'))).toBe(true);
+});
+
+test('loadPlanForAdjustment ignores invalid taskId', async () => {
+  vi.mocked(api.get).mockResolvedValue({
+    type: 'today', planDate: '2026-09-26', timezone: 'UTC', windows: [],
+    tasks: [{ id: 'task-abc', title: 'A task', durationMin: 30, category: 'Work', importance: 'CORE', priority: 'MEDIUM', schedulingType: 'FLEXIBLE', dependencies: [], splittable: false }],
+    deferred_tasks: []
+  });
+
+  await mrBloomStore.loadPlanForAdjustment('2026-09-26', 'task-invalid');
+  const state = get(mrBloomStore);
+  
+  expect(state.selectedTaskId).toBeNull();
+  expect(state.chatHistory.some(m => m.content.includes('Task selected for adjustment'))).toBe(false);
+});
+
+test('loadPlanForAdjustment shows error when plan has no blocks', async () => {
+  vi.mocked(api.get).mockResolvedValue({
+    type: 'today', planDate: '2026-09-27', timezone: 'UTC', windows: [], tasks: [], deferred_tasks: []
+  });
+
+  await mrBloomStore.loadPlanForAdjustment('2026-09-27');
+  const state = get(mrBloomStore);
+
+  expect(state.activeDraft).toBeNull();
+  expect(state.error).toBe('No plan found for this date.');
+});
+
+test('restoreLatestSession detects date param and loads plan for adjustment', async () => {
+  window.history.replaceState({}, '', '/mr-bloom?date=2026-09-26&taskId=task-xyz');
+
+  vi.mocked(api.get).mockResolvedValue({
+    type: 'today', planDate: '2026-09-26', timezone: 'UTC', windows: [],
+    tasks: [{
+      id: 'task-xyz', sourceTaskId: 'task-xyz', title: 'Replanned task',
+      durationMin: 30, category: 'Work', importance: 'OPTIONAL', priority: 'LOW',
+      estimateSource: 'USER', breakAfterMin: 5, deadline: null, schedulingType: 'FLEXIBLE',
+      fixedStart: null, fixedEnd: null, dependencies: [], splittable: false
+    }],
+    deferred_tasks: []
+  });
+
+  await mrBloomStore.restoreLatestSession();
+  const state = get(mrBloomStore);
+
+  // Should have loaded the plan, NOT fetched the latest session
+  expect(api.get).toHaveBeenCalledWith('/today/draft?date=2026-09-26');
+  expect(api.get).not.toHaveBeenCalledWith('/assistant/sessions/latest');
+  expect(state.activeDraft?.type).toBe('today');
+  expect(state.previewMode).toBe('today');
+
+  // Cleanup URL
+  window.history.replaceState({}, '', '/mr-bloom');
 });

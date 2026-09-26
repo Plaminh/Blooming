@@ -30,7 +30,7 @@ describe('E2E-003: repair suggestions follow manual regeneration', () => {
     mrBloomStore.set({
       chatHistory: [], isWaitingForResponse: false, activeDraft: draft,
       preview: preview('old'), previewMode: 'timeline', sessionId: 's1', degraded: null,
-      suggestions: [], assumptions: [], needsReplace: false, isDraftMutationPending: false,
+      suggestions: [], assumptions: [], needsReplace: false, selectedTaskId: null, isDraftMutationPending: false,
       isPreviewPending: false, isSavePending: false, error: null
     });
   });
