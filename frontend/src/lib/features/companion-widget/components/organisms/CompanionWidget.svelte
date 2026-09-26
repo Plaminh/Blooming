@@ -87,7 +87,7 @@
   aria-label="Blooming companion"
   style={widgetLayoutStyle(presentation.kind)}
 >
-  <WidgetSceneBackground {daytimeOverride} {seasonOverride} weatherOverride={weatherOverride ?? weather} timezoneOverride={timezone} animationOverride={rainEnabled} />
+  <WidgetSceneBackground {daytimeOverride} {seasonOverride} weatherCondition={weather} {weatherOverride} timezoneOverride={timezone} animationOverride={rainEnabled} />
   <WidgetTitleBar {windowService} />
 
   <div class="plant-slot">
