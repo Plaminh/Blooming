@@ -19,6 +19,7 @@
   type Props = {
     class?: string;
     variant?: "widget" | "garden";
+    weatherCondition?: Weather;
     weatherOverride?: Weather;
     seasonOverride?: Season;
     daytimeOverride?: Daytime;
@@ -29,6 +30,7 @@
   let { 
     class: className = "", 
     variant = "widget",
+    weatherCondition,
     weatherOverride,
     seasonOverride,
     daytimeOverride,
@@ -40,7 +42,7 @@
   let rainEnabled = $derived(animationOverride ?? ($environmentStore.animationEnabled !== false));
   
   // Use overrides if provided, else use environment store
-  let weather = $derived(weatherOverride || ($environmentStore.weatherCondition as Weather));
+  let weather = $derived(weatherOverride ?? weatherCondition ?? ($environmentStore.weatherCondition as Weather));
 
   let zonedTime = $derived(datePartsInTimezone($clockStore, timezone));
   let currentDaytime: Daytime = $derived(daytimeOverride || getDaytimeFromHour(zonedTime.hour));

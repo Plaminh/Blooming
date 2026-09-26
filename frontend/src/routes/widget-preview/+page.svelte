@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import { onMount } from "svelte";
   import { parseSceneQuery } from './sceneQuery';
   import { CompanionWidget } from "$lib/features/companion-widget";
   import type {
@@ -19,6 +20,10 @@
     PLANT_SPECIES,
     clampPlantFrameIndex,
   } from "$lib/features/companion-widget/model/plants";
+  import type { Weather } from "$lib/features/companion-widget/model/environment";
+  import { environmentStore } from "$lib/shared/stores/environmentStore";
+
+  onMount(() => environmentStore.init());
 
   const fixtures: Record<CompanionWidgetKind, CompanionWidgetPresentation> = {
     paused: pausedFixture,
@@ -117,7 +122,13 @@
     </div>
   </div>
   <div class="frame">
-    <CompanionWidget {presentation} {...sceneOverrides} />
+    <CompanionWidget
+      {presentation}
+      weather={$environmentStore.weatherCondition as Weather}
+      timezone={$environmentStore.effectiveTimezone}
+      rainEnabled={$environmentStore.animationEnabled}
+      {...sceneOverrides}
+    />
   </div>
 </main>
 

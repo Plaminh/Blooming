@@ -11,6 +11,7 @@
   import type { GardenState, TodayResponse } from "$lib/api/types";
   import { selectedPlantPresentation } from "$lib/features/garden/utils/spriteMapper";
   import { desktop } from "$lib/platform/desktopWindow";
+  import type { Weather } from "$lib/features/companion-widget/model/environment";
 
   interface FocusSession {
     id: string;
@@ -266,4 +267,9 @@
 </script>
 
 {#if finishError}<p role="alert">{finishError}</p>{/if}
-<CompanionWidget {presentation} />
+<CompanionWidget
+  {presentation}
+  weather={$environmentStore.weatherCondition as Weather}
+  timezone={$environmentStore.effectiveTimezone}
+  rainEnabled={$environmentStore.animationEnabled}
+/>

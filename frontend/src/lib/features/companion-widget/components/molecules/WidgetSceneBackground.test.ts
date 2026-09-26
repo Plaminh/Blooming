@@ -95,6 +95,25 @@ describe('WidgetSceneBackground', () => {
     expect(container.querySelector('.rain-layer')).toBeNull();
   });
 
+  it('renders weather explicitly connected by the production widget without treating it as a preview override', () => {
+    mockEnvStore.set({
+      weatherCondition: 'CLEAR',
+      weatherStatus: 'STALE',
+      sceneSeason: 'AUTO',
+      effectiveTimezone: 'UTC',
+      animationEnabled: true,
+      widgetVisible: true,
+    });
+    const { container } = render(WidgetSceneBackground, {
+      props: { weatherCondition: 'RAIN' },
+    });
+
+    expect((container.querySelector('.weather-overlay') as HTMLImageElement).src)
+      .toContain(WEATHER_ASSETS.RAIN);
+    expect(container.querySelector('.rain-layer')).not.toBeNull();
+    expect(container.querySelector('.stale-indicator')).not.toBeNull();
+  });
+
   it('renders overcast ambience when weather is OVERCAST', () => {
     mockEnvStore.set({ weatherCondition: 'OVERCAST', sceneSeason: 'AUTO' });
     const { container } = render(WidgetSceneBackground);
