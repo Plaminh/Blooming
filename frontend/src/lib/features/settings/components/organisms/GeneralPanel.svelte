@@ -1,6 +1,5 @@
 <script lang="ts">
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
-  import TextInput from '$lib/shared/components/atoms/TextInput.svelte';
   import ToggleSwitch from '../atoms/ToggleSwitch.svelte';
   import WeatherLocationPicker from '../molecules/WeatherLocationPicker.svelte';
   import { getSettingsState } from '../../model/SettingsState.svelte';
@@ -17,13 +16,6 @@
   </div>
   
   <div class="panel-content">
-    <TextInput
-      id="mrBloomName"
-      label="Mr. Bloom's name"
-      bind:value={settingsState.draftSettings.mrBloomName}
-      error={settingsState.validationErrors.mrBloomName}
-    />
-
     <div class="device-row">
       <span>Timezone</span>
       <div>
@@ -63,46 +55,20 @@
       {/if}
     </div>
 
-    <div class="settings-group" style="margin-top: 12px; margin-bottom: 12px;">
-      <label class="group-label" for="sceneSeason">Garden Season Override</label>
-      <select 
-        id="sceneSeason"
-        bind:value={settingsState.draftSettings.sceneSeason}
-        class="season-select"
-      >
-        <option value="AUTO">Auto (Based on weather/date)</option>
-        <option value="SPRING">Spring</option>
-        <option value="SUMMER">Summer</option>
-        <option value="AUTUMN">Autumn</option>
-        <option value="WINTER">Winter</option>
-      </select>
-    </div>
-
-    <ToggleSwitch
-      id="weatherEnabled"
-      label="Show local weather in widget"
-      bind:checked={settingsState.draftSettings.weatherEnabled}
-    />
-
-    <ToggleSwitch
-      id="weatherAnimationEnabled"
-      label="Animate rain in widget"
-      bind:checked={settingsState.draftSettings.weatherAnimationEnabled}
-    />
-
-    <div class="toggles">
+    <div class="weather-toggles">
       <ToggleSwitch
-        id="startAtLogin"
-        label="Start Blooming at login"
-        bind:checked={settingsState.draftSettings.startAtLogin}
+        id="weatherEnabled"
+        label="Show local weather in widget"
+        bind:checked={settingsState.draftSettings.weatherEnabled}
       />
 
       <ToggleSwitch
-        id="keepWidgetOnTop"
-        label="Keep widget on top"
-        bind:checked={settingsState.draftSettings.keepWidgetOnTop}
+        id="weatherAnimationEnabled"
+        label="Animate rain in widget"
+        bind:checked={settingsState.draftSettings.weatherAnimationEnabled}
       />
     </div>
+
   </div>
 </section>
 
@@ -113,6 +79,7 @@
     border-radius: 8px;
     padding: 18px;
     margin-bottom: 16px;
+    box-sizing: border-box;
     height: 100%;
   }
 
@@ -142,8 +109,8 @@
     display: grid;
     grid-template-columns: 220px minmax(0, 1fr);
     align-items: center;
-    gap: 12px;
-    margin-bottom: 14px;
+    gap: var(--space-3);
+    margin-bottom: calc(var(--space-5) + var(--space-3));
     color: var(--bloom-text-dark-blue);
     font-family: var(--bloom-body-font);
     font-size: 16px;
@@ -152,17 +119,11 @@
 
   .location-error { color: var(--bloom-error); }
 
-  .toggles {
-    margin-top: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
   .settings-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--space-2);
+    margin-bottom: calc(var(--space-5) + var(--space-3));
   }
   .group-label {
     font-family: var(--bloom-body-font);
@@ -174,12 +135,20 @@
     font-size: 14px;
     color: var(--bloom-text-dark-blue);
   }
-  .season-select {
-    padding: 8px;
-    border: 1px solid var(--bloom-border-subtle);
-    border-radius: 4px;
-    background: var(--bloom-surface-cream-alt);
-    font-family: var(--bloom-body-font);
-    font-size: 14px;
+
+  .weather-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .weather-toggles :global(.toggle-group:last-child) {
+    margin-bottom: 0;
+  }
+
+  @media (max-width: 760px) {
+    .panel {
+      height: auto;
+    }
   }
 </style>

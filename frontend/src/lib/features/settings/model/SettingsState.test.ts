@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SettingsState } from './SettingsState.svelte';
 import { api } from '$lib/api';
 import { desktop } from '$lib/platform/desktopWindow';
+import { authoritativeSettings } from './userSettingsMapping';
 
 vi.mock('$lib/api', () => ({
   api: {
@@ -30,49 +31,36 @@ describe('SettingsState', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    authoritativeSettings.set(null);
+    vi.mocked(api.get).mockResolvedValue(null);
     state = new SettingsState();
   });
 
   it('initializes with default fixture values', () => {
     expect(state.savedSettings.email).toBe('you@example.com');
-    expect(state.savedSettings.mrBloomName).toBe('Mr. Bloom');
     expect(state.savedSettings.timezone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
     expect(state.savedSettings.focusDurationMinutes).toBe(25);
     expect(state.savedSettings.breakDurationMinutes).toBe(5);
     expect(state.savedSettings.startAtLogin).toBe(true);
     expect(state.savedSettings.keepWidgetOnTop).toBe(true);
     expect(state.savedSettings.milestoneReminderLeadTimeMinutes).toBe(1440);
-    expect(state.savedSettings.emailReminders).toBe(true);
   });
 
   it('calculates dirty state correctly', () => {
     expect(state.isDirty).toBe(false);
     
-    state.draftSettings.mrBloomName = 'New Name';
+    state.draftSettings.focusDurationMinutes = 50;
     expect(state.isDirty).toBe(true);
-    
-    state.draftSettings.mrBloomName = 'Mr. Bloom';
+
+    state.draftSettings.focusDurationMinutes = 25;
     expect(state.isDirty).toBe(false);
   });
 
   it('cancels changes by reverting draft to saved', () => {
-    state.draftSettings.mrBloomName = 'Discarded Name';
+    state.draftSettings.focusDurationMinutes = 50;
     state.cancel();
-    expect(state.draftSettings.mrBloomName).toBe('Mr. Bloom');
+    expect(state.draftSettings.focusDurationMinutes).toBe(25);
     expect(state.isDirty).toBe(false);
-  });
-
-  it('validates name length and emptiness', () => {
-    state.draftSettings.mrBloomName = '   ';
-    expect(state.validate()).toBe(false);
-    expect(state.validationErrors.mrBloomName).toBeDefined();
-
-    state.draftSettings.mrBloomName = 'A'.repeat(61);
-    expect(state.validate()).toBe(false);
-    expect(state.validationErrors.mrBloomName).toBeDefined();
-
-    state.draftSettings.mrBloomName = 'Valid Name';
-    expect(state.validate()).toBe(true);
   });
 
   it('validates duration bounds', () => {
@@ -110,7 +98,7 @@ describe('SettingsState', () => {
       weather_animation_enabled: false,
     });
     const notifyWidget = vi.spyOn(desktop, 'settingsUpdated').mockResolvedValue();
-    state.draftSettings.mrBloomName = 'Saved Name';
+    const reconcile = vi.spyOn(desktop, 'reconcileSettings').mockResolvedValue();
     state.draftSettings.weatherEnabled = true;
     state.draftSettings.weatherLocation = 'Ho Chi Minh City';
     state.draftSettings.weatherLocationName = 'Ho Chi Minh City, Vietnam';
@@ -120,7 +108,6 @@ describe('SettingsState', () => {
     const success = await state.save();
     
     expect(success).toBe(true);
-    expect(state.savedSettings.mrBloomName).toBe('Saved Name');
     expect(state.savedSettings.timezone).toBe('Asia/Ho_Chi_Minh');
     expect(state.savedSettings.focusDurationMinutes).toBe(50);
     expect(state.isDirty).toBe(false);
@@ -132,9 +119,38 @@ describe('SettingsState', () => {
       weather_lon: 106.63,
       weather_animation_enabled: false,
     }));
+    expect(api.put).toHaveBeenCalledWith('/me/settings', expect.not.objectContaining({
+      mr_bloom_display_name: expect.anything(),
+      scene_season: expect.anything(),
+    }));
+    expect(reconcile).toHaveBeenCalledWith(expect.objectContaining({
+      launch_on_startup: true,
+      widget_always_on_top: true,
+    }));
     expect(notifyWidget).toHaveBeenCalledTimes(1);
     expect(vi.mocked(api.put).mock.invocationCallOrder[0]).toBeLessThan(notifyWidget.mock.invocationCallOrder[0]);
     notifyWidget.mockRestore();
+    reconcile.mockRestore();
+  });
+
+  it('loads onboarding-persisted values into Settings exactly', () => {
+    authoritativeSettings.set({
+      mr_bloom_display_name: 'Legacy Name', timezone: 'Europe/Paris',
+      default_focus_minutes: 40, default_break_minutes: 8,
+      launch_on_startup: false, widget_always_on_top: false,
+      milestone_reminder_lead_time_minutes: 60, weather_enabled: true,
+      weather_location: null, weather_location_name: 'Paris, France',
+      weather_lat: 48.86, weather_lon: 2.35, scene_season: 'WINTER',
+      weather_animation_enabled: false,
+    });
+
+    const synced = new SettingsState();
+
+    expect(synced.savedSettings).toMatchObject({
+      timezone: 'Europe/Paris', focusDurationMinutes: 40, breakDurationMinutes: 8,
+      startAtLogin: false, keepWidgetOnTop: false, weatherEnabled: true,
+      weatherLocationName: 'Paris, France', weatherLat: 48.86, weatherLon: 2.35,
+    });
   });
 
   it('rejects free text and restores the saved selection on cancel', () => {

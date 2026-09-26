@@ -1,9 +1,21 @@
 <script lang="ts">
   import AppIcon from "$lib/shared/components/atoms/AppIcon.svelte";
-  import ToggleSwitch from "../atoms/ToggleSwitch.svelte";
+  import SelectField from "../atoms/SelectField.svelte";
   import { getSettingsState } from "../../model/SettingsState.svelte";
 
   const settingsState = getSettingsState();
+  const reminderOptions = $derived([
+    { value: 0, label: 'At the deadline' },
+    { value: 60, label: 'One hour before' },
+    { value: 1440, label: 'One day before' },
+    { value: 4320, label: 'Three days before' },
+    ...(![0, 60, 1440, 4320].includes(settingsState.draftSettings.milestoneReminderLeadTimeMinutes)
+      ? [{
+          value: settingsState.draftSettings.milestoneReminderLeadTimeMinutes,
+          label: `${settingsState.draftSettings.milestoneReminderLeadTimeMinutes} minutes before`,
+        }]
+      : []),
+  ]);
 </script>
 
 <section
@@ -16,36 +28,14 @@
   </div>
 
   <div class="panel-content">
-    <label for="milestoneReminderLeadTimeMinutes">Milestone reminder</label>
-    <select
+    <SelectField
       id="milestoneReminderLeadTimeMinutes"
+      label="Milestone reminder"
       bind:value={settingsState.draftSettings.milestoneReminderLeadTimeMinutes}
-    >
-      <option value={0}>At the deadline</option>
-      <option value={60}>One hour before</option>
-      <option value={1440}>One day before</option>
-      <option value={4320}>Three days before</option>
-      {#if ![0, 60, 1440, 4320].includes(settingsState.draftSettings.milestoneReminderLeadTimeMinutes)}
-        <option
-          value={settingsState.draftSettings.milestoneReminderLeadTimeMinutes}
-          >{settingsState.draftSettings.milestoneReminderLeadTimeMinutes} minutes
-          before</option
-        >
-      {/if}
-    </select>
-    {#if settingsState.validationErrors.milestoneReminderLeadTimeMinutes}
-      <p role="alert">
-        {settingsState.validationErrors.milestoneReminderLeadTimeMinutes}
-      </p>
-    {/if}
-
-    <div class="toggles">
-      <ToggleSwitch
-        id="emailReminders"
-        label="Email reminders"
-        bind:checked={settingsState.draftSettings.emailReminders}
-      />
-    </div>
+      options={reminderOptions}
+      error={settingsState.validationErrors.milestoneReminderLeadTimeMinutes}
+      layout="stacked"
+    />
   </div>
 </section>
 
@@ -77,9 +67,5 @@
   .panel-content {
     display: flex;
     flex-direction: column;
-  }
-
-  .toggles {
-    margin-top: 8px;
   }
 </style>

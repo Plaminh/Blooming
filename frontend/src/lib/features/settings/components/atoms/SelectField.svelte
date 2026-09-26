@@ -4,17 +4,19 @@
     label,
     value = $bindable(),
     options,
-    error
+    error,
+    layout = 'inline',
   }: {
     id: string;
     label: string;
     value: T;
     options: { value: T; label: string }[];
     error?: string;
+    layout?: 'inline' | 'stacked';
   } = $props();
 </script>
 
-<div class="select-group">
+<div class="select-group" class:stacked={layout === 'stacked'}>
   <label for={id}>{label}</label>
   <select
     {id}
@@ -41,6 +43,14 @@
     margin-bottom: 14px;
   }
 
+  .select-group.stacked {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 0;
+  }
+
   label {
     font-family: var(--bloom-body-font);
     font-size: 16px;
@@ -49,6 +59,9 @@
   }
 
   select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
     font-family: var(--bloom-body-font);
     font-size: 16px;
     color: var(--bloom-text-dark-blue);
@@ -57,6 +70,11 @@
     border-radius: 4px;
     background: var(--bloom-surface-cream-alt);
     cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+
+  select:hover {
+    border-color: var(--bloom-border-dark);
   }
 
   select:focus-visible {
@@ -73,5 +91,9 @@
     color: var(--bloom-error);
     font-size: 13px;
     font-family: var(--bloom-body-font);
+  }
+
+  .stacked .error-message {
+    grid-column: auto;
   }
 </style>

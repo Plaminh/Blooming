@@ -16,24 +16,20 @@ export function deriveFocusPreset(focus: number, rest: number): FocusPreset {
 export function settingsResponseToProfile(
   stored: UserSettingsResponse,
   email = '',
-  emailReminders = true,
 ): SettingsProfile {
   return {
     email,
-    mrBloomName: stored.mr_bloom_display_name || 'Mr. Bloom',
     timezone: normalizeTimezone(stored.timezone || deviceTimezone()),
     focusDurationMinutes: stored.default_focus_minutes ?? 25,
     breakDurationMinutes: stored.default_break_minutes ?? 5,
     startAtLogin: stored.launch_on_startup ?? true,
     keepWidgetOnTop: stored.widget_always_on_top ?? true,
     milestoneReminderLeadTimeMinutes: stored.milestone_reminder_lead_time_minutes ?? 1440,
-    emailReminders,
     weatherEnabled: stored.weather_enabled ?? false,
     weatherLocation: stored.weather_location ?? '',
     weatherLocationName: stored.weather_location_name ?? null,
     weatherLat: stored.weather_lat ?? null,
     weatherLon: stored.weather_lon ?? null,
-    sceneSeason: stored.scene_season || 'AUTO',
     weatherAnimationEnabled: stored.weather_animation_enabled ?? true,
   };
 }

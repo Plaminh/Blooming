@@ -4,29 +4,24 @@ import { desktop } from "$lib/platform/desktopWindow";
 import type { UserSettingsResponse } from "$lib/api/types";
 import { get } from "svelte/store";
 import { authStore } from "$lib/shared/stores/authStore";
-import { deviceTimezone, requestApproximateDeviceLocation } from "$lib/shared/deviceLocation";
+import { deviceTimezone } from "$lib/shared/deviceLocation";
 import { isValidTimezone, normalizeTimezone } from "$lib/shared/timezones";
 import { authoritativeSettings, settingsResponseToProfile } from './userSettingsMapping';
-
-const SETTINGS_KEY = "bloom_settings";
 
 export class SettingsState {
   savedSettings = $state<SettingsProfile>({
     email: "",
-    mrBloomName: "Mr. Bloom",
     timezone: deviceTimezone(),
     focusDurationMinutes: 25,
     breakDurationMinutes: 5,
     startAtLogin: true,
     keepWidgetOnTop: true,
     milestoneReminderLeadTimeMinutes: 1440,
-    emailReminders: true,
     weatherEnabled: false,
     weatherLocation: "",
     weatherLocationName: null,
     weatherLat: null,
     weatherLon: null,
-    sceneSeason: "AUTO",
     weatherAnimationEnabled: true,
   });
 
@@ -38,8 +33,6 @@ export class SettingsState {
   saveSuccessMessage = $state<string | null>(null);
   saveErrorMessage = $state<string | null>(null);
   syncWarning = $state<string | null>(null);
-  locationPending = $state(false);
-  locationError = $state<string | null>(null);
   locationPickerVersion = $state(0);
 
   isDirty = $derived(
@@ -56,23 +49,8 @@ export class SettingsState {
 
     const cached = get(authoritativeSettings);
     if (cached) {
-      this.savedSettings = settingsResponseToProfile(cached, get(authStore).user?.email || '', this.savedSettings.emailReminders);
+      this.savedSettings = settingsResponseToProfile(cached, get(authStore).user?.email || '');
       this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
-    }
-
-    // Load local desktop-only preferences first
-    if (typeof localStorage !== "undefined") {
-      const localPrefsStr = localStorage.getItem(SETTINGS_KEY);
-      if (localPrefsStr) {
-        try {
-          const localPrefs = JSON.parse(localPrefsStr);
-          if (typeof localPrefs.emailReminders === "boolean")
-            this.savedSettings.emailReminders = localPrefs.emailReminders;
-          this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
-        } catch (e) {
-          // ignore parsing error
-        }
-      }
     }
 
     this.loadFromAPI();
@@ -84,7 +62,7 @@ export class SettingsState {
       const stored: UserSettingsResponse | null = await api.get("/me/settings");
       if (stored) {
         authoritativeSettings.set(stored);
-        this.savedSettings = settingsResponseToProfile(stored, get(authStore).user?.email || '', this.savedSettings.emailReminders);
+        this.savedSettings = settingsResponseToProfile(stored, get(authStore).user?.email || '');
         this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
         try {
           await desktop.reconcileSettings(stored);
@@ -103,7 +81,6 @@ export class SettingsState {
     let isValid = true;
 
     const {
-      mrBloomName,
       focusDurationMinutes,
       breakDurationMinutes,
       milestoneReminderLeadTimeMinutes,
@@ -113,14 +90,6 @@ export class SettingsState {
 
     if (!isValidTimezone(timezone)) {
       this.validationErrors.timezone = "Select a valid IANA timezone.";
-      isValid = false;
-    }
-
-    if (!mrBloomName || mrBloomName.trim() === "") {
-      this.validationErrors.mrBloomName = "Name cannot be empty.";
-      isValid = false;
-    } else if (mrBloomName.length > 60) {
-      this.validationErrors.mrBloomName = "Name is too long.";
       isValid = false;
     }
 
@@ -165,25 +134,6 @@ export class SettingsState {
     this.saveSuccessMessage = null;
     this.saveErrorMessage = null;
     this.syncWarning = null;
-    this.locationError = null;
-  }
-
-  async useDeviceLocation() {
-    if (this.locationPending) return;
-    this.locationPending = true;
-    this.locationError = null;
-    try {
-      const place = await requestApproximateDeviceLocation();
-      this.draftSettings.weatherLocationName = place.locationName;
-      this.draftSettings.weatherLat = place.lat;
-      this.draftSettings.weatherLon = place.lon;
-      this.draftSettings.weatherEnabled = true;
-      delete this.validationErrors.weatherLocation;
-    } catch (error) {
-      this.locationError = error instanceof Error ? error.message : 'Could not get device location.';
-    } finally {
-      this.locationPending = false;
-    }
   }
 
   async save() {
@@ -195,13 +145,11 @@ export class SettingsState {
     this.saveErrorMessage = null;
     this.syncWarning = null;
     try {
-      this.draftSettings.mrBloomName = this.draftSettings.mrBloomName.trim();
       this.draftSettings.timezone = normalizeTimezone(this.draftSettings.timezone);
 
       const { api } = await import("$lib/api");
 
       const payload = {
-        mr_bloom_display_name: this.draftSettings.mrBloomName,
         timezone: this.draftSettings.timezone,
         default_focus_minutes: Number(this.draftSettings.focusDurationMinutes),
         default_break_minutes: Number(this.draftSettings.breakDurationMinutes),
@@ -215,13 +163,12 @@ export class SettingsState {
         weather_location_name: this.draftSettings.weatherLocationName?.trim() || null,
         weather_lat: this.draftSettings.weatherLat,
         weather_lon: this.draftSettings.weatherLon,
-        scene_season: this.draftSettings.sceneSeason,
         weather_animation_enabled: this.draftSettings.weatherAnimationEnabled,
       };
 
       const stored = await api.put("/me/settings", payload) as UserSettingsResponse;
       authoritativeSettings.set(stored);
-      this.savedSettings = settingsResponseToProfile(stored, get(authStore).user?.email || '', this.draftSettings.emailReminders);
+      this.savedSettings = settingsResponseToProfile(stored, get(authStore).user?.email || '');
       this.draftSettings = JSON.parse(JSON.stringify(this.savedSettings));
       try {
         await desktop.reconcileSettings(stored);
@@ -234,19 +181,6 @@ export class SettingsState {
         await desktop.settingsUpdated();
       } catch {
         this.syncWarning = "Settings saved, but the widget could not refresh immediately.";
-      }
-      try {
-        if (typeof localStorage !== "undefined") {
-          localStorage.setItem(
-            SETTINGS_KEY,
-            JSON.stringify({
-              emailReminders: this.savedSettings.emailReminders,
-            }),
-          );
-        }
-      } catch {
-        this.syncWarning =
-          "Settings saved, but local preferences could not be stored.";
       }
       return true;
     } catch (e: unknown) {

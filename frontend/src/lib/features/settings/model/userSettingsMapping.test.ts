@@ -24,5 +24,8 @@ describe('user settings mapping', () => {
     const settings = settingsResponseToProfile(response);
     expect(onboarding).toMatchObject({ timezone: 'Asia/Ho_Chi_Minh', focusPreset: 'CUSTOM', focusMinutes: 45, breakMinutes: 0, weatherLocationName: 'Ho Chi Minh City, Vietnam', startAtLogin: true, keepWidgetOnTop: true });
     expect(settings).toMatchObject({ timezone: 'Asia/Ho_Chi_Minh', focusDurationMinutes: 45, breakDurationMinutes: 0, weatherLocationName: 'Ho Chi Minh City, Vietnam', startAtLogin: true, keepWidgetOnTop: true });
+    expect(settings).not.toHaveProperty('mrBloomName');
+    expect(settings).not.toHaveProperty('sceneSeason');
+    expect(settings).not.toHaveProperty('emailReminders');
   });
 });

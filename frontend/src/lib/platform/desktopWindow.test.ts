@@ -3,6 +3,7 @@ import {
   createDesktopWindowService,
   desktop,
   desktopWindowService,
+  reconcileNativeSettings,
   type DesktopWindowHandle,
   type DesktopWindowResolver,
 } from './desktopWindow';
@@ -38,6 +39,30 @@ function resolver(mainWindow: DesktopWindowHandle | null): DesktopWindowResolver
 }
 
 describe('desktopWindowService', () => {
+  it('reconciles native autostart and widget always-on-top settings', async () => {
+    let autostartEnabled = false;
+    let alwaysOnTop = true;
+    const autostart = {
+      isEnabled: vi.fn(async () => autostartEnabled),
+      enable: vi.fn(async () => { autostartEnabled = true; }),
+      disable: vi.fn(async () => { autostartEnabled = false; }),
+    };
+    const widget = {
+      isAlwaysOnTop: vi.fn(async () => alwaysOnTop),
+      setAlwaysOnTop: vi.fn(async (value: boolean) => { alwaysOnTop = value; }),
+    };
+
+    await reconcileNativeSettings(
+      { launch_on_startup: true, widget_always_on_top: false },
+      autostart,
+      widget,
+    );
+
+    expect(autostart.enable).toHaveBeenCalledTimes(1);
+    expect(autostart.disable).not.toHaveBeenCalled();
+    expect(widget.setAlwaysOnTop).toHaveBeenCalledWith(false);
+  });
+
   it('notifies the companion widget after settings change', async () => {
     Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true });
     try {

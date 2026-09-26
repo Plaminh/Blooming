@@ -129,6 +129,43 @@ export interface NativeSettings {
   widget_always_on_top: boolean;
 }
 
+export interface NativeAutostartAdapter {
+  isEnabled(): Promise<boolean>;
+  enable(): Promise<void>;
+  disable(): Promise<void>;
+}
+
+export interface NativeWidgetSettingsAdapter {
+  isAlwaysOnTop(): Promise<boolean>;
+  setAlwaysOnTop(alwaysOnTop: boolean): Promise<void>;
+}
+
+export async function reconcileNativeSettings(
+  settings: NativeSettings,
+  autostart: NativeAutostartAdapter,
+  widget: NativeWidgetSettingsAdapter,
+): Promise<void> {
+  const results = await Promise.allSettled([
+    (async () => {
+      if ((await autostart.isEnabled()) !== settings.launch_on_startup) {
+        if (settings.launch_on_startup) await autostart.enable();
+        else await autostart.disable();
+      }
+      if ((await autostart.isEnabled()) !== settings.launch_on_startup)
+        throw new Error("Start at login could not be applied.");
+    })(),
+    (async () => {
+      if ((await widget.isAlwaysOnTop()) !== settings.widget_always_on_top)
+        await widget.setAlwaysOnTop(settings.widget_always_on_top);
+      if ((await widget.isAlwaysOnTop()) !== settings.widget_always_on_top)
+        throw new Error("Always-on-top could not be applied.");
+    })(),
+  ]);
+  for (const result of results) {
+    if (result.status === "rejected") throw result.reason;
+  }
+}
+
 export const desktop = {
   ...desktopWindowService,
   async readSettings(): Promise<NativeSettings | null> {
@@ -148,26 +185,7 @@ export const desktop = {
     const module = await loadTauriWindowModule();
     const widget = await module?.Window.getByLabel("companion-widget");
     if (!widget) throw new Error("Companion window is unavailable.");
-    // Attempt both settings, including when compensating for a failed save.
-    const results = await Promise.allSettled([
-      (async () => {
-        if ((await autostart.isEnabled()) !== settings.launch_on_startup) {
-          if (settings.launch_on_startup) await autostart.enable();
-          else await autostart.disable();
-        }
-        if ((await autostart.isEnabled()) !== settings.launch_on_startup)
-          throw new Error("Start at login could not be applied.");
-      })(),
-      (async () => {
-        if ((await widget.isAlwaysOnTop()) !== settings.widget_always_on_top)
-          await widget.setAlwaysOnTop(settings.widget_always_on_top);
-        if ((await widget.isAlwaysOnTop()) !== settings.widget_always_on_top)
-          throw new Error("Always-on-top could not be applied.");
-      })(),
-    ]);
-    for (const result of results) {
-      if (result.status === "rejected") throw result.reason;
-    }
+    await reconcileNativeSettings(settings, autostart, widget);
   },
   async showWidget() {
     if (!isTauriRuntime()) return;

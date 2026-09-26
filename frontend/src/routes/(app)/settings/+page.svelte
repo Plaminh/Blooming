@@ -4,6 +4,7 @@
   import GeneralPanel from '$lib/features/settings/components/organisms/GeneralPanel.svelte';
   import FocusTimerPanel from '$lib/features/settings/components/organisms/FocusTimerPanel.svelte';
   import NotificationsPanel from '$lib/features/settings/components/organisms/NotificationsPanel.svelte';
+  import DesktopPanel from '$lib/features/settings/components/organisms/DesktopPanel.svelte';
   import SettingsActionGroup from '$lib/features/settings/components/molecules/SettingsActionGroup.svelte';
   import { setSettingsState } from '$lib/features/settings/model/SettingsState.svelte';
 
@@ -30,6 +31,7 @@
         <div class="grid-column">
           <FocusTimerPanel />
           <NotificationsPanel />
+          <DesktopPanel />
         </div>
       </div>
 
@@ -66,11 +68,22 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 24px;
-    align-items: flex-start;
+    align-items: stretch;
   }
 
   .grid-column {
     display: flex;
     flex-direction: column;
+    min-width: 0;
+  }
+
+  .grid-column:first-child :global(.general-panel) {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  @media (max-width: 760px) {
+    .settings-grid { grid-template-columns: 1fr; gap: 0; }
+    .grid-column:first-child :global(.general-panel) { margin-bottom: 16px; }
   }
 </style>

@@ -20,7 +20,7 @@ describe('WeatherLocationPicker', () => {
     const onSelect = vi.fn();
     const onInvalidate = vi.fn();
     render(WeatherLocationPicker, { props: { onSelect, onInvalidate } });
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('combobox');
     await fireEvent.input(input, { target: { value: 'Lon' } });
     await vi.advanceTimersByTimeAsync(499);
     expect(api.get).not.toHaveBeenCalled();
@@ -39,7 +39,7 @@ describe('WeatherLocationPicker', () => {
     vi.mocked(api.get).mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve; }))
       .mockResolvedValueOnce({ candidates: [] });
     render(WeatherLocationPicker);
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('combobox');
     await fireEvent.input(input, { target: { value: 'Old' } });
     await vi.advanceTimersByTimeAsync(500);
     await fireEvent.input(input, { target: { value: 'New' } });
@@ -55,11 +55,11 @@ describe('WeatherLocationPicker', () => {
     vi.useFakeTimers();
     vi.mocked(api.get).mockRejectedValue(new Error('offline'));
     const view = render(WeatherLocationPicker);
-    await fireEvent.input(screen.getByRole('textbox'), { target: { value: 'Paris' } });
+    await fireEvent.input(screen.getByRole('combobox'), { target: { value: 'Paris' } });
     await vi.advanceTimersByTimeAsync(500);
     await tick();
     expect(screen.getByRole('alert')).toHaveTextContent('temporarily unavailable');
-    await fireEvent.input(screen.getByRole('textbox'), { target: { value: 'Berlin' } });
+    await fireEvent.input(screen.getByRole('combobox'), { target: { value: 'Berlin' } });
     view.unmount();
     expect(api.get).toHaveBeenCalledTimes(1);
   });
@@ -72,7 +72,7 @@ describe('WeatherLocationPicker', () => {
       return new Promise(() => {}); // hang
     });
     render(WeatherLocationPicker);
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('combobox');
     await fireEvent.input(input, { target: { value: 'First' } });
     await vi.advanceTimersByTimeAsync(500);
     expect(api.get).toHaveBeenCalledTimes(1);
@@ -149,7 +149,7 @@ describe('WeatherLocationPicker - Device Location', () => {
     vi.mocked(api.get).mockImplementationOnce(() => new Promise((resolve) => { finishSearch = resolve; }));
     
     render(WeatherLocationPicker);
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('combobox');
     await fireEvent.input(input, { target: { value: 'City' } });
     await vi.advanceTimersByTimeAsync(500);
     expect(api.get).toHaveBeenCalledTimes(1);
