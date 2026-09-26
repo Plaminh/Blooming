@@ -6,7 +6,7 @@
   import DueRemindersPanel from './DueRemindersPanel.svelte';
   import { goalsStore } from '../../stores/goalsStore';
 
-  let { goal, onEdit, onRefine }: { goal: Goal | null; onEdit: () => void; onRefine: () => void; } = $props();
+  let { goal, onRefine }: { goal: Goal | null; onRefine: () => void; } = $props();
 
   let nextMilestone = $derived.by(() => {
     if (!goal || goal.milestones.length === 0) return null;
@@ -31,7 +31,7 @@
         <OverallProgressPanel completed={completedCount} total={totalCount} />
       </div>
       
-      <GoalsActionGroup {onEdit} {onRefine} />
+      <GoalsActionGroup {onRefine} />
     {/if}
   </div>
 </div>

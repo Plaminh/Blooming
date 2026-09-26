@@ -133,3 +133,56 @@ describe('api client', () => {
     }
   });
 });
+
+import { saveRoadmap, type RoadmapDraft } from './api';
+
+describe('saveRoadmap', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('uses POST for new roadmap without goalId', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ success: true })
+    });
+    
+    const draft: RoadmapDraft = {
+      type: 'roadmap',
+      goalTitle: 'New',
+      goalDescription: '',
+      targetDate: '2027-01-01',
+      milestones: []
+    };
+    
+    await saveRoadmap('session-1', draft, 'key-1');
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/v1/goals/from-roadmap',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('uses PUT for existing roadmap with goalId', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ success: true })
+    });
+    
+    const draft: RoadmapDraft = {
+      type: 'roadmap',
+      goalId: 'g123',
+      goalTitle: 'Existing',
+      goalDescription: '',
+      targetDate: '2027-01-01',
+      milestones: []
+    };
+    
+    await saveRoadmap('session-1', draft, 'key-1');
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:8000/api/v1/goals/g123/from-roadmap',
+      expect.objectContaining({ method: 'PUT' })
+    );
+  });
+});

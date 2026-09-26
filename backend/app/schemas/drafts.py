@@ -9,10 +9,12 @@ class MilestoneDraft(BaseModel):
     title: str = Field(min_length=1)
     targetDate: date
     expectedOutcome: str | None = None
-
+    status: str | None = None
+    completedAt: datetime | None = None
 
 class RoadmapDraft(BaseModel):
     type: Literal["roadmap"]
+    goalId: str | None = None
     goalTitle: str = Field(min_length=1)
     goalDescription: str = ""
     targetDate: date

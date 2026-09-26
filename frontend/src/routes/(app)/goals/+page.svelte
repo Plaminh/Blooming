@@ -65,13 +65,9 @@
   <div class="col-right-rail">
     <GoalsRightRail
       goal={selectedGoal}
-      onEdit={() => {
-        if (selectedGoal) {
-            const title = prompt("New Goal Title:", selectedGoal.title);
-            if (title && selectedGoalId) goalsStore.updateGoal(selectedGoalId, { title });
-        }
+      onRefine={() => {
+        if (selectedGoalId) goto(`/mr-bloom?goalId=${selectedGoalId}`);
       }}
-      onRefine={handleAction}
     />
   </div>
 </div>

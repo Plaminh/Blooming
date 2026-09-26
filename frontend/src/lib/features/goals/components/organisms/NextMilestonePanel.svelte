@@ -20,7 +20,7 @@
         </div>
       </div>
       <div class="milestone-meta">
-        <TargetDateLabel date={milestone.due_at} />
+        <TargetDateLabel date={milestone.target_date || milestone.due_at || ''} />
         {#if daysLeft !== undefined}
           <div class="days-left"><span>In {daysLeft} days</span></div>
         {/if}

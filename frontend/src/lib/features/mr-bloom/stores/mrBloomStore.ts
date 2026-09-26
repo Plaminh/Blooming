@@ -310,6 +310,33 @@ function createMrBloomStore() {
       update(state => { content = state.chatHistory.find(item => item.id === id && item.status === 'failed')?.content ?? ''; return state; });
       if (content) await submit(content, id);
     },
+    loadGoalForAdjustment: async (goalId: string) => {
+      const version = ++latestRequestVersion;
+      try {
+        const data = await api.get(`/goals/${encodeURIComponent(goalId)}/draft`) as RoadmapDraft;
+        if (version !== latestRequestVersion) return;
+        
+        const adjustMessage = `Loaded roadmap for "${data.goalTitle}". You can make structural changes here.`;
+        
+        update(state => ({
+          ...state,
+          sessionId: null, // Treating as local edit until save
+          activeDraft: data,
+          previewMode: 'roadmap',
+          needsReplace: true,
+          suggestions: [],
+          assumptions: [],
+          error: null,
+          chatHistory: [
+            ...state.chatHistory,
+            { id: crypto.randomUUID(), role: 'assistant', content: adjustMessage, timestamp: timeLabel() }
+          ]
+        }));
+      } catch (error) {
+        if (version !== latestRequestVersion) return;
+        update(state => ({ ...state, error: error instanceof Error ? error.message : 'Failed to load goal roadmap.' }));
+      }
+    },
     loadPlanForAdjustment: async (date: string, taskId?: string | null) => {
       const version = ++latestRequestVersion;
       try {
@@ -371,7 +398,11 @@ function createMrBloomStore() {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const date = params.get('date');
-        if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const goalId = params.get('goalId');
+        if (goalId) {
+          await store.loadGoalForAdjustment(goalId);
+          return;
+        } else if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
           const taskId = params.get('taskId');
           await store.loadPlanForAdjustment(date, taskId);
           return;

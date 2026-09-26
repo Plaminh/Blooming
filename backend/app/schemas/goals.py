@@ -17,6 +17,7 @@ class MilestoneBase(BaseModel):
 
 
 class MilestoneCreate(MilestoneBase):
+    target_date: Optional[date] = None
     pass
 
 
@@ -25,6 +26,7 @@ class MilestoneUpdate(BaseModel):
     description: Optional[str] = None
     expected_outcome: Optional[str] = None
     due_at: Optional[datetime] = None
+    target_date: Optional[date] = None
     status: Optional[str] = None
     position: Optional[int] = None
 
@@ -33,6 +35,7 @@ class MilestoneResponse(MilestoneBase):
     id: UUID
     goal_id: UUID
     position: int
+    target_date: Optional[date] = None
     completed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime

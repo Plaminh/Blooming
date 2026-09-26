@@ -99,6 +99,7 @@ const typedFixtures: ChatResponse[] = [
     degraded: 'Reason',
     draft: {
       type: 'roadmap',
+      goalId: 'g1',
       goalTitle: 'Learn Python',
       goalDescription: 'From scratch',
       targetDate: '2026-12-31',

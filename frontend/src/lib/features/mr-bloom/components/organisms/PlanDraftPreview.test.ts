@@ -19,7 +19,7 @@ describe('PlanDraftPreview save to goals', () => {
       isWaitingForResponse: false,
       previewMode: 'roadmap',
       activeDraft: {
-        type: 'roadmap',
+        type: 'roadmap', goalId: 'g1',
         goalTitle: 'Test Goal',
         goalDescription: 'Test Desc',
         targetDate: '2024-06-30',

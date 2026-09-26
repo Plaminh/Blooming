@@ -1,25 +1,20 @@
 <script lang="ts">
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
 
-  let { onEdit, onRefine }: { onEdit: () => void; onRefine: () => void; } = $props();
+  let { onRefine }: { onRefine: () => void; } = $props();
 </script>
 
 <div class="action-group">
-  <button class="btn-action secondary" onclick={onEdit}>
-    <AppIcon name="pencil" scale={1.2} />
-    EDIT MANUALLY
-  </button>
   <button class="btn-action primary" onclick={onRefine}>
     <AppIcon name="play" scale={1.25} />
-    REFINE WITH MR. BLOOM
+    ADJUST WITH MR. BLOOM
   </button>
 </div>
 
 <style>
   .action-group {
-    display: grid;
+    display: flex;
     height: 56px;
-    grid-template-columns: 132px minmax(0, 1fr);
     gap: 8px;
   }
   .btn-action {
@@ -40,9 +35,6 @@
     cursor: pointer;
     transition: background 0.1s;
     white-space: nowrap;
-  }
-  .secondary:hover {
-    background: #eef8f6;
   }
   .primary {
     border-color: #247b4c;

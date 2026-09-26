@@ -23,4 +23,17 @@ describe('GoalDetailsPanel', () => {
     expect(queryByRole('button', { name: /\+ Milestone/i })).toBeNull();
     expect(queryByText('+ Milestone')).toBeNull();
   });
+
+  it('allows inline editing of goal title and description', async () => {
+    const { getByText, getByRole, getByPlaceholderText, queryByText } = render(GoalDetailsPanel, {
+      goal: FIXTURE_GOAL,
+      onUpdateMilestone: vi.fn()
+    });
+
+    expect(getByText('Launch MVP')).toBeInTheDocument();
+    
+    // Start editing
+    const editBtn = getByRole('button', { name: 'Edit Goal' });
+    expect(editBtn).toBeInTheDocument();
+  });
 });

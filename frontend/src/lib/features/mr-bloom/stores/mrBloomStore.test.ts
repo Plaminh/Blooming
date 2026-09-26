@@ -359,7 +359,7 @@ test('milestone add uses the next free deterministic ID and edits preserve it', 
   mrBloomStore.update(state => ({
     ...state,
     activeDraft: {
-      type: 'roadmap', goalTitle: 'Goal', goalDescription: '', targetDate: '2026-12-31',
+      type: 'roadmap', goalId: 'g1', goalTitle: 'Goal', goalDescription: '', targetDate: '2026-12-31',
       milestones: [
         { id: 'm1', title: 'One', targetDate: '2026-10-01' },
         { id: 'm3', title: 'Three', targetDate: '2026-12-01' }
@@ -509,4 +509,92 @@ test('restoreLatestSession detects date param and loads plan for adjustment', as
 
   // Cleanup URL
   window.history.replaceState({}, '', '/mr-bloom');
+});
+
+test('loads goal for adjustment and performs roadmap structural edits', async () => {
+  const roadmapDraft = {
+    type: 'roadmap',
+    goalId: 'goal-123',
+    goalTitle: 'Master React',
+    targetDate: '2027-01-01',
+    milestones: [
+      { id: 'm1', title: 'Learn basics', targetDate: '2026-10-01', expectedOutcome: 'Done', status: 'PENDING' }
+    ]
+  };
+  
+  vi.mocked(api.get).mockResolvedValue(roadmapDraft);
+
+  await mrBloomStore.loadGoalForAdjustment('goal-123');
+  
+  let state = get(mrBloomStore);
+  expect(state.activeDraft?.type).toBe('roadmap');
+  if (state.activeDraft?.type !== 'roadmap') throw new Error('draft type');
+  expect(state.activeDraft.milestones).toHaveLength(1);
+  
+  // Add milestone
+  mrBloomStore.addMilestone();
+  state = get(mrBloomStore);
+  if (state.activeDraft?.type !== 'roadmap') throw new Error('draft type');
+  expect(state.activeDraft.milestones).toHaveLength(2);
+  const newId = state.activeDraft.milestones[1].id;
+  
+  // Change milestone
+  mrBloomStore.updateMilestone(newId!, { title: 'Advanced Topics' });
+  state = get(mrBloomStore);
+  if (state.activeDraft?.type !== 'roadmap') throw new Error('draft type');
+  expect(state.activeDraft.milestones[1].title).toBe('Advanced Topics');
+  
+  // Remove milestone
+  mrBloomStore.removeMilestone('m1');
+  state = get(mrBloomStore);
+  if (state.activeDraft?.type !== 'roadmap') throw new Error('draft type');
+  expect(state.activeDraft.milestones).toHaveLength(1);
+  expect(state.activeDraft.milestones[0].id).toBe(newId);
+});
+
+test('loads goal for adjustment and receives structural edits via chat', async () => {
+  const initialDraft = {
+    type: 'roadmap',
+    goalId: 'goal-123',
+    goalTitle: 'Master React',
+    targetDate: '2027-01-01',
+    milestones: [
+      { id: 'm1', title: 'Learn basics', targetDate: '2026-10-01', expectedOutcome: 'Done', status: 'PENDING' },
+      { id: 'm2', title: 'Advanced', targetDate: '2026-11-01', expectedOutcome: 'Done', status: 'PENDING' }
+    ]
+  };
+
+  vi.mocked(api.get).mockResolvedValueOnce(initialDraft);
+  
+  await mrBloomStore.loadGoalForAdjustment('goal-123');
+  
+  let state = get(mrBloomStore);
+  expect(state.activeDraft?.type).toBe('roadmap');
+  expect((state.activeDraft as any).milestones).toHaveLength(2);
+
+  // Chat structural edit: Add, change, remove, reorder
+  const updatedDraft = {
+    type: 'roadmap',
+    goalId: 'goal-123',
+    goalTitle: 'Master React',
+    targetDate: '2027-01-01',
+    milestones: [
+      { id: 'm2', title: 'Advanced Changed', targetDate: '2026-11-01', expectedOutcome: 'Done', status: 'PENDING' },
+      { id: '', title: 'New Milestone', targetDate: '2026-12-01', expectedOutcome: 'New', status: 'PENDING' }
+    ]
+  };
+
+  vi.mocked(api.post).mockResolvedValueOnce({
+    session_id: 'session-123',
+    reply: 'Updated draft',
+    draft: updatedDraft
+  });
+
+  await mrBloomStore.submitMessage('Reorder, remove m1, change m2, add new');
+  
+  state = get(mrBloomStore);
+  expect((state.activeDraft as any).milestones).toHaveLength(2);
+  expect((state.activeDraft as any).milestones[0].id).toBe('m2');
+  expect((state.activeDraft as any).milestones[0].title).toBe('Advanced Changed');
+  expect((state.activeDraft as any).milestones[1].title).toBe('New Milestone');
 });

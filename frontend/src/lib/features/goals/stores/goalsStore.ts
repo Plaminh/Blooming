@@ -31,7 +31,7 @@ function createGoalsStore() {
         }
     }
 
-    async function createGoal(goal: any) {
+    async function createGoal(goal: Partial<Goal>) {
         update(s => ({ ...s, error: null }));
         try {
             const newGoal = await api.post('/goals', goal);
@@ -43,7 +43,7 @@ function createGoalsStore() {
         }
     }
 
-    async function updateGoal(id: string, goalUpdate: any) {
+    async function updateGoal(id: string, goalUpdate: Partial<Goal>) {
         update(s => ({ ...s, error: null }));
         try {
             const updated = await api.put(`/goals/${id}`, goalUpdate);
@@ -71,7 +71,7 @@ function createGoalsStore() {
         }
     }
 
-    async function addMilestone(goalId: string, milestone: any) {
+    async function addMilestone(goalId: string, milestone: Partial<Milestone>) {
         update(s => ({ ...s, error: null }));
         try {
             const newMilestone = await api.post(`/goals/${goalId}/milestones`, milestone);
@@ -85,7 +85,7 @@ function createGoalsStore() {
         }
     }
 
-    async function updateMilestone(goalId: string, milestoneId: string, milestoneUpdate: any) {
+    async function updateMilestone(goalId: string, milestoneId: string, milestoneUpdate: Partial<Milestone>) {
         update(s => ({ ...s, error: null }));
         try {
             const updated = await api.put(`/goals/${goalId}/milestones/${milestoneId}`, milestoneUpdate);

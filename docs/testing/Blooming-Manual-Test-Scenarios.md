@@ -1384,6 +1384,33 @@ Each test specifies three verification checkpoints:
 
 ---
 
+#### GOAL-UI-06 — Adjust with Mr. Bloom (Hybrid Handoff)
+**Priority:** Core  
+**Environment:** Either  
+**Precondition:**  
+- User has 1 active Goal with an existing roadmap.
+
+**Actions:**
+1. Navigate to `/goals`.
+2. Select the Goal to view its details.
+3. Click "ADJUST WITH MR. BLOOM".
+4. In Mr. Bloom, observe the Roadmap Draft loaded.
+5. Provide a structural edit prompt (e.g., "Add a new milestone for deployment").
+6. Click Save in the draft preview.
+7. Return to `/goals` and verify the Goal's roadmap updated.
+
+**Expected output:**
+- Handoff from Goal UI navigates to `/mr-bloom?goalId=<GOAL_ID>`.
+- Chat context successfully loads the goal as a `RoadmapDraft`.
+- Changes save back to the existing goal idempotently.
+
+**Verification:**
+- **UI:** Handoff correctly populates the chat context.
+- **Network/API:** `GET /api/v1/goals/<GOAL_ID>/draft` loads the state.
+- **DB:** `goals` and `milestones` tables reflect the updated structure.
+
+---
+
 ### Group 9: Garden
 
 #### GARDEN-01 — Default Starter Plant Auto-Provisioning
@@ -2514,3 +2541,4 @@ Block 10: Statistics, Failure & Security (STATS-01 → SECURITY-03)
 - **Cases:** `STATS-01`, `STATS-02`, `STATS-03`, `STATS-04`, `FAILURE-APP-01`, `FAILURE-APP-02`, `FAILURE-APP-03`, `FAILURE-APP-04`, `SECURITY-APP-01`, `SECURITY-APP-02`, `SECURITY-APP-03`
 - **Setup:** Log into primary account `User A` to check statistics. Introduce secondary account `User B` for security isolation checks.
 - **Cleanup:** Close test connections and terminate test processes.
+

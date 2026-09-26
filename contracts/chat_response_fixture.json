@@ -49,7 +49,12 @@
       "type": "today",
       "planDate": "2026-09-21",
       "timezone": "UTC",
-      "windows": [{"start": "09:00", "end": "17:00"}],
+      "windows": [
+        {
+          "start": "09:00",
+          "end": "17:00"
+        }
+      ],
       "tasks": [
         {
           "id": "t1",
@@ -102,10 +107,13 @@
           "targetDate": "2026-10-31",
           "expectedOutcome": null
         }
-      ]
+      ],
+      "goalId": "g1"
     },
     "preview": null,
-    "goal_created": {"id": "g1"},
+    "goal_created": {
+      "id": "g1"
+    },
     "suggestions": [],
     "assumptions": [],
     "question": "Are you sure?"
