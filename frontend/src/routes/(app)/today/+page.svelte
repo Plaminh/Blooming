@@ -369,5 +369,6 @@
   .today-rail {
     min-width: 0;
     min-height: 0;
+    overflow: hidden;
   }
 </style>

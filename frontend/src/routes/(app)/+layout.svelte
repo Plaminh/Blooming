@@ -41,7 +41,6 @@
   let isGardenSelection = $derived($page.url.pathname.startsWith('/garden-selection'));
   let showSidebar = $derived(!isGardenSelection);
   let showGarden = $derived(
-    $page.url.pathname.startsWith('/today') ||
     $page.url.pathname.startsWith('/goals')
   );
   let canvasWidth = $derived(isGardenSelection ? 'var(--bloom-garden-canvas-width)' : 'var(--bloom-app-canvas-width)');
@@ -85,19 +84,6 @@
   .garden-layer :global(a.garden) {
     pointer-events: auto;
     height: 100%;
-  }
-  
-  /* Today structural grid (matches .today-content) */
-  .garden-layer:not(.is-goals) {
-    grid-template-columns: minmax(0, 1fr) 390px;
-    grid-template-rows: 210px 82px 190px minmax(0, 1fr);
-    row-gap: 8px;
-    column-gap: 9px;
-    padding: 9px 9px 10px 0;
-  }
-  .garden-layer:not(.is-goals) :global(a.garden) {
-    grid-column: 2;
-    grid-row: 4;
   }
   
   /* Goals structural grid (matches .goals-content) */

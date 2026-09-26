@@ -4,6 +4,7 @@
   import FocusPresetOption from "../atoms/FocusPresetOption.svelte";
   import NextSessionSummary from "../molecules/NextSessionSummary.svelte";
   import CustomFocusDialog from './CustomFocusDialog.svelte';
+  import GardenPanel from "$lib/shared/components/organisms/GardenPanel.svelte";
 
   let {
     task,
@@ -126,12 +127,6 @@
         ? nextTask.durationString.replace(/[()]/g, "")
         : ""}
     />
-  </section>
-
-  <section class="panel focus-setup" aria-labelledby="focus-heading">
-    <header class="panel-strip">
-      <h2 id="focus-heading">FOCUS SETUP</h2>
-    </header>
     <div class="focus-body">
       <p>Focus for this task</p>
       <div class="presets">
@@ -156,6 +151,8 @@
       </button>
     </div>
   </section>
+
+  <GardenPanel />
 </div>
 
 <CustomFocusDialog
@@ -168,7 +165,8 @@
   .right-rail-container {
     display: grid;
     height: 100%;
-    grid-template-rows: minmax(0, 1fr) 82px 190px;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr) auto clamp(190px, 30%, 230px);
     gap: 8px;
   }
   .panel {
@@ -323,8 +321,14 @@
     color: #06447f;
   }
 
+  .next-session {
+    display: flex;
+    flex-direction: column;
+  }
+
   .focus-body {
-    padding: 3px 10px 7px;
+    padding: 6px 10px 9px;
+    border-top: 1px dashed #d7d7d1;
   }
   .focus-body > p {
     margin: 0 0 5px;
