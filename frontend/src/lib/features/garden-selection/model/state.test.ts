@@ -78,12 +78,33 @@ describe('GardenSelectionViewModel', () => {
 
     await vm.waterSelectedPlant(true);
     expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledWith('/garden/water', { operation_key: expect.any(String) });
     expect(vm.isWatering).toBe(true);
     expect(vm.isPending).toBe(true);
     await vm.finishWatering();
     expect(api.get).toHaveBeenCalledTimes(1);
     expect(vm.isWatering).toBe(false);
     expect(vm.isPending).toBe(false);
+    expect(vm.wateringOperationKey).toBeNull();
+  });
+
+  it('retries with the same operation key on failure', async () => {
+    const waterable = { ...mockGardenData, water_balance: 2, catalog: [{ ...mockGardenData.catalog[0], is_unlocked: true }] };
+    (api.get as any).mockResolvedValue(waterable);
+    vm = new GardenSelectionViewModel();
+    await vi.waitFor(() => expect(vm.loading).toBe(false));
+    
+    (api.post as any).mockRejectedValueOnce(new Error('offline'));
+    await vm.waterSelectedPlant(true);
+    const key = vm.wateringOperationKey;
+    expect(key).toBeTruthy();
+
+    (api.post as any).mockResolvedValue({ water_balance: 1, vitality: 100, last_watered_at: "now" });
+    await vm.waterSelectedPlant(true);
+    expect(api.post).toHaveBeenCalledWith('/garden/water', { operation_key: key });
+    
+    await vm.finishWatering();
+    expect(vm.wateringOperationKey).toBeNull();
   });
 
   it('does not animate on water failure', async () => {

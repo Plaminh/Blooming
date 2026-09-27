@@ -11,7 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.economy import WATERING_COST, calculate_vitality
 from app.db.models.garden import GardenState, Plant, PlantOwnership, RewardEvent
 from app.db.models.users import User
-from app.schemas.garden import GardenStateResponse, PlantCatalogItem, WaterPlantResponse
+from app.schemas.garden import (
+    GardenStateResponse,
+    PlantCatalogItem,
+    WaterPlantResponse,
+)
 
 GROWTH_THRESHOLDS = {
     "SPROUTING": 0,
@@ -20,26 +24,38 @@ GROWTH_THRESHOLDS = {
     "FLOURISHING": 700,
 }
 
-REWARD_AMOUNTS = {"TASK_COMPLETION": 10, "MILESTONE_COMPLETION": 50}
+REWARD_AMOUNTS = {
+    "TASK_COMPLETION": 10,
+    "MILESTONE_COMPLETION": 50,
+}
+
 logger = logging.getLogger(__name__)
 
 
 async def _ensure_garden_state(
-    db: AsyncSession, user_id: UUID
+    db: AsyncSession,
+    user_id: UUID,
 ) -> tuple[GardenState, bool]:
     # Serialize balance changes, including first-time state creation.
-    await db.execute(select(User.id).where(User.id == user_id).with_for_update())
+    await db.execute(
+        select(User.id)
+        .where(User.id == user_id)
+        .with_for_update()
+    )
+
     inserted = await db.scalar(
         insert(GardenState)
         .values(user_id=user_id)
         .on_conflict_do_nothing(index_elements=[GardenState.user_id])
         .returning(GardenState.user_id)
     )
+
     garden = await db.scalar(
         select(GardenState)
         .where(GardenState.user_id == user_id)
         .execution_options(populate_existing=True)
     )
+
     assert garden is not None
     return garden, inserted is not None
 
@@ -55,6 +71,7 @@ async def award_resources(
 ) -> bool:
     """Award the ledger entry, balance and eligible growth in one caller transaction."""
     garden, _ = await _ensure_garden_state(db, user_id)
+
     values = {
         "user_id": user_id,
         "event_type": event_type,
@@ -62,6 +79,7 @@ async def award_resources(
         "amount": amount,
         "idempotency_key": idempotency_key,
     }
+
     source_fields = {
         "FOCUS_COMPLETED": "source_focus_run_id",
         "TASK_COMPLETED": "source_task_id",
@@ -69,17 +87,24 @@ async def award_resources(
         "MILESTONE_COMPLETED": "source_milestone_id",
         "RECOVERY_PLAN_COMPLETED": "source_plan_revision_id",
     }
+
     if event_type in source_fields:
         values[source_fields[event_type]] = source_id
+
     inserted = await db.scalar(
         insert(RewardEvent)
         .values(**values)
         .on_conflict_do_nothing(index_elements=[RewardEvent.idempotency_key])
         .returning(RewardEvent.id)
     )
+
     if inserted is None:
-        logger.info("resource_award_duplicate", extra={"event_type": event_type})
+        logger.info(
+            "resource_award_duplicate",
+            extra={"event_type": event_type},
+        )
         return False
+
     if resource_type == "WATER":
         garden.water_balance += amount
     else:
@@ -90,27 +115,61 @@ async def award_resources(
         }
         if amount > 0:
             garden.growth_points += growth.get(event_type, 0)
+
     await db.flush()
-    logger.info("resource_award_staged", extra={"event_type": event_type, "resource_type": resource_type, "amount": amount})
+
+    logger.info(
+        "resource_award_staged",
+        extra={
+            "event_type": event_type,
+            "resource_type": resource_type,
+            "amount": amount,
+        },
+    )
     return True
 
 
-async def get_garden_state(db: AsyncSession, user_id: UUID) -> GardenStateResponse:
+async def get_garden_state(
+    db: AsyncSession,
+    user_id: UUID,
+) -> GardenStateResponse:
     garden, created = await _ensure_garden_state(db, user_id)
-    plants = (await db.scalars(select(Plant).where(Plant.is_active == True))).all()
-    ownerships = (
+
+    plants = (
         await db.scalars(
-            select(PlantOwnership).where(PlantOwnership.user_id == user_id)
+            select(Plant).where(Plant.is_active == True)
         )
     ).all()
-    owned_ids = {o.plant_id for o in ownerships}
+
+    ownerships = (
+        await db.scalars(
+            select(PlantOwnership).where(
+                PlantOwnership.user_id == user_id
+            )
+        )
+    ).all()
+
+    owned_ids = {ownership.plant_id for ownership in ownerships}
 
     # Give a new garden its free starter plant, including accounts created
     # before this default was introduced. Preserve every existing selection.
     if garden.selected_plant_id is None and not owned_ids:
-        starter = next((p for p in plants if p.species == "monstera" and p.unlock_cost == 0), None)
+        starter = next(
+            (
+                plant
+                for plant in plants
+                if plant.species == "monstera" and plant.unlock_cost == 0
+            ),
+            None,
+        )
+
         if starter is not None:
-            db.add(PlantOwnership(user_id=user_id, plant_id=starter.id))
+            db.add(
+                PlantOwnership(
+                    user_id=user_id,
+                    plant_id=starter.id,
+                )
+            )
             garden.selected_plant_id = starter.id
             owned_ids.add(starter.id)
             created = True
@@ -119,31 +178,33 @@ async def get_garden_state(db: AsyncSession, user_id: UUID) -> GardenStateRespon
         await db.commit()
         await db.refresh(garden)
 
-    catalog = []
-    for p in plants:
-        catalog.append(
-            PlantCatalogItem(
-                id=p.id,
-                species=p.species,
-                name=p.name,
-                description=p.description,
-                unlock_cost=p.unlock_cost,
-                is_unlocked=p.id in owned_ids,
-                is_selected=(p.id == garden.selected_plant_id),
-            )
+    catalog = [
+        PlantCatalogItem(
+            id=plant.id,
+            species=plant.species,
+            name=plant.name,
+            description=plant.description,
+            unlock_cost=plant.unlock_cost,
+            is_unlocked=plant.id in owned_ids,
+            is_selected=plant.id == garden.selected_plant_id,
         )
+        for plant in plants
+    ]
 
     points = garden.growth_points or 0
-    from typing import Literal
-    stage: Literal["SPROUTING", "GROWING", "BLOOMING", "FLOURISHING"] = "SPROUTING"
+    stage: Literal[
+        "SPROUTING",
+        "GROWING",
+        "BLOOMING",
+        "FLOURISHING",
+    ] = "SPROUTING"
+
     if points >= GROWTH_THRESHOLDS["FLOURISHING"]:
         stage = "FLOURISHING"
     elif points >= GROWTH_THRESHOLDS["BLOOMING"]:
         stage = "BLOOMING"
     elif points >= GROWTH_THRESHOLDS["GROWING"]:
         stage = "GROWING"
-    elif points >= GROWTH_THRESHOLDS["SPROUTING"]:
-        stage = "SPROUTING"
 
     return GardenStateResponse(
         water_balance=garden.water_balance,
@@ -157,61 +218,101 @@ async def get_garden_state(db: AsyncSession, user_id: UUID) -> GardenStateRespon
 
 
 async def unlock_plant(
-    db: AsyncSession, user_id: UUID, plant_id: UUID
+    db: AsyncSession,
+    user_id: UUID,
+    plant_id: UUID,
 ) -> GardenStateResponse:
     garden, _ = await _ensure_garden_state(db, user_id)
+
     plant = await db.scalar(
-        select(Plant).where(Plant.id == plant_id, Plant.is_active == True)
+        select(Plant).where(
+            Plant.id == plant_id,
+            Plant.is_active == True,
+        )
     )
 
     if not plant:
-        raise HTTPException(status_code=404, detail="Plant not found or inactive")
+        raise HTTPException(
+            status_code=404,
+            detail="Plant not found or inactive",
+        )
 
     existing_ownership = await db.scalar(
         select(PlantOwnership).where(
-            PlantOwnership.user_id == user_id, PlantOwnership.plant_id == plant_id
+            PlantOwnership.user_id == user_id,
+            PlantOwnership.plant_id == plant_id,
         )
     )
+
     if existing_ownership:
-        # Idempotent
+        # Idempotent.
         await db.commit()
         return await get_garden_state(db, user_id)
 
     if garden.leaves_balance < plant.unlock_cost:
-        raise HTTPException(status_code=409, detail={"code": "INSUFFICIENT_LEAVES", "message": "Insufficient leaves", "required": plant.unlock_cost, "available": garden.leaves_balance})
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "INSUFFICIENT_LEAVES",
+                "message": "Insufficient leaves",
+                "required": plant.unlock_cost,
+                "available": garden.leaves_balance,
+            },
+        )
 
     garden.leaves_balance -= plant.unlock_cost
 
-    ownership = PlantOwnership(user_id=user_id, plant_id=plant_id)
-    db.add(ownership)
+    db.add(
+        PlantOwnership(
+            user_id=user_id,
+            plant_id=plant_id,
+        )
+    )
 
-    # Ledger
     event = RewardEvent(
         user_id=user_id,
         event_type="PLANT_UNLOCK",
         resource_type="LEAVES",
         amount=-plant.unlock_cost,
-        idempotency_key=f"unlock_{user_id}_{plant_id}_{datetime.now(timezone.utc).timestamp()}",
+        idempotency_key=(
+            f"unlock_{user_id}_{plant_id}_"
+            f"{datetime.now(timezone.utc).timestamp()}"
+        ),
     )
     db.add(event)
 
     await db.commit()
-    logger.info("plant_unlocked", extra={"plant_id": str(plant_id), "cost": plant.unlock_cost})
+
+    logger.info(
+        "plant_unlocked",
+        extra={
+            "plant_id": str(plant_id),
+            "cost": plant.unlock_cost,
+        },
+    )
+
     return await get_garden_state(db, user_id)
 
 
 async def select_plant(
-    db: AsyncSession, user_id: UUID, plant_id: UUID
+    db: AsyncSession,
+    user_id: UUID,
+    plant_id: UUID,
 ) -> GardenStateResponse:
     garden, _ = await _ensure_garden_state(db, user_id)
+
     ownership = await db.scalar(
         select(PlantOwnership).where(
-            PlantOwnership.user_id == user_id, PlantOwnership.plant_id == plant_id
+            PlantOwnership.user_id == user_id,
+            PlantOwnership.plant_id == plant_id,
         )
     )
 
     if not ownership:
-        raise HTTPException(status_code=404, detail="Unlocked plant not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Unlocked plant not found",
+        )
 
     garden.selected_plant_id = plant_id
     await db.commit()
@@ -219,32 +320,81 @@ async def select_plant(
     return await get_garden_state(db, user_id)
 
 
-async def water_plant(db: AsyncSession, user_id: UUID) -> WaterPlantResponse:
+async def water_plant(
+    db: AsyncSession,
+    user_id: UUID,
+    operation_key: UUID,
+) -> WaterPlantResponse:
+    # _ensure_garden_state() locks the user's row with SELECT ... FOR UPDATE.
+    # This serializes Garden balance changes for the same user, so the
+    # idempotency check below is safe against concurrent duplicate requests.
     garden, _ = await _ensure_garden_state(db, user_id)
 
+    idempotency_key = f"water_{user_id}_{operation_key}"
+
+    existing_event = await db.scalar(
+        select(RewardEvent).where(
+            RewardEvent.idempotency_key == idempotency_key
+        )
+    )
+
+    if existing_event:
+        now = datetime.now(timezone.utc)
+        return WaterPlantResponse(
+            water_balance=garden.water_balance,
+            last_watered_at=garden.last_watered_at,
+            vitality=calculate_vitality(
+                garden.last_watered_at,
+                current_time=now,
+            ),
+        )
+
     if not garden.selected_plant_id:
-        raise HTTPException(status_code=409, detail="No plant selected")
+        raise HTTPException(
+            status_code=409,
+            detail="No plant selected",
+        )
 
     if garden.water_balance < WATERING_COST:
-        raise HTTPException(status_code=409, detail={"code": "INSUFFICIENT_WATER", "message": "Insufficient water", "required": WATERING_COST, "available": garden.water_balance})
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "INSUFFICIENT_WATER",
+                "message": "Insufficient water",
+                "required": WATERING_COST,
+                "available": garden.water_balance,
+            },
+        )
 
-    garden.water_balance -= WATERING_COST
     now = datetime.now(timezone.utc)
+    garden.water_balance -= WATERING_COST
     garden.last_watered_at = now
 
-    event = RewardEvent(
-        user_id=user_id,
-        event_type="WATER_PLANT",
-        resource_type="WATER",
-        amount=-WATERING_COST,
-        idempotency_key=f"water_{user_id}_{now.timestamp()}",
+    db.add(
+        RewardEvent(
+            user_id=user_id,
+            event_type="WATER_PLANT",
+            resource_type="WATER",
+            amount=-WATERING_COST,
+            idempotency_key=idempotency_key,
+        )
     )
-    db.add(event)
+
     await db.commit()
-    logger.info("garden_watered", extra={"cost": WATERING_COST})
+
+    logger.info(
+        "garden_watered",
+        extra={
+            "cost": WATERING_COST,
+            "operation_key": str(operation_key),
+        },
+    )
 
     return WaterPlantResponse(
         water_balance=garden.water_balance,
         last_watered_at=now,
-        vitality=calculate_vitality(garden.last_watered_at, current_time=now),
+        vitality=calculate_vitality(
+            garden.last_watered_at,
+            current_time=now,
+        ),
     )

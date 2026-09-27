@@ -27,6 +27,9 @@ class GardenStateResponse(BaseModel):
     catalog: list[PlantCatalogItem]
 
 
+class WaterPlantRequest(BaseModel):
+    operation_key: UUID
+
 class WaterPlantResponse(BaseModel):
     water_balance: int
     last_watered_at: datetime

@@ -174,6 +174,8 @@ export class GardenSelectionViewModel {
     }
   }
 
+  wateringOperationKey: string | null = null;
+
   get canWaterSelectedPlant(): boolean {
     return this.selectedPlant?.id === this.activePlantId && this.waterBalance >= 1 && !this.isPending;
   }
@@ -182,8 +184,11 @@ export class GardenSelectionViewModel {
     if (!this.canWaterSelectedPlant) return false;
     this.isPending = true;
     this.syncWarning = null;
+    if (!this.wateringOperationKey) {
+      this.wateringOperationKey = crypto.randomUUID();
+    }
     try {
-      await api.post("/garden/water");
+      await api.post("/garden/water", { operation_key: this.wateringOperationKey });
       this.error = null;
       if (animate) {
         this.isWatering = true;
@@ -207,6 +212,7 @@ export class GardenSelectionViewModel {
   async finishWatering() {
     if (!this.isPending) return;
     this.isWatering = false;
+    this.wateringOperationKey = null;
     await this.loadState();
     notifyGardenUpdated();
     await this.syncWidget("Plant watered, but widget sync failed.");

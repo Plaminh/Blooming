@@ -126,7 +126,8 @@ async def test_watering_vitality_and_growth_unlock_preservation(
     clock.advance(3 * 86400)
     before = await garden_service.get_garden_state(db_session, user_id)
     assert before.vitality == 70
-    result = await garden_service.water_plant(db_session, user_id)
+    from uuid import uuid4
+    result = await garden_service.water_plant(db_session, user_id, uuid4())
     assert result.water_balance == 100 - WATERING_COST
     assert result.last_watered_at == clock.instant
     assert result.vitality == 100
@@ -150,6 +151,85 @@ async def test_watering_vitality_and_growth_unlock_preservation(
         -WATERING_COST,
     )
 
+async def test_water_plant_idempotency_same_and_different_keys(
+    db_session, test_user, test_garden_state, test_plant, test_plant_ownership, clock
+):
+    from uuid import uuid4
+    user_id = test_user.id
+    test_garden_state.selected_plant_id = test_plant.id
+    test_garden_state.water_balance = 3
+    await db_session.commit()
+
+    key_same = uuid4()
+    key_new = uuid4()
+
+    # Initial water
+    result1 = await garden_service.water_plant(db_session, user_id, key_same)
+    assert result1.water_balance == 2
+
+    # Double click / retry
+    result2 = await garden_service.water_plant(db_session, user_id, key_same)
+    assert result2.water_balance == 2
+
+    # New action
+    result3 = await garden_service.water_plant(db_session, user_id, key_new)
+    assert result3.water_balance == 1
+
+    events = (await db_session.scalars(select(RewardEvent).where(RewardEvent.event_type == "WATER_PLANT"))).all()
+    assert len(events) == 2
+    assert set([e.idempotency_key for e in events]) == {f"water_{user_id}_{key_new}", f"water_{user_id}_{key_same}"}
+
+async def test_water_plant_concurrent_duplicate(
+    db_session, test_user, test_garden_state, test_plant, clock
+):
+    import asyncio
+    from uuid import uuid4
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from app.db.models.garden import GardenState
+
+    user_id = test_user.id
+    test_garden_state.selected_plant_id = test_plant.id
+    test_garden_state.water_balance = 3
+    await db_session.commit()
+
+    key_same = uuid4()
+    
+    # We create two new independent sessions sharing the same engine/connection
+    async with AsyncSession(bind=db_session.bind, expire_on_commit=False, autoflush=False) as session1:
+        async with AsyncSession(bind=db_session.bind, expire_on_commit=False, autoflush=False) as session2:
+            try:
+                # Run concurrently
+                results = await asyncio.gather(
+                    garden_service.water_plant(session1, user_id, key_same),
+                    garden_service.water_plant(session2, user_id, key_same),
+                    return_exceptions=True
+                )
+                
+                # We expect no unhandled IntegrityError and that both requests return successfully with balance=2
+                for res in results:
+                    assert not isinstance(res, Exception), f"Concurrent watering raised {res}"
+                    assert res.water_balance == 2
+
+                await session1.commit()
+                await session2.commit()
+            except Exception as e:
+                await session1.rollback()
+                await session2.rollback()
+                raise e
+
+    # Check state with original session
+    db_session.expire_all()
+    garden = await db_session.get(GardenState, user_id)
+    assert garden.water_balance == 2
+    
+    events = (await db_session.scalars(select(RewardEvent).where(RewardEvent.event_type == "WATER_PLANT"))).all()
+    assert len(events) == 1
+    assert events[0].idempotency_key == f"water_{user_id}_{key_same}"
+
+    # Verify a new key deducts again
+    key_new = uuid4()
+    result_new = await garden_service.water_plant(db_session, user_id, key_new)
+    assert result_new.water_balance == 1
 
 async def test_unlock_and_repeat_preserve_growth(
     db_session, test_user, test_plant, test_garden_state
@@ -175,8 +255,9 @@ async def test_insufficient_water_leaves_balances_and_events_unchanged(
     garden, _ = await garden_service._ensure_garden_state(db_session, user_id)
     garden.selected_plant_id = test_plant.id
     await db_session.commit()
+    from uuid import uuid4
     with pytest.raises(HTTPException) as exc:
-        await garden_service.water_plant(db_session, user_id)
+        await garden_service.water_plant(db_session, user_id, uuid4())
     assert exc.value.status_code == 409
     assert exc.value.detail == {
         "code": "INSUFFICIENT_WATER",
