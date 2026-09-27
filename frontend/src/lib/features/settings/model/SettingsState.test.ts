@@ -38,11 +38,13 @@ describe('SettingsState', () => {
 
   it('initializes with default fixture values', () => {
     expect(state.savedSettings.email).toBe('you@example.com');
+    expect(state.savedSettings.widgetVisibility).toBe(true);
+    expect(state.savedSettings.quietHoursEnabled).toBe(false);
     expect(state.savedSettings.timezone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
     expect(state.savedSettings.focusDurationMinutes).toBe(25);
     expect(state.savedSettings.breakDurationMinutes).toBe(5);
     expect(state.savedSettings.startAtLogin).toBe(true);
-    expect(state.savedSettings.keepWidgetOnTop).toBe(true);
+    expect(state.savedSettings.keepWidgetOnTop).toBe(false);
     expect(state.savedSettings.milestoneReminderLeadTimeMinutes).toBe(1440);
   });
 
@@ -96,6 +98,7 @@ describe('SettingsState', () => {
       weather_location: 'Ho Chi Minh City', weather_location_name: 'Ho Chi Minh City, Vietnam',
       weather_lat: 10.82, weather_lon: 106.63, scene_season: 'AUTO',
       weather_animation_enabled: false,
+      widget_visibility: true, quiet_hours_enabled: false, quiet_hours_start: null, quiet_hours_end: null,
     });
     const notifyWidget = vi.spyOn(desktop, 'settingsUpdated').mockResolvedValue();
     const reconcile = vi.spyOn(desktop, 'reconcileSettings').mockResolvedValue();
@@ -118,11 +121,9 @@ describe('SettingsState', () => {
       weather_lat: 10.82,
       weather_lon: 106.63,
       weather_animation_enabled: false,
+      widget_visibility: true, quiet_hours_enabled: false, quiet_hours_start: null, quiet_hours_end: null,
     }));
-    expect(api.put).toHaveBeenCalledWith('/me/settings', expect.not.objectContaining({
-      mr_bloom_display_name: expect.anything(),
-      scene_season: expect.anything(),
-    }));
+    expect(api.put).toHaveBeenCalledWith('/me/settings', expect.not.objectContaining({ scene_season: expect.anything() }));
     expect(reconcile).toHaveBeenCalledWith(expect.objectContaining({
       launch_on_startup: true,
       widget_always_on_top: true,
@@ -142,6 +143,7 @@ describe('SettingsState', () => {
       weather_location: null, weather_location_name: 'Paris, France',
       weather_lat: 48.86, weather_lon: 2.35, scene_season: 'WINTER',
       weather_animation_enabled: false,
+      widget_visibility: true, quiet_hours_enabled: false, quiet_hours_start: null, quiet_hours_end: null,
     });
 
     const synced = new SettingsState();
@@ -170,4 +172,136 @@ describe('SettingsState', () => {
     expect(state.draftSettings.weatherLon).toBe(2);
     expect(state.locationPickerVersion).toBe(version + 1);
   });
+
+  it('widget_visibility=false persists before native reconcile', async () => {
+    vi.mocked(api.put).mockResolvedValue({
+      mr_bloom_display_name: 'Mr. Bloom', timezone: 'UTC',
+      default_focus_minutes: 25, default_break_minutes: 5,
+      launch_on_startup: true, widget_always_on_top: false,
+      milestone_reminder_lead_time_minutes: 1440, weather_enabled: false,
+      weather_location: null, weather_location_name: null,
+      weather_lat: null, weather_lon: null, scene_season: 'AUTO',
+      weather_animation_enabled: true,
+      widget_visibility: false, quiet_hours_enabled: false, quiet_hours_start: null, quiet_hours_end: null,
+    });
+    const reconcile = vi.spyOn(desktop, 'reconcileSettings').mockResolvedValue();
+    state.draftSettings.widgetVisibility = false;
+    await state.save();
+    expect(api.put).toHaveBeenCalledWith('/me/settings', expect.objectContaining({ widget_visibility: false }));
+    expect(reconcile).toHaveBeenCalledWith(expect.objectContaining({ widget_visibility: false }));
+  });
+
+  it('widget_visibility=true persists before native reconcile', async () => {
+    vi.mocked(api.put).mockResolvedValue({
+      mr_bloom_display_name: 'Mr. Bloom', timezone: 'UTC',
+      default_focus_minutes: 25, default_break_minutes: 5,
+      launch_on_startup: true, widget_always_on_top: false,
+      milestone_reminder_lead_time_minutes: 1440, weather_enabled: false,
+      weather_location: null, weather_location_name: null,
+      weather_lat: null, weather_lon: null, scene_season: 'AUTO',
+      weather_animation_enabled: true,
+      widget_visibility: true, quiet_hours_enabled: false, quiet_hours_start: null, quiet_hours_end: null,
+    });
+    const reconcile = vi.spyOn(desktop, 'reconcileSettings').mockResolvedValue();
+    state.draftSettings.widgetVisibility = true;
+    await state.save();
+    expect(api.put).toHaveBeenCalledWith('/me/settings', expect.objectContaining({ widget_visibility: true }));
+    expect(reconcile).toHaveBeenCalledWith(expect.objectContaining({ widget_visibility: true }));
+  });
+
+  it('widget_always_on_top persists before native reconcile', async () => {
+    vi.mocked(api.put).mockResolvedValue({
+      mr_bloom_display_name: 'Mr. Bloom', timezone: 'UTC',
+      default_focus_minutes: 25, default_break_minutes: 5,
+      launch_on_startup: true, widget_always_on_top: true,
+      milestone_reminder_lead_time_minutes: 1440, weather_enabled: false,
+      weather_location: null, weather_location_name: null,
+      weather_lat: null, weather_lon: null, scene_season: 'AUTO',
+      weather_animation_enabled: true,
+      widget_visibility: true, quiet_hours_enabled: false, quiet_hours_start: null, quiet_hours_end: null,
+    });
+    const reconcile = vi.spyOn(desktop, 'reconcileSettings').mockResolvedValue();
+    state.draftSettings.keepWidgetOnTop = true;
+    await state.save();
+    expect(api.put).toHaveBeenCalledWith('/me/settings', expect.objectContaining({ widget_always_on_top: true }));
+    expect(reconcile).toHaveBeenCalledWith(expect.objectContaining({ widget_always_on_top: true }));
+  });
+
+  it('launch_on_startup persists before native reconcile', async () => {
+    vi.mocked(api.put).mockResolvedValue({
+      mr_bloom_display_name: 'Mr. Bloom', timezone: 'UTC',
+      default_focus_minutes: 25, default_break_minutes: 5,
+      launch_on_startup: true, widget_always_on_top: false,
+      milestone_reminder_lead_time_minutes: 1440, weather_enabled: false,
+      weather_location: null, weather_location_name: null,
+      weather_lat: null, weather_lon: null, scene_season: 'AUTO',
+      weather_animation_enabled: true,
+      widget_visibility: true, quiet_hours_enabled: false, quiet_hours_start: null, quiet_hours_end: null,
+    });
+    const reconcile = vi.spyOn(desktop, 'reconcileSettings').mockResolvedValue();
+    state.draftSettings.startAtLogin = true;
+    await state.save();
+    expect(api.put).toHaveBeenCalledWith('/me/settings', expect.objectContaining({ launch_on_startup: true }));
+    expect(reconcile).toHaveBeenCalledWith(expect.objectContaining({ launch_on_startup: true }));
+  });
+
+  it('backend failure -> native reconcile NOT called', async () => {
+    vi.mocked(api.put).mockRejectedValue(new Error('Network error'));
+    const reconcile = vi.spyOn(desktop, 'reconcileSettings').mockResolvedValue();
+    state.draftSettings.keepWidgetOnTop = true;
+    await state.save();
+    expect(api.put).toHaveBeenCalled();
+    expect(reconcile).not.toHaveBeenCalled();
+    expect(state.saveErrorMessage).toBe('Network error');
+    expect(state.savedSettings.keepWidgetOnTop).toBe(false);
+  });
+
+  it('backend success + native failure -> persisted/local value remains the new backend value and warns', async () => {
+    vi.mocked(api.put).mockResolvedValue({
+      mr_bloom_display_name: 'Mr. Bloom', timezone: 'UTC',
+      default_focus_minutes: 25, default_break_minutes: 5,
+      launch_on_startup: true, widget_always_on_top: true,
+      milestone_reminder_lead_time_minutes: 1440, weather_enabled: false,
+      weather_location: null, weather_location_name: null,
+      weather_lat: null, weather_lon: null, scene_season: 'AUTO',
+      weather_animation_enabled: true,
+      widget_visibility: true, quiet_hours_enabled: false, quiet_hours_start: null, quiet_hours_end: null,
+    });
+    const reconcile = vi.spyOn(desktop, 'reconcileSettings').mockRejectedValue(new Error('Desktop error'));
+    state.draftSettings.keepWidgetOnTop = true;
+    await state.save();
+    expect(api.put).toHaveBeenCalled();
+    expect(reconcile).toHaveBeenCalled();
+    expect(state.syncWarning).toBe('Settings saved, but desktop settings could not be synchronized.');
+    expect(state.savedSettings.keepWidgetOnTop).toBe(true);
+  });
+
+  it('settingsUpdated emitted only after successful backend persistence', async () => {
+    vi.mocked(api.put).mockResolvedValue({
+      mr_bloom_display_name: 'New Name', timezone: 'UTC',
+      default_focus_minutes: 25, default_break_minutes: 5,
+      launch_on_startup: true, widget_always_on_top: false,
+      milestone_reminder_lead_time_minutes: 1440, weather_enabled: false,
+      weather_location: null, weather_location_name: null,
+      weather_lat: null, weather_lon: null, scene_season: 'AUTO',
+      weather_animation_enabled: true,
+      widget_visibility: true, quiet_hours_enabled: false, quiet_hours_start: null, quiet_hours_end: null,
+    });
+    const notifyWidget = vi.spyOn(desktop, 'settingsUpdated').mockResolvedValue();
+    let emitted = false;
+    window.addEventListener('blooming:settings-updated', () => emitted = true);
+    
+    await state.save();
+    expect(api.put).toHaveBeenCalled();
+    expect(emitted).toBe(true);
+    expect(notifyWidget).toHaveBeenCalled();
+    
+    vi.mocked(api.put).mockRejectedValueOnce(new Error('Fail'));
+    emitted = false;
+    notifyWidget.mockClear();
+    await state.save();
+    expect(emitted).toBe(false);
+    expect(notifyWidget).not.toHaveBeenCalled();
+  });
+
 });

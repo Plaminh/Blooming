@@ -54,7 +54,11 @@ export interface UserSettingsResponse {
   default_break_minutes: number;
   launch_on_startup: boolean;
   widget_always_on_top: boolean;
+  widget_visibility: boolean;
   milestone_reminder_lead_time_minutes: number;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
   weather_enabled: boolean;
   weather_location: string | null;
   weather_location_name: string | null;
@@ -62,7 +66,6 @@ export interface UserSettingsResponse {
   weather_lon: number | null;
   scene_season: string;
   weather_animation_enabled: boolean;
-  widget_visibility?: boolean;
 }
 export interface WaterPlantResponse {
   water_balance: number;

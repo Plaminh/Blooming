@@ -10,6 +10,7 @@ const response: UserSettingsResponse = {
   weather_location: null, weather_location_name: 'Ho Chi Minh City, Vietnam',
   weather_lat: 10.82, weather_lon: 106.63, scene_season: 'AUTO',
   weather_animation_enabled: true,
+      widget_visibility: true, quiet_hours_enabled: false, quiet_hours_start: null, quiet_hours_end: null,
 };
 
 describe('user settings mapping', () => {

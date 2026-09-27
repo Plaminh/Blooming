@@ -19,6 +19,11 @@
       bind:checked={settingsState.draftSettings.startAtLogin}
     />
     <ToggleSwitch
+      id="widgetVisibility"
+      label="Show companion widget"
+      bind:checked={settingsState.draftSettings.widgetVisibility}
+    />
+    <ToggleSwitch
       id="keepWidgetOnTop"
       label="Keep widget on top"
       bind:checked={settingsState.draftSettings.keepWidgetOnTop}

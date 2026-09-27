@@ -15,8 +15,12 @@ export class SettingsState {
     focusDurationMinutes: 25,
     breakDurationMinutes: 5,
     startAtLogin: true,
-    keepWidgetOnTop: true,
+    keepWidgetOnTop: false,
+    widgetVisibility: true,
     milestoneReminderLeadTimeMinutes: 1440,
+    quietHoursEnabled: false,
+    quietHoursStart: null,
+    quietHoursEnd: null,
     weatherEnabled: false,
     weatherLocation: "",
     weatherLocationName: null,
@@ -86,7 +90,17 @@ export class SettingsState {
       milestoneReminderLeadTimeMinutes,
       weatherLocation,
       timezone,
+      quietHoursEnabled,
+      quietHoursStart,
+      quietHoursEnd,
     } = this.draftSettings;
+
+    if (quietHoursEnabled) {
+      if (!quietHoursStart || !quietHoursEnd) {
+        this.validationErrors.quietHours = "Both start and end times are required when Quiet Hours are enabled.";
+        isValid = false;
+      }
+    }
 
     if (!isValidTimezone(timezone)) {
       this.validationErrors.timezone = "Select a valid IANA timezone.";
@@ -155,9 +169,13 @@ export class SettingsState {
         default_break_minutes: Number(this.draftSettings.breakDurationMinutes),
         launch_on_startup: this.draftSettings.startAtLogin,
         widget_always_on_top: this.draftSettings.keepWidgetOnTop,
+        widget_visibility: this.draftSettings.widgetVisibility,
         milestone_reminder_lead_time_minutes: Number(
           this.draftSettings.milestoneReminderLeadTimeMinutes,
         ),
+        quiet_hours_enabled: this.draftSettings.quietHoursEnabled,
+        quiet_hours_start: this.draftSettings.quietHoursEnabled ? this.draftSettings.quietHoursStart : null,
+        quiet_hours_end: this.draftSettings.quietHoursEnabled ? this.draftSettings.quietHoursEnd : null,
         weather_enabled: this.draftSettings.weatherEnabled,
         weather_location: this.draftSettings.weatherLocation.trim() || null,
         weather_location_name: this.draftSettings.weatherLocationName?.trim() || null,

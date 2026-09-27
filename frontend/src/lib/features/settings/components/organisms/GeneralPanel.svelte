@@ -117,6 +117,7 @@
     font-weight: 600;
   }
 
+
   .location-error { color: var(--bloom-error); }
 
   .settings-group {

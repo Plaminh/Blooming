@@ -28,14 +28,38 @@
   </div>
 
   <div class="panel-content">
-    <SelectField
-      id="milestoneReminderLeadTimeMinutes"
-      label="Milestone reminder"
-      bind:value={settingsState.draftSettings.milestoneReminderLeadTimeMinutes}
-      options={reminderOptions}
-      error={settingsState.validationErrors.milestoneReminderLeadTimeMinutes}
-      layout="stacked"
-    />
+    <div class="setting-row">
+      <SelectField
+        id="milestoneReminderLeadTimeMinutes"
+        label="Milestone reminder"
+        bind:value={settingsState.draftSettings.milestoneReminderLeadTimeMinutes}
+        options={reminderOptions}
+        error={settingsState.validationErrors.milestoneReminderLeadTimeMinutes}
+        layout="stacked"
+      />
+    </div>
+
+    <div class="setting-row toggle-row">
+      <div class="toggle-container">
+        <label for="quietHoursEnabled" class="toggle-label">Enable Quiet Hours</label>
+        <input type="checkbox" id="quietHoursEnabled" bind:checked={settingsState.draftSettings.quietHoursEnabled} />
+      </div>
+      {#if settingsState.draftSettings.quietHoursEnabled}
+        <div class="time-inputs">
+          <div class="time-field">
+            <label for="quietHoursStart">Start Time</label>
+            <input type="time" id="quietHoursStart" bind:value={settingsState.draftSettings.quietHoursStart} />
+          </div>
+          <div class="time-field">
+            <label for="quietHoursEnd">End Time</label>
+            <input type="time" id="quietHoursEnd" bind:value={settingsState.draftSettings.quietHoursEnd} />
+          </div>
+        </div>
+      {/if}
+      {#if settingsState.validationErrors.quietHours}
+        <span class="error" role="alert">{settingsState.validationErrors.quietHours}</span>
+      {/if}
+    </div>
   </div>
 </section>
 
@@ -67,5 +91,42 @@
   .panel-content {
     display: flex;
     flex-direction: column;
+    gap: 16px;
   }
+  .setting-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toggle-label {
+    font-family: var(--bloom-body-font);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--bloom-text-dark-blue);
+  }
+  .time-inputs {
+    display: flex;
+    gap: 16px;
+  }
+  .time-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .time-field label {
+    font-family: var(--bloom-body-font);
+    font-size: 12px;
+    color: var(--bloom-text-dark-blue);
+  }
+  .time-field input {
+    padding: 6px;
+    border: 1px solid var(--bloom-border-subtle);
+    border-radius: 4px;
+  }
+  .error { color: var(--bloom-error); font-size: 12px; }
 </style>
