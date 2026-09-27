@@ -7,7 +7,7 @@
 
   let { milestone, onUpdateMilestone }: { 
     milestone: Milestone, 
-    onUpdateMilestone?: (id: string, updates: any) => void 
+    onUpdateMilestone?: (id: string, updates: any) => Promise<void> 
   } = $props();
 
   let isEditing = $state(false);
@@ -49,9 +49,18 @@
     isEditing = false;
   }
 
-  function handleMarkComplete() {
-    if (onUpdateMilestone) {
-        onUpdateMilestone(milestone.id, { status: 'COMPLETED' });
+  let completing = $state(false);
+
+  async function handleMarkComplete() {
+    if (!onUpdateMilestone || completing) return;
+    completing = true;
+    try {
+        await onUpdateMilestone(milestone.id, { status: 'COMPLETED' });
+    } catch (e) {
+        // error handling handled by store or toast usually
+        console.error("Failed to complete milestone", e);
+    } finally {
+        completing = false;
     }
   }
 </script>
@@ -84,7 +93,9 @@
       </div>
       <div class="status-actions">
         {#if milestone.status !== 'COMPLETED'}
-          <button class="btn-mark-complete" onclick={handleMarkComplete}>MARK COMPLETE</button>
+          <button class="btn-mark-complete" onclick={handleMarkComplete} disabled={completing}>
+            {completing ? 'SAVING...' : 'MARK COMPLETE'}
+          </button>
         {/if}
         <GoalStatusBadge status={milestone.status} />
       </div>

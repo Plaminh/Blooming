@@ -9,7 +9,7 @@
 
   let { goal, onUpdateMilestone }: { 
     goal: Goal | null, 
-    onUpdateMilestone?: (milestoneId: string, updates: any) => void 
+    onUpdateMilestone?: (milestoneId: string, updates: any) => Promise<void> 
   } = $props();
 
   let isEditing = $state(false);

@@ -298,7 +298,7 @@ function createMrBloomStore() {
       return true;
     } catch (error) {
       update(state => ({ ...state, isSavePending: false, error: error instanceof Error ? error.message : 'Failed to save goal.' }));
-      return false;
+      throw error;
     }
   }
 

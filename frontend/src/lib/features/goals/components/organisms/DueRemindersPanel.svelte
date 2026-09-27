@@ -5,8 +5,20 @@
 
   let { reminders, onAction }: { 
     reminders: any[], 
-    onAction: (reminderId: string, action: string, newDate?: string) => void 
+    onAction: (reminderId: string, action: string, newDate?: string) => Promise<void> 
   } = $props();
+
+  let pendingAction = $state<string | null>(null);
+
+  async function handleAction(reminderId: string, action: string, newDate?: string) {
+    if (pendingAction) return;
+    pendingAction = `${reminderId}-${action}`;
+    try {
+      await onAction(reminderId, action, newDate);
+    } finally {
+      pendingAction = null;
+    }
+  }
 </script>
 
 <section class="panel due-reminders">
@@ -24,15 +36,15 @@
           </div>
         </div>
         <div class="reminder-actions">
-          <button onclick={() => onAction(reminder.id, 'CREATE_PLAN')}>Create Plan</button>
-          <button onclick={() => onAction(reminder.id, 'MARK_COMPLETED')}>Mark Completed</button>
-          <button onclick={() => {
+          <button disabled={!!pendingAction} onclick={() => handleAction(reminder.id, 'CREATE_PLAN')}>Create Plan</button>
+          <button disabled={!!pendingAction} onclick={() => handleAction(reminder.id, 'MARK_COMPLETED')}>Mark Completed</button>
+          <button disabled={!!pendingAction} onclick={() => {
               const d = prompt("Move target date (YYYY-MM-DD):", reminder.due_at.substring(0, 10));
-              if (d) onAction(reminder.id, 'MOVE_MILESTONE', new Date(d).toISOString());
+              if (d) handleAction(reminder.id, 'MOVE_MILESTONE', new Date(d).toISOString());
           }}>Move Milestone</button>
-          <button onclick={() => {
+          <button disabled={!!pendingAction} onclick={() => {
               const d = prompt("Remind Later (YYYY-MM-DD):", reminder.due_at.substring(0, 10));
-              if (d) onAction(reminder.id, 'REMIND_LATER', new Date(d).toISOString());
+              if (d) handleAction(reminder.id, 'REMIND_LATER', new Date(d).toISOString());
           }}>Remind Later</button>
         </div>
       </div>

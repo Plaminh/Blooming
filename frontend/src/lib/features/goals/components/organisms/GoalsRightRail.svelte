@@ -27,7 +27,7 @@
                 onAction={(id, action, date) => goalsStore.executeReminderAction(id, action, date)} 
             />
         {/if}
-        <NextMilestonePanel milestone={nextMilestone} daysLeft={nextMilestone ? 17 : undefined} />
+        <NextMilestonePanel milestone={nextMilestone} />
         <OverallProgressPanel completed={completedCount} total={totalCount} />
       </div>
       

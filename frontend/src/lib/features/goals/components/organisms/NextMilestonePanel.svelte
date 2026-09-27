@@ -4,7 +4,30 @@
   import GoalsPanelHeader from '../atoms/GoalsPanelHeader.svelte';
   import TargetDateLabel from '../atoms/TargetDateLabel.svelte';
 
-  let { milestone, daysLeft }: { milestone: Milestone | null; daysLeft?: number } = $props();
+  let { milestone }: { milestone: Milestone | null } = $props();
+
+  function getTimingText(dateString: string | null | undefined): string | null {
+    if (!dateString) return null;
+    const target = new Date(dateString);
+    if (isNaN(target.getTime())) return null;
+    
+    // Use local timezone for "today" calculation
+    const now = new Date();
+    // Reset time portions for pure day math
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const targetDay = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+    
+    const diffTime = targetDay.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Tomorrow";
+    if (diffDays === -1) return "Yesterday";
+    if (diffDays > 0) return `In ${diffDays} days`;
+    return `${Math.abs(diffDays)} days ago`;
+  }
+  
+  let timingText = $derived(milestone ? getTimingText(milestone.target_date || milestone.due_at) : null);
 </script>
 
 <section class="panel next-milestone">
@@ -21,8 +44,8 @@
       </div>
       <div class="milestone-meta">
         <TargetDateLabel date={milestone.target_date || milestone.due_at || ''} />
-        {#if daysLeft !== undefined}
-          <div class="days-left"><span>In {daysLeft} days</span></div>
+        {#if timingText !== null}
+          <div class="days-left"><span>{timingText}</span></div>
         {/if}
       </div>
     {:else}

@@ -58,7 +58,8 @@
     <GoalDetailsPanel 
       goal={selectedGoal} 
       onUpdateMilestone={(milestoneId, updates) => {
-        if (selectedGoalId) goalsStore.updateMilestone(selectedGoalId, milestoneId, updates);
+        if (selectedGoalId) return goalsStore.updateMilestone(selectedGoalId, milestoneId, updates);
+        return Promise.resolve();
       }}
     />
   </div>

@@ -5,7 +5,7 @@
 
   let { milestones, onUpdateMilestone }: { 
     milestones: Milestone[], 
-    onUpdateMilestone?: (id: string, updates: any) => void 
+    onUpdateMilestone?: (id: string, updates: any) => Promise<void> 
   } = $props();
 </script>
 
