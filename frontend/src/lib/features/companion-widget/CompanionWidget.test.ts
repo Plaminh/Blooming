@@ -188,13 +188,13 @@ describe("CompanionWidget", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders reminders heading, items, and VIEW then DISMISS", async () => {
+  it("renders reminders heading, items, and CREATE PLAN then REMIND LATER", async () => {
     const user = userEvent.setup();
-    const onView = vi.fn();
-    const onDismiss = vi.fn();
+    const onCreatePlan = vi.fn();
+    const onRemindLater = vi.fn();
     render(CompanionWidget, {
       props: {
-        presentation: { ...remindersFixture, onView, onDismiss },
+        presentation: { ...remindersFixture, onCreatePlan, onRemindLater },
       },
     });
 
@@ -203,14 +203,14 @@ describe("CompanionWidget", () => {
     expect(screen.getByText("Review milestone")).toBeInTheDocument();
     expect(screen.getByLabelText("Reminder alerts")).toBeInTheDocument();
 
-    const view = screen.getByRole("button", { name: /view/i });
-    const dismiss = screen.getByRole("button", { name: /dismiss/i });
-    expect(follows(view, dismiss)).toBe(true);
+    const createPlan = screen.getByRole("button", { name: /CREATE PLAN/i });
+    const remindLater = screen.getByRole("button", { name: /REMIND LATER/i });
+    expect(follows(createPlan, remindLater)).toBe(true);
 
-    await user.click(view);
-    await user.click(dismiss);
-    expect(onView).toHaveBeenCalledTimes(1);
-    expect(onDismiss).toHaveBeenCalledTimes(1);
+    await user.click(createPlan);
+    await user.click(remindLater);
+    expect(onCreatePlan).toHaveBeenCalledTimes(1);
+    expect(onRemindLater).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the full reminder label readable when the line is visually truncated", () => {
@@ -257,7 +257,7 @@ describe("CompanionWidget", () => {
           kind: "reminders",
           reminders: remindersFixture.reminders,
         },
-        labels: ["VIEW", "DISMISS"],
+        labels: ["CREATE PLAN", "MARK COMPLETED", "MOVE MILESTONE", "REMIND LATER"],
       },
     ];
 

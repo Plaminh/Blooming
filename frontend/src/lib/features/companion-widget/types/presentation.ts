@@ -49,8 +49,10 @@ export type OfflinePresentation = WidgetScenePresentation & {
 export type RemindersPresentation = WidgetScenePresentation & {
   kind: "reminders";
   reminders: ReminderItem[];
-  onView?: () => void;
-  onDismiss?: () => void;
+  onCreatePlan?: () => void;
+  onMarkCompleted?: () => void;
+  onMoveMilestone?: () => void;
+  onRemindLater?: () => void;
 };
 
 export type FocusingPresentation = WidgetScenePresentation & {

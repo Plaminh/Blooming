@@ -119,8 +119,19 @@ describe('desktopWindowService', () => {
   });
 
   it('safely no-ops in browser mode', async () => {
+    // Test desktopWindowService
     await expect(desktopWindowService.openMainWindow()).resolves.toBeUndefined();
     await expect(desktopWindowService.minimizeCurrent()).resolves.toBeUndefined();
     await expect(desktopWindowService.hideCurrent()).resolves.toBeUndefined();
+    
+    // Test desktop
+    await expect(desktop.showWidget()).resolves.toBeUndefined();
+    await expect(desktop.setTrayAlert(true)).resolves.toBeUndefined();
+    await expect(desktop.scheduleUpdated()).resolves.toBeUndefined();
+    
+    // Event listeners should return empty functions
+    const off = await desktop.onScheduleUpdated(() => {});
+    expect(typeof off).toBe('function');
+    off();
   });
 });

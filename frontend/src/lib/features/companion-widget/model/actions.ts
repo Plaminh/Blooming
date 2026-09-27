@@ -57,16 +57,28 @@ export function actionsFor(
     case "reminders":
       return [
         {
-          id: "view",
-          label: "VIEW",
+          id: "create_plan",
+          label: "CREATE PLAN",
           variant: "primary",
-          onClick: presentation.onView,
+          onClick: presentation.onCreatePlan,
         },
         {
-          id: "dismiss",
-          label: "DISMISS",
+          id: "mark_completed",
+          label: "MARK COMPLETED",
+          variant: "primary",
+          onClick: presentation.onMarkCompleted,
+        },
+        {
+          id: "move_milestone",
+          label: "MOVE MILESTONE",
           variant: "secondary",
-          onClick: presentation.onDismiss,
+          onClick: presentation.onMoveMilestone,
+        },
+        {
+          id: "remind_later",
+          label: "REMIND LATER",
+          variant: "secondary",
+          onClick: presentation.onRemindLater,
         },
       ];
     case "offline":

@@ -2,7 +2,7 @@
   import { CompanionWidget } from "$lib/features/companion-widget";
   import type {
     CompanionWidgetPresentation,
-    ActivePlantPresentation,
+    ActivePlantPresentation
   } from "$lib/features/companion-widget/types/presentation";
   import { onMount } from "svelte";
   import { environmentStore } from "$lib/shared/stores/environmentStore";
@@ -12,6 +12,7 @@
   import { selectedPlantPresentation } from "$lib/features/garden/utils/spriteMapper";
   import { desktop } from "$lib/platform/desktopWindow";
   import type { Weather } from "$lib/features/companion-widget/model/environment";
+
 
   interface FocusSession {
     id: string;
@@ -35,6 +36,9 @@
   let finishWarning = $state<string | null>(null);
   let finishError = $state<string | null>(null);
   let plantRequestId = 0;
+  
+  let dueReminders = $state<any[]>([]);
+  let fetchingReminders = false;
 
   async function fetchSession() {
     if (fetching) return;
@@ -60,6 +64,19 @@
     }
     fetching = false;
   }
+  
+  async function fetchReminders() {
+    if (fetchingReminders) return;
+    fetchingReminders = true;
+    try {
+      const result = await api.get('/reminders/due');
+      dueReminders = Array.isArray(result) ? result : [];
+      await desktop.setTrayAlert(dueReminders.length > 0);
+    } catch {
+      // Keep existing reminders on failure
+    }
+    fetchingReminders = false;
+  }
 
   async function refreshPlant() {
     const requestId = ++plantRequestId;
@@ -79,12 +96,14 @@
     });
     void fetchSession();
     void refreshPlant();
+    void fetchReminders();
     const clock = setInterval(() => {
       now = new Date();
     }, 1000);
     const refresh = setInterval(() => {
       void fetchSession();
       void refreshPlant();
+      void fetchReminders();
     }, 60000);
     let unlisten = () => {};
     const refreshVisiblePlant = () => {
@@ -97,6 +116,7 @@
       .onScheduleUpdated(() => {
         void fetchSession();
         void refreshPlant();
+        void fetchReminders();
       })
       .then((off) => {
         if (disposed) off();
@@ -132,6 +152,7 @@
       ) - activeSession.total_paused_seconds;
     return Math.max(0, activeSession.planned_focus_seconds - elapsed);
   });
+  
   $effect(() => {
     if (
       activeSession &&
@@ -141,6 +162,14 @@
     ) {
       endRequested = true;
       isEndingLocal = true;
+    }
+  });
+  
+  $effect(() => {
+    if ($environmentStore.widgetVisible === false) {
+      void desktop.hideCurrent();
+    } else if ($environmentStore.widgetVisible === true) {
+      void desktop.showWidget();
     }
   });
 
@@ -203,7 +232,11 @@
       isEndingLocal = false;
       try {
         await desktop.scheduleUpdated();
-        if (!finishWarning) await desktop.hideCurrent();
+        if (!finishWarning) {
+          if (dueReminders.length === 0) {
+            await desktop.hideCurrent();
+          }
+        }
       } catch {
         finishWarning = [finishWarning, "Focus saved, but window synchronization failed."].filter(Boolean).join(" ");
       }
@@ -217,13 +250,70 @@
       isPending = false;
     }
   }
+  
+  async function handleReminderAction(reminderId: string, actionType: string, newDueAt?: string) {
+    if (isPending) return;
+    isPending = true;
+    finishError = null;
+    try {
+      const payload: any = { action_type: actionType };
+      if (newDueAt) payload.new_due_at = newDueAt;
+      await api.post(`/reminders/${reminderId}/actions`, payload);
+      await fetchReminders();
+      await desktop.scheduleUpdated();
+      if (actionType === 'CREATE_PLAN') {
+        // Handoff to main window
+        await desktop.openMainWindow();
+        // Since we are in the widget, navigating inside the widget is NOT right. 
+        // We just open the main window. The desktop app will bring the main window forward.
+      }
+    } catch (err: unknown) {
+      finishError = err instanceof Error ? err.message : "Action failed.";
+    } finally {
+      isPending = false;
+    }
+  }
 
   let presentation = $derived.by<CompanionWidgetPresentation>(() => {
-    if (!activeSession) {
+    if ($environmentStore.widgetVisible === false) {
       return {
         kind: "offline",
         activePlant,
-        speechText: finishWarning ?? "Waiting for a focus session...",
+        speechText: "Widget hidden in settings.",
+      };
+    }
+
+    if (!activeSession) {
+      if (finishWarning) {
+         return {
+          kind: "offline",
+          activePlant,
+          speechText: finishWarning,
+        };
+      }
+      if (dueReminders.length > 0) {
+        const currentReminder = dueReminders[0];
+        return {
+          kind: "reminders",
+          activePlant,
+          reminders: [{ id: currentReminder.id, label: currentReminder.message }],
+          onCreatePlan: () => handleReminderAction(currentReminder.id, 'CREATE_PLAN'),
+          onMarkCompleted: () => handleReminderAction(currentReminder.id, 'MARK_COMPLETED'),
+          onMoveMilestone: () => {
+             const d = prompt("Move target date (YYYY-MM-DD):", currentReminder.due_at.substring(0, 10));
+             if (d) handleReminderAction(currentReminder.id, 'MOVE_MILESTONE', new Date(d).toISOString());
+          },
+          onRemindLater: () => {
+             const d = prompt("Remind Later (YYYY-MM-DD):", currentReminder.due_at.substring(0, 10));
+             if (d) handleReminderAction(currentReminder.id, 'REMIND_LATER', new Date(d).toISOString());
+          }
+        };
+      }
+
+      return {
+        kind: "offline",
+        activePlant,
+        speechText: "Waiting for a focus session...",
       };
     }
 

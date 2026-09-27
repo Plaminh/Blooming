@@ -7,6 +7,8 @@ export const remindersFixture: RemindersPresentation = {
     { id: "start-database", label: "Start Database" },
     { id: "review-milestone", label: "Review milestone" },
   ],
-  onView: () => {},
-  onDismiss: () => {},
+  onCreatePlan: () => {},
+  onMarkCompleted: () => {},
+  onMoveMilestone: () => {},
+  onRemindLater: () => {},
 };
