@@ -49,11 +49,8 @@ async def test_reminder_routes_semantic_validation_and_rollback(
         json={"action_type": "REMIND_LATER"},
         headers=auth_headers,
     )
-    assert_error(
-        response,
-        422,
-        {"code": "VALIDATION_ERROR", "message": "REMIND_LATER requires new_due_at"},
-    )
+    assert response.status_code == 422
+    assert "REMIND_LATER requires new_due_at" in response.text
     assert (await db_session.scalars(select(ReminderAction))).all() == []
     assert (await db_session.get(Reminder, reminder_id)).status == "SCHEDULED"
 

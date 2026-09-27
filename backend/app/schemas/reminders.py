@@ -22,7 +22,23 @@ class ReminderResponse(BaseModel):
     class Config:
         from_attributes = True
 
+from enum import Enum
+from pydantic import model_validator
+
+class ReminderActionType(str, Enum):
+    REMIND_LATER = "REMIND_LATER"
+    CREATE_PLAN = "CREATE_PLAN"
+    MARK_COMPLETED = "MARK_COMPLETED"
+    MOVE_MILESTONE = "MOVE_MILESTONE"
+
 class ReminderActionRequest(BaseModel):
-    action_type: str
+    action_type: ReminderActionType
     new_due_at: Optional[datetime] = None
     payload: Optional[dict[str, Any]] = None
+
+    @model_validator(mode='after')
+    def validate_new_due_at(self):
+        if self.action_type in (ReminderActionType.REMIND_LATER, ReminderActionType.MOVE_MILESTONE):
+            if not self.new_due_at:
+                raise ValueError(f"{self.action_type.value} requires new_due_at")
+        return self

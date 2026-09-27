@@ -41,7 +41,7 @@ async def test_milestone_reminder_sync_on_creation(db_session, test_user, test_g
     
     # Check that a reminder was created
     reminders = (await db_session.scalars(
-        select(Reminder).where(Reminder.source_id == str(milestone.id))
+        select(Reminder).where(Reminder.milestone_id == milestone.id)
     )).all()
     
     assert len(reminders) == 1
@@ -73,7 +73,7 @@ async def test_milestone_completion_resolves_reminder(db_session, test_user, tes
     
     # Check that reminder is resolved
     reminders = (await db_session.scalars(
-        select(Reminder).where(Reminder.source_id == str(milestone.id))
+        select(Reminder).where(Reminder.milestone_id == milestone.id)
     )).all()
     
     # The existing sync_milestone_reminder cancels them
@@ -107,7 +107,7 @@ async def test_milestone_date_change_reschedules_reminder_without_duplicates(db_
     await db_session.commit()
     
     reminders = (await db_session.scalars(
-        select(Reminder).where(Reminder.source_id == str(milestone.id))
+        select(Reminder).where(Reminder.milestone_id == milestone.id)
     )).all()
     
     active_reminders = [r for r in reminders if r.status == "SCHEDULED"]

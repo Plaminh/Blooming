@@ -16,6 +16,13 @@ from app.schemas.reminders import ReminderActionRequest
 
 
 class RemindersService:
+    async def _calculate_reminder_due_at(self, db: AsyncSession, user_id: UUID, target_date: datetime | None) -> datetime | None:
+        if not target_date:
+            return None
+        settings = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+        lead = settings.milestone_reminder_lead_time_minutes if settings else 1440
+        return target_date - timedelta(minutes=lead)
+
     async def sync_milestone_reminder(
         self,
         db: AsyncSession,
@@ -29,11 +36,7 @@ class RemindersService:
         # User lock also serializes settings changes and concurrent milestone edits.
         await db.execute(select(User.id).where(User.id == user_id).with_for_update())
         now = datetime.now(timezone.utc)
-        settings = await db.scalar(
-            select(UserSettings).where(UserSettings.user_id == user_id)
-        )
-        lead = settings.milestone_reminder_lead_time_minutes if settings else 1440
-        reminder_due_at = new_due_at - timedelta(minutes=lead) if new_due_at else None
+        reminder_due_at = await self._calculate_reminder_due_at(db, user_id, new_due_at)
         reminders = list(
             (
                 await db.scalars(
@@ -140,6 +143,22 @@ class RemindersService:
         action_type = obj_in.action_type
         now = datetime.now(timezone.utc)
 
+        if action_type in ("REMIND_LATER", "MOVE_MILESTONE") and not obj_in.new_due_at:
+            from app.core.errors import ValidationError
+            raise ValidationError(f"{action_type} requires new_due_at")
+
+        # Deduplicate identical semantic operations
+        if action_type == "REMIND_LATER" and reminder.due_at == obj_in.new_due_at:
+            return reminder
+        if action_type == "MOVE_MILESTONE" and reminder.milestone_id:
+            from app.db.models.goals import Milestone
+            ms_result = await db.execute(select(Milestone).where(Milestone.id == reminder.milestone_id))
+            ms = ms_result.scalars().first()
+            if ms and ms.due_at == obj_in.new_due_at:
+                expected_due_at = await self._calculate_reminder_due_at(db, user_id, obj_in.new_due_at)
+                if reminder.due_at == expected_due_at:
+                    return reminder
+
         # Record the action
         action_record = ReminderAction(
             reminder_id=reminder.id,
@@ -179,8 +198,7 @@ class RemindersService:
                     )
 
         elif action_type == "MOVE_MILESTONE" or action_type == "REMIND_LATER":
-            if not obj_in.new_due_at:
-                raise ValidationError(f"{action_type} requires new_due_at")
+
             if action_type == "MOVE_MILESTONE" and reminder.milestone_id:
                 from app.db.models.goals import Milestone
 
@@ -244,6 +262,7 @@ class RemindersService:
                     status="PLANNED",
                 )
                 db.add(block)
+
 
         db.add(reminder)
         await db.flush()
