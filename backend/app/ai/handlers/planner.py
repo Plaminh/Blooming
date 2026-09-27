@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import replace
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
@@ -11,13 +11,34 @@ from app.ai.budget import BudgetMode, available_routes, get_budget_mode
 from app.ai.carryover import carried_tasks
 from app.ai.context import ChatContext
 from app.ai.drafts import assemble_today, primary_plan_date
-from app.ai.parser import ParsedPlan, ParsedTask, extract_day_ref, parse
+from app.ai.parser import (
+    DayRef,
+    ParsedPlan,
+    ParsedRecurrence,
+    ParsedTask,
+    extract_day_ref,
+    parse,
+)
 from app.ai.providers import LLMError, llm_provider
 from app.ai.router import normalize
 from app.ai.validators import check_today
 from app.core.config import settings
 from app.schemas.assistant import Assumption, ChatResponse
 from app.schemas.drafts import TodayDraft
+
+
+MAX_TASK_MINUTES = 480
+# A weekly budget ("tuần này ôn thi 10 tiếng") is split into daily sessions.
+MAX_SPREAD_MINUTES = 7 * MAX_TASK_MINUTES
+WeekdayName = Literal[
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"
+]
+_WEEKDAY_INDEX = {
+    name: index
+    for index, name in enumerate(
+        ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+    )
+}
 
 
 class LLMTask(BaseModel):
@@ -30,8 +51,11 @@ class LLMTask(BaseModel):
     duration_min: int | None = Field(
         default=None,
         ge=5,
-        le=480,
-        description="Task duration in minutes; may be null only when both fixed times provide it.",
+        le=MAX_SPREAD_MINUTES,
+        description=(
+            "Task duration in minutes (at most 480); may be null only when both fixed "
+            "times provide it. With spread_over it is the whole week's total effort."
+        ),
     )
     duration_is_explicit: bool | None = Field(
         default=None,
@@ -58,9 +82,39 @@ class LLMTask(BaseModel):
         pattern=r"^([01]\d|2[0-3]):[0-5]\d$",
         description="Latest completion time from wording such as 'before noon'; not a fixed end.",
     )
+    day: str | None = Field(
+        None,
+        max_length=20,
+        description=(
+            "Only when the user names the day of this task: 'today', 'tomorrow', "
+            "'day_after_tomorrow', a weekday such as 'monday' ('next_monday' for next "
+            "week), or an ISO date 'YYYY-MM-DD'. Null otherwise."
+        ),
+    )
+    repeat: Literal["DAILY", "WEEKLY", "WEEKDAYS", "WEEKENDS"] | None = Field(
+        None,
+        description="Only when the user says the task repeats (every day, every Monday, on weekdays).",
+    )
+    repeat_days: list[WeekdayName] = Field(
+        default_factory=list,
+        max_length=7,
+        description="Weekdays a WEEKLY task repeats on, e.g. ['monday', 'wednesday'].",
+    )
+    spread_over: Literal["THIS_WEEK", "NEXT_WEEK"] | None = Field(
+        None,
+        description="Only for a total effort to split across a week, e.g. 'study 10 hours this week'.",
+    )
 
     @model_validator(mode="after")
     def validate_fixed_interval(self) -> "LLMTask":
+        if (
+            self.spread_over is None
+            and self.duration_min is not None
+            and self.duration_min > MAX_TASK_MINUTES
+        ):
+            raise ValueError(
+                f"duration_min above {MAX_TASK_MINUTES} is only allowed with spread_over"
+            )
         if (self.fixed_start is None) != (self.fixed_end is None):
             raise ValueError("fixed_start and fixed_end must be supplied together")
         if self.fixed_start is not None and self.fixed_end is not None:
@@ -111,10 +165,74 @@ DAY_PLAN_SYSTEM_PROMPT = (
     "'if time allows' as OPTIONAL; otherwise use CORE. Preserve each explicit duration in "
     "minutes and set duration_is_explicit=true for it; set false only when the duration was "
     "estimated by the model. Only use fixed_start/fixed_end when the user assigns that time specifically "
-    "to one task. Do not schedule flexible tasks inside a global availability window. Do not "
-    "invent tasks, availability, or assumptions. Code owns scheduling, dates, IDs, duration "
-    "provenance, and totals. Do not claim anything was saved."
+    "to one task. Do not schedule flexible tasks inside a global availability window. "
+    "When the user names a day for a task (tomorrow, Monday, next Friday, a date), set that "
+    "task's day; tasks for different days stay separate tasks. When the user says a task "
+    "repeats (every day, every Monday and Wednesday, on weekdays), set repeat and repeat_days "
+    "and keep the title free of the repetition words. For a weekly total such as 'study 10 "
+    "hours this week', set spread_over and put the whole total in duration_min. Do not "
+    "invent tasks, availability, days, repetition, or assumptions. Code owns scheduling, "
+    "dates, IDs, duration provenance, and totals. Do not claim anything was saved."
 )
+
+
+def _llm_day(value: str | None) -> DayRef | None:
+    """Turn the model's relative day into a DayRef; anything unexpected is ignored."""
+    if not value:
+        return None
+    text = value.strip().lower().replace(" ", "_")
+    offsets = {"today": 0, "tomorrow": 1, "day_after_tomorrow": 2}
+    if text in offsets:
+        return DayRef("offset", offsets[text])
+    next_week = text.startswith("next_")
+    name = text.removeprefix("next_")
+    if name in _WEEKDAY_INDEX:
+        return DayRef("weekday", _WEEKDAY_INDEX[name], next_week=next_week)
+    try:
+        parsed = date.fromisoformat(value.strip())
+    except ValueError:
+        return None
+    return DayRef("date", parsed.day, month=parsed.month, year=parsed.year)
+
+
+def _llm_recurrence(task: "LLMTask") -> ParsedRecurrence | None:
+    if task.repeat is None:
+        return None
+    if task.repeat == "DAILY":
+        return ParsedRecurrence("DAILY")
+    if task.repeat == "WEEKDAYS":
+        return ParsedRecurrence("WEEKLY", (0, 1, 2, 3, 4))
+    if task.repeat == "WEEKENDS":
+        return ParsedRecurrence("WEEKLY", (5, 6))
+    days = tuple(dict.fromkeys(_WEEKDAY_INDEX[name] for name in task.repeat_days))
+    return ParsedRecurrence("WEEKLY", days)
+
+
+def _title_tokens(value: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", normalize(value)))
+
+
+def _matching_parser_task(title: str, candidates: tuple[ParsedTask, ...]) -> ParsedTask | None:
+    """The deterministic parse of the same task, if exactly one is plausible.
+
+    The model cleans titles ("Họp" -> "Họp nhóm"), so exact matching alone
+    would lose the parser's literal day and repetition evidence.
+    """
+    exact = [task for task in candidates if normalize(task.title) == normalize(title)]
+    if len(exact) == 1:
+        return exact[0]
+    wanted = _title_tokens(title)
+    if not wanted:
+        return None
+    scored = []
+    for task in candidates:
+        tokens = _title_tokens(task.title)
+        if tokens and (tokens <= wanted or wanted <= tokens):
+            scored.append((len(tokens & wanted) / len(tokens | wanted), task))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    if not scored or (len(scored) > 1 and scored[0][0] == scored[1][0]):
+        return None
+    return scored[0][1]
 
 
 def is_pure_plan_command(message: str) -> bool:
@@ -144,8 +262,18 @@ def _parsed_from_llm(value: LLMDayPlan, ctx: ChatContext, message: str) -> Parse
             and p_match.source == "USER"
             and p_match.duration_min is not None
         )
+        # Day, repetition and weekly spreading come from the user's literal words
+        # when the deterministic parser found them; the model fills the gaps.
+        evidence = p_match or _matching_parser_task(l_task.title, parser_plan.tasks)
+        day = (evidence.day if evidence else None) or _llm_day(l_task.day) or parser_plan.day
+        recurrence = (evidence.recurrence if evidence else None) or _llm_recurrence(l_task)
+        spread = (evidence.spread if evidence else None) or l_task.spread_over
         assert l_task.duration_min is not None  # Enforced by LLMTask validation.
-        duration = max(5, min(l_task.duration_min, 480))
+        limit = MAX_SPREAD_MINUTES if spread else MAX_TASK_MINUTES
+        duration = max(5, min(l_task.duration_min, limit))
+        if spread and evidence and evidence.spread and evidence.duration_min:
+            # A weekly total the user stated is authoritative over the model's.
+            duration = evidence.duration_min
         final_tasks.append(
             ParsedTask(
                 title=l_task.title.strip()[:200],
@@ -157,9 +285,9 @@ def _parsed_from_llm(value: LLMDayPlan, ctx: ChatContext, message: str) -> Parse
                 fixed_start=l_task.fixed_start,
                 fixed_end=l_task.fixed_end,
                 deadline=l_task.deadline,
-                day=parser_plan.day,
-                recurrence=None,
-                spread=None,
+                day=day,
+                recurrence=recurrence,
+                spread=spread,
             )
         )
 

@@ -5,7 +5,7 @@
   import type { FocusPreset, Task } from "$lib/features/today/types";
   import { api } from "$lib/api";
 
-  import type { TodayResponse } from "$lib/api/types";
+  import type { PendingTask, TodayResponse } from "$lib/api/types";
   import { desktop } from "$lib/platform/desktopWindow";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
@@ -16,6 +16,7 @@
   let planTimezone = $state("UTC");
   let replanWarning = $state<string | null>(null);
   let tasks = $state<Task[]>([]);
+  let waitingTasks = $state<PendingTask[]>([]);
   let selectedTaskId = $state("");
   let selectedFocusPreset = $state<FocusPreset>("25/5");
   let customFocusMinutes = $state(25);
@@ -144,6 +145,7 @@
     } else {
       tasks = [];
     }
+    waitingTasks = data.status === "NO_PLAN" ? (data.pending_tasks ?? []) : [];
 
     if (tasks.length === 0) {
       selectedTaskId = "";
@@ -315,6 +317,7 @@
       {selectedTaskId}
       {isLoading}
       {loadError}
+      {waitingTasks}
       onSelect={(id) => (selectedTaskId = id)}
       onDateChange={handleDateChange}
     />

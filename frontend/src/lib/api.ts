@@ -257,6 +257,7 @@ export type AssistantDraft = TodayDraft | RoadmapDraft;
 export type PatchOp = 
   | { op: "remove_task"; task_id: string }
   | { op: "remove_deferred_task"; task_id: string }
+  | { op: "set_recurrence"; task_id: string; recurrence: RecurrenceDraft | null }
   | { op: "move_task_to_date"; task_id: string; target_date: string; timezone?: string | null }
   | { op: "update_window"; window_index: number; start?: string | null; end?: string | null }
   | { op: "update_task"; task_id: string; duration_min?: number | null; title?: string | null; importance?: "CORE" | "OPTIONAL" | null; priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT" | null; category?: "Learning" | "Work" | "Personal" | null; break_after_min?: number | null; splittable?: boolean | null; fixed_start?: string | null; fixed_end?: string | null; deadline?: string | null; scheduling_type?: "FLEXIBLE" | "FIXED" | null }

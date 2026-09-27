@@ -5,6 +5,27 @@
 
   let { task, selected = false }: { task: DraftTask, selected?: boolean } = $props();
   let repeats = $derived(recurrenceLabel(task.recurrence));
+  type RepeatChoice = 'NONE' | 'DAILY' | 'WEEKDAYS' | 'WEEKLY';
+  const WORKWEEK = [0, 1, 2, 3, 4];
+  let repeatChoice = $derived.by((): RepeatChoice => {
+    const rule = task.recurrence;
+    if (!rule) return 'NONE';
+    if (rule.freq === 'DAILY') return 'DAILY';
+    const days = rule.weekdays ?? [];
+    return days.length === WORKWEEK.length && WORKWEEK.every(day => days.includes(day)) ? 'WEEKDAYS' : 'WEEKLY';
+  });
+
+  function handleRepeatChange(event: Event) {
+    const choice = (event.currentTarget as HTMLSelectElement).value as RepeatChoice;
+    mrBloomStore.setTaskRecurrence(
+      task.id,
+      choice === 'NONE' ? null
+        : choice === 'DAILY' ? { freq: 'DAILY' }
+        : choice === 'WEEKDAYS' ? { freq: 'WEEKLY', weekdays: WORKWEEK }
+        // Keep custom weekdays; an empty list means the plan day's weekday.
+        : { freq: 'WEEKLY', weekdays: task.recurrence?.freq === 'WEEKLY' ? task.recurrence.weekdays ?? [] : [] }
+    );
+  }
   let title = $state('');
   let lastTaskTitle: string | null = $state(null);
 
@@ -108,12 +129,19 @@
     </button>
   </div>
 
-  {#if repeats || task.sourceTaskId}
-    <div class="task-badges">
-      {#if repeats}<span class="badge repeat" title="Saved as a repeating task">↻ {repeats}</span>{/if}
-      {#if task.sourceTaskId}<span class="badge carried" title="Planned for this day earlier">Carried over</span>{/if}
-    </div>
-  {/if}
+  <div class="task-badges">
+    <label class="repeat-editor">
+      <span class="sr-only">Repeat {task.title}</span>
+      <select value={repeatChoice} onchange={handleRepeatChange}>
+        <option value="NONE">Does not repeat</option>
+        <option value="DAILY">Every day</option>
+        <option value="WEEKDAYS">Weekdays</option>
+        <option value="WEEKLY">Every week</option>
+      </select>
+    </label>
+    {#if repeats}<span class="badge repeat" title="Saved as a repeating task">↻ {repeats}</span>{/if}
+    {#if task.sourceTaskId}<span class="badge carried" title="Planned for this day earlier">Carried over</span>{/if}
+  </div>
 
   <div class="constraint-editor">
     {#if task.fixedStart || task.fixedEnd}
@@ -295,8 +323,21 @@
     border: 0;
   }
 
+  .repeat-editor select {
+    height: 24px;
+    padding: 0 6px;
+    border: 1px solid #d1cabd;
+    border-radius: 4px;
+    background: #fffaf0;
+    color: #196f9f;
+    font-family: var(--bloom-body-font);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
   .task-badges {
     display: flex;
+    align-items: center;
     flex-wrap: wrap;
     gap: 6px;
     margin-left: calc(var(--bloom-icon-draft-task-slot) + 8px);

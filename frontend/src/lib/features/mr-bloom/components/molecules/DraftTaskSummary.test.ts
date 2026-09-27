@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import DraftTaskSummary from './DraftTaskSummary.svelte';
 
@@ -53,4 +53,19 @@ test('keeps sequential title characters editable while the field is focused', as
   await fireEvent.input(input, { target: { value: 'Review algorithms' } });
 
   expect(input).toHaveValue('Review algorithms');
+});
+
+test('the repeat selector reflects and changes how a task repeats', async () => {
+  const { mrBloomStore } = await import('../../stores/mrBloomStore');
+  const spy = vi.spyOn(mrBloomStore, 'setTaskRecurrence').mockResolvedValue(undefined);
+  render(DraftTaskSummary, {
+    task: { ...task, recurrence: { freq: 'WEEKLY' as const, weekdays: [0, 1, 2, 3, 4] } }
+  });
+  const select = screen.getByLabelText(`Repeat ${task.title}`) as HTMLSelectElement;
+  expect(select.value).toBe('WEEKDAYS');
+  await fireEvent.change(select, { target: { value: 'DAILY' } });
+  expect(spy).toHaveBeenCalledWith('task-1', { freq: 'DAILY' });
+  await fireEvent.change(select, { target: { value: 'NONE' } });
+  expect(spy).toHaveBeenLastCalledWith('task-1', null);
+  spy.mockRestore();
 });

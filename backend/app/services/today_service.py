@@ -78,7 +78,7 @@ class TodayService:
         return infos
 
     async def _reusable_task(
-        self, db: AsyncSession, user_id: UUID, raw_id: str | None
+        self, db: AsyncSession, user_id: UUID, raw_id: str | None, day: date
     ) -> Task | None:
         """An unfinished, unscheduled task of this user the draft carried in."""
         if not raw_id:
@@ -96,8 +96,10 @@ class TodayService:
         )
         if task is None:
             return None
+        from app.ai.carryover import scheduled_on
+
         still_scheduled = await db.scalar(
-            select(func.count(PlanBlock.id)).where(PlanBlock.task_id == task.id)
+            select(func.count()).select_from(Task).where(Task.id == task.id, scheduled_on(day))
         )
         return None if still_scheduled else task
 
@@ -162,7 +164,7 @@ class TodayService:
             planned_date=day,
             recurring_task_id=template_id,
         )
-        existing = await self._reusable_task(db, user_id, t_draft.sourceTaskId)
+        existing = await self._reusable_task(db, user_id, t_draft.sourceTaskId, day)
         if existing is not None:
             for key, value in values.items():
                 setattr(existing, key, value)
@@ -178,6 +180,89 @@ class TodayService:
             task.status = status
         db.add(task)
         return task, False
+
+    async def carry_over_unfinished(
+        self, db: AsyncSession, user_id: UUID, *, commit: bool = True
+    ) -> dict:
+        """Move today's unfinished work to tomorrow's waiting list.
+
+        Tasks keep their identity (history, focus runs, rewards) and become
+        PENDING for tomorrow; tomorrow's draft then carries them in. Only
+        future blocks are removed from today, so today's history stays intact.
+        Tasks with a running focus session are left alone.
+        """
+        from datetime import timedelta
+
+        from app.db.models.focus import FocusRun
+        from app.db.models.users import User
+
+        await db.execute(select(User.id).where(User.id == user_id).with_for_update())
+        user_settings = await db.scalar(
+            select(UserSettings).where(UserSettings.user_id == user_id)
+        )
+        tz = safe_timezone(user_settings.timezone if user_settings else "UTC")
+        now = datetime.now(timezone.utc)
+        local_date = now.astimezone(tz).date()
+        target_date = local_date + timedelta(days=1)
+        plan = await crud_daily_plan.get_by_date(db, user_id, local_date)
+        if not plan or plan.status not in USABLE_PLAN_STATUSES:
+            return {"target_date": target_date, "moved": []}
+
+        revision = await db.scalar(
+            select(PlanRevision)
+            .where(PlanRevision.daily_plan_id == plan.id)
+            .order_by(PlanRevision.revision_number.desc())
+            .limit(1)
+        )
+        candidate_ids = {b.task_id for b in plan.plan_blocks if b.task_id}
+        if revision is not None:
+            candidate_ids |= _snapshot_task_ids(revision.after_snapshot)
+        if not candidate_ids:
+            return {"target_date": target_date, "moved": []}
+        focusing = set(
+            (
+                await db.scalars(
+                    select(FocusRun.task_id).where(
+                        FocusRun.user_id == user_id,
+                        FocusRun.status.in_(("READY", "FOCUSING", "PAUSED")),
+                    )
+                )
+            ).all()
+        )
+        tasks = (
+            await db.scalars(
+                select(Task)
+                .where(Task.id.in_(candidate_ids), Task.user_id == user_id)
+                .order_by(Task.created_at, Task.id)
+            )
+        ).all()
+        moved = []
+        for task in tasks:
+            if task.status not in ("DRAFT", "PENDING", "IN_PROGRESS") or task.id in focusing:
+                continue
+            if task.planned_date is not None and task.planned_date != local_date:
+                continue  # Already moved to another day; past blocks remain here.
+            task.status = "PENDING"
+            task.planned_date = target_date
+            # Yesterday's clock times rarely hold tomorrow; the new draft
+            # schedules the task flexibly unless the user fixes it again.
+            task.scheduling_type = "FLEXIBLE"
+            task.fixed_start_at = None
+            task.fixed_end_at = None
+            task.deadline_at = None
+            for block in list(plan.plan_blocks):
+                if (
+                    block.task_id == task.id
+                    and block.planned_start_at >= now
+                    and block.status not in ("COMPLETED", "ACTIVE")
+                ):
+                    await db.delete(block)
+            moved.append({"task_id": str(task.id), "title": task.title})
+        await db.flush()
+        if commit:
+            await db.commit()
+        logger.info("carry_over_result", extra={"moved_count": len(moved)})
+        return {"target_date": target_date, "moved": moved}
 
     async def _get_plan_for_preview_validation(
         self, db: AsyncSession, user_id: UUID, plan_date: date
@@ -1162,7 +1247,14 @@ class TodayService:
                     )
                     for t in tasks_res.scalars():
                         # A task the new draft carries in again is reused below.
-                        if t.status != "COMPLETED" and str(t.id) not in carried_source_ids:
+                        moved_elsewhere = (
+                            t.planned_date is not None and t.planned_date != local_date
+                        )
+                        if (
+                            t.status != "COMPLETED"
+                            and str(t.id) not in carried_source_ids
+                            and not moved_elsewhere
+                        ):
                             deps_res = await db.execute(
                                 select(TaskDependency).where(
                                     (TaskDependency.task_id == t.id)

@@ -94,3 +94,18 @@ test('recreates identical geometry from reloaded saved timestamps', () => {
   expect(reloaded.getByTestId('timeline-task').style.top).toBe(firstTop);
   expect(reloaded.container.querySelector('.timeline-canvas')).toHaveAttribute('data-range', firstRange);
 });
+
+test('an unplanned day lists the work already waiting for it', () => {
+  const { getByTestId } = render(TodayTimeline, {
+    tasks: [], currentDate: new Date(2024, 3, 23), selectedTaskId: '',
+    waitingTasks: [
+      { task_id: 't1', title: 'Viết báo cáo', reason: 'DEFERRED' },
+      { task_id: null, title: 'Học tiếng Anh', reason: 'RECURRING' }
+    ],
+    onSelect: vi.fn(), onDateChange: vi.fn()
+  });
+  const waiting = getByTestId('waiting-tasks');
+  expect(waiting.textContent).toContain('2 tasks are waiting for this day');
+  expect(waiting.textContent).toContain('Viết báo cáo');
+  expect(waiting.textContent).toContain('↻ Học tiếng Anh');
+});

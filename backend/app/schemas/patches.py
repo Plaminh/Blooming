@@ -3,7 +3,13 @@
 from datetime import date
 from typing import Annotated, Literal, Union
 
-from app.schemas.drafts import AvailabilityWindowDraft, RoadmapDraft, TaskDraft, TodayDraft
+from app.schemas.drafts import (
+    AvailabilityWindowDraft,
+    RecurrenceDraft,
+    RoadmapDraft,
+    TaskDraft,
+    TodayDraft,
+)
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -22,6 +28,13 @@ class RemoveDeferredTaskOp(BaseModel):
 
     op: Literal["remove_deferred_task"]
     task_id: str
+
+class SetRecurrenceOp(BaseModel):
+    """Make a draft task repeat after it is saved, or stop it repeating (null)."""
+
+    op: Literal["set_recurrence"]
+    task_id: str
+    recurrence: RecurrenceDraft | None = None
 
 class UpdateWindowOp(BaseModel):
     op: Literal["update_window"]
@@ -76,6 +89,7 @@ PatchOp = Annotated[
     Union[
         RemoveTaskOp,
         RemoveDeferredTaskOp,
+        SetRecurrenceOp,
         MoveTaskToDateOp,
         UpdateWindowOp,
         UpdateTaskOp,

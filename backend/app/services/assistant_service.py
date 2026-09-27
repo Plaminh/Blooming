@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.context import build_context
 from app.ai.handlers.editor import edit
+from app.ai.handlers.execution import complete_task, day_review
 from app.ai.handlers.mood import tired_response
 from app.ai.handlers.planner import plan_day
 from app.ai.handlers.roadmap import roadmap
@@ -109,6 +110,12 @@ async def chat(
             return await edit(effective_message, request.current_draft, context, history=effective_history)
     if selected.intent == "CREATE_GOAL":
         return roadmap(effective_message, lang, today=now.date())
+    if selected.intent in {"DAY_REVIEW", "COMPLETE_TASK"}:
+        if db is None or user_id is None:
+            raise ValueError("Authenticated database context required")
+        if selected.intent == "DAY_REVIEW":
+            return await day_review(db, user_id, now, lang)
+        return await complete_task(db, user_id, now, request.message, lang)
     if selected.intent == "MOOD":
         if db is None or user_id is None:
             return tired_response(lang, has_plan=False)

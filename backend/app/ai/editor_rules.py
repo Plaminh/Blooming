@@ -65,6 +65,63 @@ def _resolve_task_id(text: str, draft: TodayDraft) -> str | None:
     return plausible[0].id if plausible else None
 
 
+_REPEAT_WORDS_RE = re.compile(
+    r"\b(lap lai|repeat|repeats|repeating|moi ngay|hang ngay|hang tuan|moi tuan"
+    r"|daily|weekly|every)\b"
+)
+
+
+def _recurrence_edit(
+    message: str, text: str, task_id: str, draft: TodayDraft
+) -> PatchOp | None:
+    """Turn "cho việc 1 lặp lại mỗi ngày" into a set_recurrence patch."""
+    from datetime import timedelta
+
+    from app.ai.parser import (
+        THIS_WEEK_RE,
+        _collapse_weekday_lists,
+        _take_day,
+        _take_recurrence,
+    )
+
+    if not _REPEAT_WORDS_RE.search(text):
+        return None
+    if has_diacritics(message):
+        stop = re.search(
+            r"(?<!\w)(bỏ|không|thôi|dừng|ngừng|hủy|huỷ|xóa|xoá|tắt)(?!\w)", message.casefold()
+        )
+    else:
+        stop = re.search(r"\b(khong|thoi|dung|ngung|huy|bo|xoa|tat)\b", text)
+    stop = stop or re.search(r"\b(stop|no longer|don'?t|not)\b", text)
+    if stop and re.search(r"\b(lap lai|repeat|repeats|repeating)\b", text):
+        return TypeAdapter(PatchOp).validate_python(
+            dict(op="set_recurrence", task_id=task_id, recurrence=None)
+        )
+    collapsed = _collapse_weekday_lists(message)
+    freq, fixed_days, rest = _take_recurrence(collapsed)
+    _, named_days, _, _ = _take_day(rest)
+    if freq is None:
+        if len(named_days) >= 1 and re.search(r"\b(lap lai|repeat|repeats)\b", text):
+            freq = "WEEKLY"
+        else:
+            raise ValueError(
+                "Lặp lại mỗi ngày hay vào những ngày nào trong tuần?"
+                if has_diacritics(message)
+                else "Should it repeat every day or on which weekdays?"
+            )
+    weekdays = list(fixed_days or (named_days if freq == "WEEKLY" else ()))
+    until = None
+    if THIS_WEEK_RE.search(collapsed):
+        until = draft.planDate + timedelta(days=6 - draft.planDate.weekday())
+    return TypeAdapter(PatchOp).validate_python(
+        dict(
+            op="set_recurrence",
+            task_id=task_id,
+            recurrence=dict(freq=freq, weekdays=weekdays, until=until),
+        )
+    )
+
+
 def parse_edit(message: str, draft: TodayDraft, ctx_date=None) -> list[PatchOp] | None:
     text = normalize(message)
 
@@ -109,6 +166,11 @@ def parse_edit(message: str, draft: TodayDraft, ctx_date=None) -> list[PatchOp] 
 
     if not task_id:
         return None
+
+    # Before "remove": "bỏ lặp lại việc 1" stops repetition, it keeps the task.
+    recurrence_op = _recurrence_edit(message, text, task_id, draft)
+    if recurrence_op is not None:
+        return [recurrence_op]
 
     if re.search(r"\b(remove|delete|drop|bo|xoa)\b", text):
         return [

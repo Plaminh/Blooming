@@ -19,7 +19,7 @@ from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.parser import ParsedTask
-from app.db.models.daily_plans import PlanBlock
+from app.db.models.daily_plans import DailyPlan, PlanBlock
 from app.db.models.tasks import RecurringTask, Task
 
 UNFINISHED_STATUSES = ("DRAFT", "PENDING")
@@ -38,6 +38,20 @@ def _duration(minutes: int) -> int:
     return min(480, max(5, minutes))
 
 
+def scheduled_on(day: date):
+    """A task already has a timeline block in that day's plan.
+
+    Blocks on other days do not count: a task left unfinished today and moved
+    to tomorrow keeps its historical blocks but still waits for tomorrow.
+    """
+    return (
+        exists()
+        .where(PlanBlock.task_id == Task.id)
+        .where(PlanBlock.daily_plan_id == DailyPlan.id)
+        .where(DailyPlan.plan_date == day)
+    )
+
+
 async def pending_tasks_for_day(
     db: AsyncSession, user_id: UUID, day: date
 ) -> list[Task]:
@@ -50,7 +64,7 @@ async def pending_tasks_for_day(
                     Task.user_id == user_id,
                     Task.planned_date == day,
                     Task.status.in_(UNFINISHED_STATUSES),
-                    ~exists().where(PlanBlock.task_id == Task.id),
+                    ~scheduled_on(day),
                 )
                 .order_by(Task.created_at, Task.id)
             )

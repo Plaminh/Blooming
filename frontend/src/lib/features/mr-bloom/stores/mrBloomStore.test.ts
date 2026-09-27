@@ -598,3 +598,16 @@ test('loads goal for adjustment and receives structural edits via chat', async (
   expect((state.activeDraft as any).milestones[0].title).toBe('Advanced Changed');
   expect((state.activeDraft as any).milestones[1].title).toBe('New Milestone');
 });
+
+test('moving unfinished work to tomorrow reports what moved', async () => {
+  vi.mocked(api.post).mockResolvedValueOnce({
+    target_date: '2026-09-25', moved: [{ title: 'Viết báo cáo' }, { title: 'Đọc sách' }]
+  });
+  await mrBloomStore.handleSuggestion({ label: 'Move unfinished to tomorrow', action: 'CARRY_OVER_UNFINISHED' });
+  expect(api.post).toHaveBeenCalledWith('/assistant/actions/CARRY_OVER_UNFINISHED', {});
+  const state = get(mrBloomStore);
+  expect(state.chatHistory.at(-1)?.content).toBe(
+    "Moved 2 unfinished tasks to 2026-09-25. They will be in that day's draft when you plan it."
+  );
+  expect(state.suggestions).toEqual([]);
+});

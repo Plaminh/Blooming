@@ -46,6 +46,13 @@ export interface TodayResponse {
   plan_date: string;
   status: string;
   blocks?: TodayBlock[];
+  /** Days without a plan: work moved here earlier or repeating today. */
+  pending_tasks?: PendingTask[];
+}
+export interface PendingTask {
+  task_id: string | null;
+  title: string;
+  reason: 'DEFERRED' | 'RECURRING' | string;
 }
 export interface UserSettingsResponse {
   mr_bloom_display_name: string;

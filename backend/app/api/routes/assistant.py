@@ -194,6 +194,7 @@ async def assistant_chat(
         "STATUS_STATS",
         "STATUS_GOALS",
         "STATUS_RECURRING",
+        "DAY_REVIEW",
         "HELP_FEATURE",
         "CHITCHAT",
     }
@@ -316,6 +317,8 @@ async def assistant_action(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_db_session),
 ):
+    if name == "CARRY_OVER_UNFINISHED":
+        return await today_service.carry_over_unfinished(session, current_user.id)
     if name == "REPLAN_TODAY":
         result = await today_service.replan_today(
             session, current_user.id, commit=False
@@ -403,12 +406,14 @@ async def assistant_event(
         ):
             raise HTTPException(status_code=422, detail="invalid_focus_event")
         consecutive_count = sum(item.outcome == event_name for item in outcomes)
+    waiting: list[dict] = []
     if event_name == "MORNING_NO_PLAN":
         today = await today_service.get_today(
             session, current_user.id, local_now.date()
         )
         if today["status"] != "NO_PLAN":
             return {"nudge": None}
+        waiting = today.get("pending_tasks", [])
     nudge = nudge_gate.evaluate(
         user_id=current_user.id,
         event_id=event_id,
@@ -419,4 +424,12 @@ async def assistant_event(
         quiet_enabled=bool(user_settings and user_settings.quiet_hours_enabled),
         consecutive_count=consecutive_count,
     )
+    if nudge and waiting:
+        # Work moved here or repeating today makes the nudge concrete.
+        names = ", ".join(item["title"] for item in waiting[:3])
+        more = "…" if len(waiting) > 3 else ""
+        nudge["message"] = (
+            f"{len(waiting)} task(s) are waiting for today ({names}{more}). "
+            "Would you like to plan them now?"
+        )
     return {"nudge": nudge}

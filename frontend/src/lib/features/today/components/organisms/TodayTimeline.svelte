@@ -1,13 +1,14 @@
 <script lang="ts">
   import PageHeading from '$lib/shared/components/atoms/PageHeading.svelte';
   import type { Task } from '$lib/features/today/types';
+  import type { PendingTask } from '$lib/api/types';
   import { createTimelineGeometry, timeInTimezone } from '$lib/features/today/timeline';
   import { onMount } from 'svelte';
   import DateNavigation from '../atoms/DateNavigation.svelte';
   import TimelineHourLabel from '../atoms/TimelineHourLabel.svelte';
   import TimelineCard from '../molecules/TimelineCard.svelte';
 
-  let { tasks, currentDate, isToday = true, planTimezone = 'UTC', now, selectedTaskId, isLoading = false, loadError = null, onSelect, onDateChange }: {
+  let { tasks, currentDate, isToday = true, planTimezone = 'UTC', now, selectedTaskId, isLoading = false, loadError = null, waitingTasks = [], onSelect, onDateChange }: {
     tasks: Task[];
     currentDate: Date;
     isToday?: boolean;
@@ -16,6 +17,7 @@
     selectedTaskId: string;
     isLoading?: boolean;
     loadError?: string | null;
+    waitingTasks?: PendingTask[];
     onSelect: (id: string) => void;
     onDateChange: (offset: number) => void;
   } = $props();
@@ -70,6 +72,15 @@
         {#each tasks as task (task.id)}
           <TimelineCard {task} top={geometry.topFor(task.startTime)} selected={selectedTaskId === task.id} {onSelect} />
         {/each}
+      {:else if waitingTasks.length}
+        <div class="empty-state waiting" data-testid="waiting-tasks">
+          <p>{waitingTasks.length} {waitingTasks.length === 1 ? 'task is' : 'tasks are'} waiting for this day. Plan them with Mr. Bloom:</p>
+          <ul>
+            {#each waitingTasks as item, index (`${item.task_id ?? item.title}-${index}`)}
+              <li>{item.reason === 'RECURRING' ? '↻ ' : ''}{item.title}</li>
+            {/each}
+          </ul>
+        </div>
       {:else}
         <p class="empty-state">No tasks scheduled for this day.</p>
       {/if}
@@ -148,4 +159,11 @@
     font-family: var(--bloom-body-font);
     font-size: 17px;
   }
+  .empty-state.waiting {
+    align-content: center;
+    place-items: center start;
+    gap: 6px;
+  }
+  .empty-state.waiting p { margin: 0; }
+  .empty-state.waiting ul { margin: 0; padding-left: 20px; }
 </style>

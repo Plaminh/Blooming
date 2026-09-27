@@ -516,6 +516,8 @@ function createMrBloomStore() {
       applyPatch([{ op: 'remove_task' as const, task_id: taskId }]),
     removeDeferredTask: (taskId: string) =>
       applyPatch([{ op: 'remove_deferred_task' as const, task_id: taskId }]),
+    setTaskRecurrence: (taskId: string, recurrence: import('$lib/api').RecurrenceDraft | null) =>
+      applyPatch([{ op: 'set_recurrence' as const, task_id: taskId, recurrence }]),
     generateTimeline: async () => {
       let draft: TodayDraft | null = null;
       let patchError = false;
@@ -566,6 +568,26 @@ function createMrBloomStore() {
               ...state,
               suggestions: [],
               chatHistory: [...state.chatHistory, { id: crypto.randomUUID(), role: 'assistant', content: 'Optional tasks were skipped and today was replanned.', timestamp: timeLabel() }]
+            }));
+          } catch (error) {
+            update(state => ({ ...state, error: error instanceof Error ? error.message : 'Action failed.' }));
+          }
+          return;
+        }
+        if (suggestion.action === 'CARRY_OVER_UNFINISHED') {
+          try {
+            const result: { target_date: string; moved: { title: string }[] } =
+              await api.post('/assistant/actions/CARRY_OVER_UNFINISHED', {});
+            const count = result.moved?.length ?? 0;
+            update(state => ({
+              ...state,
+              suggestions: [],
+              chatHistory: [...state.chatHistory, {
+                id: crypto.randomUUID(), role: 'assistant', timestamp: timeLabel(),
+                content: count
+                  ? `Moved ${count} unfinished task${count === 1 ? '' : 's'} to ${result.target_date}. They will be in that day's draft when you plan it.`
+                  : 'There was no unfinished work to move.'
+              }]
             }));
           } catch (error) {
             update(state => ({ ...state, error: error instanceof Error ? error.message : 'Action failed.' }));

@@ -47,6 +47,15 @@ async def handle(
 ) -> ChatResponse:
     intent = route.intent
     suggestions = _chips(lang)
+    if intent == "GREETING" and now.hour >= 17:
+        # Evenings are for closing the day, not only planning it.
+        suggestions = [
+            QuickReply(
+                label="Tổng kết hôm nay" if lang == "vi" else "Review my day",
+                send_text="Tổng kết hôm nay" if lang == "vi" else "Review my day",
+            ),
+            *suggestions,
+        ][:4]
     if intent == "CRISIS":
         reply = (
             "Mình rất tiếc bạn đang trải qua chuyện này. Hãy liên hệ ngay với người bạn tin cậy hoặc dịch vụ khẩn cấp tại nơi bạn sống nếu bạn có nguy cơ làm hại bản thân."
@@ -74,9 +83,14 @@ async def handle(
         ):
             reply = (
                 "Mình có thể giúp bạn lên kế hoạch trong ngày, chia nhỏ công việc, "
-                "tạo lộ trình mục tiêu và theo dõi tập trung."
+                "tạo lộ trình mục tiêu và theo dõi tập trung. Mình cũng xếp việc cho "
+                "nhiều ngày (\"thứ 2 học toán, thứ 4 họp\"), tạo việc lặp lại "
+                "(\"mỗi ngày học tiếng Anh 30 phút\"), đánh dấu việc đã xong "
+                "(\"mình xong báo cáo rồi\") và tổng kết cuối ngày."
                 if lang == "vi"
-                else "I can plan your day, break down tasks, create goal roadmaps, and help you stay focused."
+                else "I can plan your day, break down tasks, create goal roadmaps, and help you stay focused. "
+                "I can also plan several days at once, set up repeating tasks, mark tasks done "
+                "when you tell me, and review your day in the evening."
             )
         elif key:
             reply = KB[key][lang]

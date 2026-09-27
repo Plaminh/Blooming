@@ -37,6 +37,19 @@ def apply_patch(
                         )
             result.planDate = op.plan_date
             continue
+        if op.op == "set_recurrence":
+            target = next(
+                (
+                    item
+                    for item in [*result.tasks, *(d.task for d in result.deferred_tasks)]
+                    if item.id == op.task_id
+                ),
+                None,
+            )
+            if target is None:
+                raise ValueError("Task not found")
+            target.recurrence = deepcopy(op.recurrence)
+            continue
         if op.op == "remove_deferred_task":
             remaining = [item for item in result.deferred_tasks if item.task.id != op.task_id]
             if len(remaining) == len(result.deferred_tasks):

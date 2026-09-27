@@ -23,6 +23,8 @@ Intent = Literal[
     "CHITCHAT",
     "STATUS_RECURRING",
     "STOP_RECURRING",
+    "DAY_REVIEW",
+    "COMPLETE_TASK",
 ]
 
 
@@ -80,7 +82,18 @@ RECURRENCE_RE = (
     r"|weekly|every week|every (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)"
     r"|moi thu (?:[2-7]|hai|ba|tu|nam|sau|bay)|moi chu nhat)\b"
 )
-RECURRING_NOUN_RE = r"\b(viec lap lai|lich lap lai|lap lai|recurring|repeating|repeat)\b"
+DAY_REVIEW_RE = (
+    # English "review ... today" is usually a task ("review notes today"), so
+    # only whole review phrases count on that side.
+    r"\b(tong ket|nhin lai|danh gia)\b.*\b(hom nay|ngay)\b"
+    r"|\bhom nay\b.*\b(lam duoc|xong duoc|lam xong|hoan thanh duoc)\b.*\b(gi|bao nhieu|nhung gi|chua)\b"
+    r"|\b(how did i do|how was my day|end of day review|daily review|day review|review my day)\b"
+)
+COMPLETE_EN_RE = (
+    r"\b(i (?:have |just |already )?(?:finished|completed)|i'?m done with|i am done with"
+    r"|(?:just )?done with|mark(?:ed)? .+ (?:as )?(?:done|complete))\b"
+)
+RECURRING_NOUN_RE =r"\b(viec lap lai|lich lap lai|lap lai|recurring|repeating|repeat)\b"
 DAY_TARGET_RE = (
     r"\b(today|tomorrow|hom nay|ngay mai|"
     r"monday|tuesday|wednesday|thursday|friday|saturday|sunday|"
@@ -181,6 +194,29 @@ def route(
     if mood:
         flags.add("tired")
     planning = bool(re.search(PLAN_KEYWORDS_RE, text))
+    has_time_detail = bool(
+        re.search(r"\b\d+\s*(?:p|phut|minutes?|mins?|h|gio|tieng)\b|\b\d{1,2}:\d{2}\b", text)
+    )
+    if re.search(DAY_REVIEW_RE, text):
+        return Route("DAY_REVIEW", 0.92, flags=frozenset(flags))
+    # "Đã xong bài tập" reports finished work; "phải xong trước 5h" plans it.
+    if not has_time_detail and accent_aware_search(
+        message,
+        accented=(
+            rf"{_W}(đã|vừa|mới)\s+(làm\s+)?xong{_E}|{_W}xong\s+(rồi|hết){_E}"
+            rf"|{_W}(đã|vừa)\s+hoàn thành{_E}|{_W}hoàn thành\s+rồi{_E}|^\s*xong{_E}"
+        ),
+        plain=r"\b(da|vua|moi) (lam )?xong\b|\bxong (roi|het)\b|\b(da|vua) hoan thanh\b|\bhoan thanh roi\b|^xong\b",
+        english=COMPLETE_EN_RE,
+    ):
+        return Route("COMPLETE_TASK", 0.9, flags=frozenset(flags))
+    # With a draft open, "cho việc 1 lặp lại mỗi ngày" edits that draft rather
+    # than starting a new plan or stopping a saved recurring task.
+    if has_draft and (
+        re.search(r"\b(?:viec|task)\s*\d+\b", text)
+        or (re.search(r"\b(lap lai|repeat|repeats)\b", text) and not has_time_detail)
+    ) and (re.search(RECURRING_NOUN_RE, text) or re.search(RECURRENCE_RE, text)):
+        return Route("EDIT_DRAFT", 0.93, flags=frozenset(flags))
     # A complete goal declaration starts a new roadmap and is independent of
     # any Today draft. Keep it ahead of all draft-edit heuristics.
     if is_explicit_goal_request(message):
@@ -287,7 +323,7 @@ def route(
 
 
 class IntentClassification(BaseModel):
-    intent: Literal["GREETING", "THANKS", "STATUS_TODAY", "STATUS_GARDEN", "STATUS_STATS", "STATUS_GOALS", "HELP_FEATURE", "PLAN_DAY", "CREATE_GOAL", "EDIT_DRAFT", "MOOD", "CHITCHAT", "STATUS_RECURRING"]
+    intent: Literal["GREETING", "THANKS", "STATUS_TODAY", "STATUS_GARDEN", "STATUS_STATS", "STATUS_GOALS", "HELP_FEATURE", "PLAN_DAY", "CREATE_GOAL", "EDIT_DRAFT", "MOOD", "CHITCHAT", "STATUS_RECURRING", "DAY_REVIEW"]
 
 
 async def classify_low_confidence(message: str, fallback: Route, db, user_id, history: list[dict] | None = None) -> Route:
