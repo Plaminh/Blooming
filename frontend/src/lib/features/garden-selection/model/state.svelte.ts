@@ -24,6 +24,7 @@ export class GardenSelectionViewModel {
   error: string | null = $state(null);
   syncWarning: string | null = $state(null);
   isPending = $state(false);
+  isWatering = $state(false);
 
   activePlantId: string | null = $state(null);
   activePlantPresentation: ActivePlantPresentation | null = $state(null);
@@ -171,6 +172,45 @@ export class GardenSelectionViewModel {
         this.isPending = false;
       }
     }
+  }
+
+  get canWaterSelectedPlant(): boolean {
+    return this.selectedPlant?.id === this.activePlantId && this.waterBalance >= 1 && !this.isPending;
+  }
+
+  async waterSelectedPlant(animate = true): Promise<boolean> {
+    if (!this.canWaterSelectedPlant) return false;
+    this.isPending = true;
+    this.syncWarning = null;
+    try {
+      await api.post("/garden/water");
+      this.error = null;
+      if (animate) {
+        this.isWatering = true;
+      } else {
+        await this.finishWatering();
+      }
+      return true;
+    } catch (e: unknown) {
+      if (e instanceof APIError && (e.status === 409 || e.status === 400)) {
+        this.error = e.message || "Not enough water or conflict";
+      } else if (e instanceof Error) {
+        this.error = e.message || "Failed to water plant";
+      } else {
+        this.error = "Failed to water plant";
+      }
+      this.isPending = false;
+      return false;
+    }
+  }
+
+  async finishWatering() {
+    if (!this.isPending) return;
+    this.isWatering = false;
+    await this.loadState();
+    notifyGardenUpdated();
+    await this.syncWidget("Plant watered, but widget sync failed.");
+    this.isPending = false;
   }
 
   private async syncWidget(message: string) {

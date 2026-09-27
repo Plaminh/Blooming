@@ -16,12 +16,12 @@ Users need to view their settings screen with exact visual fidelity to the provi
 
 **Why this priority**: The core requirement is visual fidelity and placement within the shared app shell. Without a faithful recreation of the UI, no functional settings updates can be performed confidently.
 
-**Independent Test**: Can be fully tested by navigating to the Settings route and verifying the layout matches `design-assets/app/references/settings.png` without needing any backend connectivity.
+**Independent Test**: Can be fully tested by navigating to the Settings route and verifying the layout matches `removed reference artwork` without needing any backend connectivity.
 
 **Acceptance Scenarios**:
 
 1. **Given** the user is authenticated, **When** they click "Settings" in the shared sidebar, **Then** the Settings route becomes active and the Settings navigation item is visually highlighted.
-2. **Given** the user is on the Settings screen, **When** the page renders, **Then** the page layout exactly matches `design-assets/app/references/settings.png` at its native dimensions, including the shared title bar, shared sidebar, and correct proportions of the Account, General, Focus Timer, and Notifications panels.
+2. **Given** the user is on the Settings screen, **When** the page renders, **Then** the page layout exactly matches `removed reference artwork` at its native dimensions, including the shared title bar, shared sidebar, and correct proportions of the Account, General, Focus Timer, and Notifications panels.
 3. **Given** the user views the Settings screen, **When** inspecting the controls, **Then** they display the exact initial values from the reference: "Mr. Bloom", "Asia/Ho_Chi_Minh", "25 minutes", "5 minutes", "20:00", with "Start Blooming at login", "Keep widget on top", and "Email reminders" toggled on.
 4. **Given** the user is on the Settings screen, **When** they inspect the assets, **Then** all icons (Blooming logo, gear, plant, counters, user, clock, bell) render using verified real repository assets without utilizing the reference screenshot at runtime.
 
@@ -95,10 +95,10 @@ Users need a clear way to end their session directly from the Settings screen.
 
 ### Functional Requirements
 
-- **FR-001**: System MUST render the Settings route with layout, styling, and proportions matching `design-assets/app/references/settings.png`.
+- **FR-001**: System MUST render the Settings route with layout, styling, and proportions matching `removed reference artwork`.
 - **FR-002**: System MUST integrate the existing shared application shell (sidebar, title bar, pixel font, theme tokens, sprite renderers) without duplication.
 - **FR-003**: System MUST implement Settings using Atomic Design component responsibility (Atoms, Molecules, Organisms).
-- **FR-004**: System MUST NOT use runtime images, backgrounds, or crops of the reference screenshot. All visual components must use verified repository assets (`/assets/...` or `$lib/...`).
+- **FR-004**: System MUST NOT use runtime images, backgrounds, or crops of the reference screenshot. All visual components must use verified repository assets (`/assets/...` or `/assets/...`).
 - **FR-005**: System MUST maintain distinct form states: initial, draft, saved, dirty, validation, saving, save-success, and save-error.
 - **FR-006**: System MUST allow editing of typed draft state independent of the saved state until submission.
 - **FR-007**: System MUST discard draft changes and revert to the saved state when Cancel is activated.
@@ -149,7 +149,7 @@ Users need a clear way to end their session directly from the Settings screen.
 The implemented feature must be verifiable by:
 1. Opening the actual Settings route.
 2. Rendering it at the reference image's verified native dimensions.
-3. Comparing it against `design-assets/app/references/settings.png`.
+3. Comparing it against `removed reference artwork`.
 4. Correcting macro geometry first, then panel/control dimensions, typography/assets, and finally colors/borders/shadows/spacing.
 5. Repeating comparison until defined tolerance is satisfied.
 
@@ -157,7 +157,7 @@ The implemented feature must be verifiable by:
 
 ### Measurable Outcomes
 
-- **SC-001**: Settings screen layout and styling visually matches `design-assets/app/references/settings.png` to the naked eye at native dimensions.
+- **SC-001**: Settings screen layout and styling visually matches `removed reference artwork` to the naked eye at native dimensions.
 - **SC-002**: Initial state precisely mirrors the values in the visual reference.
 - **SC-003**: Draft edits can be canceled and successfully reverted to the saved state 100% of the time.
 - **SC-004**: Form submission correctly validates all fields, rejecting empty names and invalid durations.
@@ -170,7 +170,7 @@ The implemented feature must be verifiable by:
 ## Assumptions
 
 - Users have basic familiarity with form interactions.
-- The repository already contains the required design assets (icons, sprite sheets, font files) at `/assets/...` or `$lib/...`.
+- The repository already contains the required design assets (icons, sprite sheets, font files) at `/assets/...` or `/assets/...`.
 - The project already has accessible select/dropdown controls or native equivalents that can be styled to match the reference.
 - A timezone dataset is available (via browser `Intl` API or shared source) and does not require building a full custom timezone database.
 - A navigation-back convention or standard cancel behavior can fall back to resetting local state if no history exists.

@@ -8,9 +8,9 @@
 
 ## Phase 1: Asset validation and feature setup
 
-- [x] T001 [P] Verify `design-assets/app/references/authentication-login.png` exists and is preserved as a source-only reference (ensure it is never copied to `frontend/static`).
-- [x] T002 [P] Verify `frontend/static/assets/authentication/backgrounds/authentication-background.png` exists (or create/place it) with 686x825 dimensions, preserving its RGBA transparency, aspect ratio, and crisp pixel rendering. Ensure no duplicate Mr. Bloom sprite is baked or layered over it.
-- [x] T003 [P] Verify the existing leaf asset at `design-assets/widget/icons/leaf-icon.png` is available for reuse without duplication.
+- [x] T001 [P] Verify `removed reference artwork` exists and is preserved as a source-only reference (ensure it is never copied to `frontend/static`).
+- [x] T002 [P] Verify `frontend/static/assets/auth/authentication-background.png` exists (or create/place it) with 686x825 dimensions, preserving its RGBA transparency, aspect ratio, and crisp pixel rendering. Ensure no duplicate Mr. Bloom sprite is baked or layered over it.
+- [x] T003 [P] Verify the existing leaf asset at `removed reference artwork` is available for reuse without duplication.
 - [x] T004 Create base directory structure `frontend/src/lib/features/authentication/` with `components/atoms`, `components/molecules`, `components/organisms`, `fixtures`, `model`, `styles`, and `types`.
 
 ---

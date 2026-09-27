@@ -1,7 +1,7 @@
 import type { CompanionWidgetKind } from "../types/presentation";
 
 export const MR_BLOOM_ATLAS = {
-  src: "/assets/widget/characters/mr-bloom-spritesheet.png",
+  src: "/assets/mr-bloom/mr-bloom-spritesheet.png",
   sheetWidth: 1152,
   sheetHeight: 1152,
   columns: 4,

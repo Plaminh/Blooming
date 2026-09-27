@@ -8,9 +8,9 @@ This feature implements the Widget Environment Rendering System including asset 
    Run the following commands to confirm that assets are placed in the correct directories and old directories are removed.
    ```bash
    # Check new directories
-   ls frontend/src/lib/assets/widget/environment/daytime/
-   ls frontend/src/lib/assets/widget/environment/season/
-   ls frontend/src/lib/assets/widget/environment/weather/
+   ls frontend/static/assets/widget/environment/daytime/
+   ls frontend/static/assets/widget/environment/season/
+   ls frontend/static/assets/widget/environment/weather/
 
    # Ensure old directories are gone
    ls -d daytime season weather # Should return no matches

@@ -32,7 +32,7 @@ As a user, I want to see a polished, pixel-art themed onboarding screen that per
 
 **Why this priority**: The visual fidelity and atmosphere of the app are core to the product experience. It must match the design reference precisely.
 
-**Independent Test**: Can be tested visually by running the app and comparing the window layout, colors, typography, spacing, and assets against the provided `design-assets/app/references/onboarding-setup.png`.
+**Independent Test**: Can be tested visually by running the app and comparing the window layout, colors, typography, spacing, and assets against the provided `removed reference artwork`.
 
 **Acceptance Scenarios**:
 

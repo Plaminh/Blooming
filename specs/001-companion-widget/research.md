@@ -47,8 +47,8 @@ No extra Tauri plugins are registered. Playwright is not installed.
 
 ## Decision: Runtime PNGs vs source-only reference
 
-- **Decision**: Load only normalized/runtime files under `frontend/static/assets/widget/`. Treat `design-assets/widget/references/widget-reference.svg` and the irregular source artwork as source-only inputs: never requested by the app or edited in place.
-- **Rationale**: Runtime roles and dimensions are listed in `design-assets/widget/README.md`; the source/runtime character-atlas distinction and mapping are authoritative in `plan.md` and `data-model.md`.
+- **Decision**: Load only normalized/runtime files under `frontend/static/assets/widget/`. Treat `removed reference artwork` and the irregular source artwork as source-only inputs: never requested by the app or edited in place.
+- **Rationale**: Runtime roles and dimensions are listed in `removed reference artwork`; the source/runtime character-atlas distinction and mapping are authoritative in `plan.md` and `data-model.md`.
 - **Alternatives considered**: Merge sky+bushes into one PNG (violates VR-008). Recreate Mr. Bloom in SVG (violates VR-009). Render the reference as the widget (violates VR-015). Trace its text paths into CSS (forbidden).
 
 ## Decision: normalized character atlas and compatible sequences

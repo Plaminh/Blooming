@@ -13,7 +13,7 @@ Implement the Garden Plant Selection full-screen UI (`CHOOSE YOUR PLANT`) allowi
 * **Framework and language versions**: SvelteKit `^2.65.1`, Svelte `^5.56.3`, TypeScript `~6.0.3`.
 * **Tauri integration**: Tauri CLI and API `^2`.
 * **Verified styling pipeline**: Global CSS (`app.html`, `global.css`, `theme.css`) with standard CSS classes and variables. PostCSS/Tailwind is not explicitly used for these components; custom CSS scopes and tokens are confirmed.
-* **Asset-serving conventions**: Static assets from `static/assets/...` and `$lib` aliases.
+* **Asset-serving conventions**: Static assets from `static/assets/...` and `/assets/...` aliases.
 * **Route and page ownership**: SvelteKit filesystem routing (`src/routes/...`).
 * **Existing shared components**: 
   - `$lib/shared/components/organisms/AppSidebar.svelte` (Not used here)
@@ -45,7 +45,7 @@ Implement the Garden Plant Selection full-screen UI (`CHOOSE YOUR PLANT`) allowi
 | :--- | :--- | :--- |
 | Desktop title bar | Shared (`$lib/shared/components/organisms/`) | Move from `onboarding-setup` to `shared` for global reuse. |
 | Window controls | Shared | Already integrated into `DesktopTitleBar`. |
-| Blooming logo | Shared | Reuse `/assets/widget/icons/leaf-icon.png`. |
+| Blooming logo | Shared | Reuse `/assets/icons/leaf-icon.png`. |
 | Pixel typography | Shared | Reuse existing CSS variables from `global.css`. |
 | Leaf icon | Shared | `$lib/shared/components/atoms/AppIcon.svelte` (with `sprout`). |
 | Shared icon/sprite renderer | Shared | Refactor/reuse logic from `PlantSprite.svelte` to a shared util or generic renderer. |
@@ -86,9 +86,9 @@ Implement the Garden Plant Selection full-screen UI (`CHOOSE YOUR PLANT`) allowi
 
 | Visual Element | Repository Path | Dimensions | Type | Display Target | Notes / Blockers |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Blooming leaf logo | `/assets/widget/icons/leaf-icon.png` | - | Image | 40x40 | Shared, existing. |
-| Currency leaf icon | `/assets/widget/icons/leaf-icon.png` | - | Image | ~24x24 | Shared, existing. |
-| Monstera artwork | `/assets/widget/plants/monstera-spritesheet.png` | 2304x896 | Sprite | Scaled up | Needs custom `displayHeight` scale via SpriteRenderer. |
+| Blooming leaf logo | `/assets/icons/leaf-icon.png` | - | Image | 40x40 | Shared, existing. |
+| Currency leaf icon | `/assets/icons/leaf-icon.png` | - | Image | ~24x24 | Shared, existing. |
+| Monstera artwork | `/assets/plants/monstera-spritesheet.png` | 2304x896 | Sprite | Scaled up | Needs custom `displayHeight` scale via SpriteRenderer. |
 | Plant shadow | (To be extracted or generated via CSS) | - | CSS/Image | - | Investigate if baked into sprite. |
 | **Lock icon** | **MISSING** | - | - | - | **BLOCKER**: Explicit pixel art lock asset needed. |
 | **Previous arrow** | **MISSING** | - | - | - | **BLOCKER**: Explicit pixel art arrow needed. |
@@ -172,7 +172,7 @@ export interface GardenSelectionState {
 
 1. Start `npm run dev`.
 2. Navigate to `http://localhost:5173/garden-selection`.
-3. Overlay or side-by-side compare with `design-assets/references/garden.png` at `1271x1062` viewport size.
+3. Overlay or side-by-side compare with `removed reference artwork` at `1271x1062` viewport size.
 4. Tune outer layout, then plant scaling, then typography, and finally borders/shadows.
 5. Do not install Playwright/Puppeteer permanently; rely on manual visual inspection loops.
 

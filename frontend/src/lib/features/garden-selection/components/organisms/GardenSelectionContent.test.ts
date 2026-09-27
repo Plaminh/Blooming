@@ -73,6 +73,6 @@ describe('GardenSelectionContent', () => {
     expect(api.post).toHaveBeenCalledWith('/garden/plants/monstera-id/unlock');
     await user.click(await screen.findByRole('button', { name: 'SELECT' }));
     expect(api.post).toHaveBeenCalledWith('/garden/plants/monstera-id/select');
-    expect(await screen.findByRole('button', { name: 'SELECTED' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'WATER' })).toBeDisabled();
   });
 });

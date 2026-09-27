@@ -115,7 +115,7 @@ The primary preview route is `frontend/src/routes/auth/+page.svelte`.
 - `+page.ts` should only be added if required by the existing SvelteKit static/prerender architecture. `/auth-preview` should not be added unless it provides a concrete testing benefit that `/auth` cannot.
 
 ### Source-Only Reference
-The full Authentication Login screenshot is verified at `design-assets/app/references/authentication-login.png`.
+The full Authentication Login screenshot is verified at `removed reference artwork`.
 **Rules**:
 - It must serve as source-only visual comparison material.
 - Never imported by application source or copied into `frontend/static`.
@@ -123,7 +123,7 @@ The full Authentication Login screenshot is verified at `design-assets/app/refer
 **Checks**: The plan requires automated source-reference exclusion checks and manual runtime network verification.
 
 ### Decorative Assets and Functional Icons
-- **Decorative Leaf**: Reuse the existing `design-assets/widget/icons/leaf-icon.png` for title-bar branding and the decorative leaf above the heading. Do not create duplicate files.
+- **Decorative Leaf**: Reuse the existing `removed reference artwork` for title-bar branding and the decorative leaf above the heading. Do not create duplicate files.
 - **Icons**: Plan small semantic SVG components inline (or as small reusable atoms) for: email, lock, show password, hide password, checkmark, minimize, maximize/restore, close. Do not use a generic icon library and do not crop icons from the screenshot.
 
 ### Layout Strategy

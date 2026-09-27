@@ -3,7 +3,7 @@
 **Purpose**: Record the results of manual visual and platform verification.
 **Status**: Implemented — manual acceptance pending. Browser fixture review is recorded; live network inspection, reference comparison, and Tauri platform checks are still outstanding.
 
-**Reference**: `design-assets/widget/references/widget-reference.svg`, under the source-only rules in [spec.md](../spec.md) VR-015.
+**Reference**: `removed reference artwork`, under the source-only rules in [spec.md](../spec.md) VR-015.
 **Reference metrics**: [plan.md](../plan.md) → *Reference metrics*. Implemented values live in `frontend/src/lib/features/companion-widget/model/layout.ts`.
 **Procedure**: [quickstart.md](../quickstart.md).
 
@@ -13,7 +13,7 @@ Screenshots are QA evidence, not repository content: capture them to a scratch d
 
 ### Source-only exclusion
 
-- [ ] Browser or Tauri network inspection shows no request for any `design-assets/` path
+- [ ] Browser or Tauri network inspection shows no request for any `removed reference artwork/` path
 - [ ] The reference SVG on disk is byte-identical to intake (not re-exported)
 
 ### Canvas and aspect

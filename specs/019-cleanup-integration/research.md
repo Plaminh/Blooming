@@ -6,7 +6,7 @@ The two feature migrations changed unrelated currency/table structures and are r
 
 ## Inspected sprite evidence
 
-Visually inspected all five actual files under `frontend/static/assets/widget/plants/`: 2304x896, 8 columns, 2 rows, 288x448 cells. Indices are row-major, zero-based. Frame 0 is a seed, frame 1 a sprout, frame 4 a developed plant. Frames 12-15 show progressively stressed/wilted/dead plants, not advanced growth.
+Visually inspected all five actual files under `frontend/static/assets/plants/`: 2304x896, 8 columns, 2 rows, 288x448 cells. Indices are row-major, zero-based. Frame 0 is a seed, frame 1 a sprout, frame 4 a developed plant. Frames 12-15 show progressively stressed/wilted/dead plants, not advanced growth.
 
 | Species | SPROUTING | GROWING | BLOOMING | FLOURISHING |
 | --- | --- | --- | --- | --- |

@@ -1,19 +1,12 @@
-import dawnImg from '$lib/assets/widget/environment/daytime/dawn.png';
-import morningImg from '$lib/assets/widget/environment/daytime/morning.png';
-import noonImg from '$lib/assets/widget/environment/daytime/noon.png';
-import afternoonImg from '$lib/assets/widget/environment/daytime/afternoon.png';
-import sunsetImg from '$lib/assets/widget/environment/daytime/sunset.png';
-import nightImg from '$lib/assets/widget/environment/daytime/night.png';
-
 export type Daytime = 'DAWN' | 'MORNING' | 'NOON' | 'AFTERNOON' | 'SUNSET' | 'NIGHT';
 
 export const DAYTIME_ASSETS: Record<Daytime, string> = {
-  DAWN: dawnImg,
-  MORNING: morningImg,
-  NOON: noonImg,
-  AFTERNOON: afternoonImg,
-  SUNSET: sunsetImg,
-  NIGHT: nightImg,
+  DAWN: '/assets/widget/environment/daytime/dawn.png',
+  MORNING: '/assets/widget/environment/daytime/morning.png',
+  NOON: '/assets/widget/environment/daytime/noon.png',
+  AFTERNOON: '/assets/widget/environment/daytime/afternoon.png',
+  SUNSET: '/assets/widget/environment/daytime/sunset.png',
+  NIGHT: '/assets/widget/environment/daytime/night.png',
 };
 
 // Deterministic daytime from local hour (0-23)
@@ -26,18 +19,13 @@ export function getDaytimeFromHour(hour: number): Daytime {
   return 'NIGHT';
 }
 
-import springImg from '$lib/assets/widget/environment/season/spring.png';
-import summerImg from '$lib/assets/widget/environment/season/summer.png';
-import autumnImg from '$lib/assets/widget/environment/season/autumn.png';
-import winterImg from '$lib/assets/widget/environment/season/winter.png';
-
 export type Season = 'SPRING' | 'SUMMER' | 'AUTUMN' | 'WINTER';
 
 export const SEASON_ASSETS: Record<Season, string> = {
-  SPRING: springImg,
-  SUMMER: summerImg,
-  AUTUMN: autumnImg,
-  WINTER: winterImg,
+  SPRING: '/assets/widget/environment/season/spring.png',
+  SUMMER: '/assets/widget/environment/season/summer.png',
+  AUTUMN: '/assets/widget/environment/season/autumn.png',
+  WINTER: '/assets/widget/environment/season/winter.png',
 };
 
 // Deterministic season from local month (0-11)
@@ -66,18 +54,14 @@ export function datePartsInTimezone(date: Date, timezone: string): { hour: numbe
   }
 }
 
-import cloudyImg from '$lib/assets/widget/environment/weather/cloudy.png';
-import overcastImg from '$lib/assets/widget/environment/weather/overcast.png';
-import stormOverlayImg from '$lib/assets/widget/environment/weather/storm-overlay.png';
-
 export type Weather = 'CLEAR' | 'CLOUDY' | 'OVERCAST' | 'RAIN' | 'THUNDERSTORM';
 
 export const WEATHER_ASSETS: Record<Weather, string | null> = {
   CLEAR: null,
-  CLOUDY: cloudyImg,
-  OVERCAST: overcastImg,
-  RAIN: overcastImg, // uses overcast + animated rain
-  THUNDERSTORM: stormOverlayImg, // uses storm + denser rain
+  CLOUDY: '/assets/widget/environment/weather/cloudy.png',
+  OVERCAST: '/assets/widget/environment/weather/overcast.png',
+  RAIN: '/assets/widget/environment/weather/overcast.png', // uses overcast + animated rain
+  THUNDERSTORM: '/assets/widget/environment/weather/storm-overlay.png', // uses storm + denser rain
 };
 
 export type RainConfig = {

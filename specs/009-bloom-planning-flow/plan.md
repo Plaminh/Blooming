@@ -174,7 +174,7 @@ See [data-model.md](./data-model.md) for full types.
 6. Fix layout, typography, asset, spacing, and color mismatches.
 7. Repeat until no major mismatch.
 8. Verify no console/terminal errors.
-9. Confirm no imports from `design-assets/references`.
+9. Confirm no imports from `removed reference artwork`.
 
 ## Plan Deliverables
 

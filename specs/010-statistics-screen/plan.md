@@ -223,12 +223,12 @@ frontend/src/
 2. Run tests: `npm run test` (from `frontend/`).
 3. Launch: `npm run tauri dev` (from project root).
 4. Navigate to `/statistics`.
-5. Compare side-by-side with `design-assets/app/references/statistic.png`.
+5. Compare side-by-side with `removed reference artwork`.
 6. Verify: layout proportions, typography, colors, icons, spacing, borders.
 7. Verify: calendar day states, chart bar proportions, table alignment, status badges.
 8. Fix any mismatches and repeat.
 9. Confirm no console/terminal errors.
-10. Confirm no imports from `design-assets/references`.
+10. Confirm no imports from `removed reference artwork`.
 
 ## Plan Deliverables
 

@@ -29,12 +29,12 @@ Output: one widget surface. Callbacks are optional and variant-specific. See [da
 
 ## Assets the contract may reference
 
-- `/assets/widget/backgrounds/default-sky.png`
-- `/assets/widget/backgrounds/background-bushes.png`
-- `/assets/widget/characters/mr-bloom-spritesheet.png`
-- `/assets/widget/icons/leaf-icon.png`
-- `/assets/widget/plants/{monstera,sunflower,bonsai,jasmine,lavender}-spritesheet.png`
+- `/assets/widget/environment/daytime/morning.png`
+- `/assets/widget/environment/season/spring.png`
+- `/assets/mr-bloom/mr-bloom-spritesheet.png`
+- `/assets/icons/leaf-icon.png`
+- `/assets/plants/{monstera,sunflower,bonsai,jasmine,lavender}-spritesheet.png`
 
-Forbidden: any `design-assets/` path, including `widget-reference.svg`, and any inline base64 image.
+Forbidden: any `removed reference artwork/` path, including `widget-reference.svg`, and any inline base64 image.
 
 `leaf-icon.png` is decorative title-bar branding beside visible `BLOOMING` text. It is not a balance badge. Character atlas dimensions and permitted frame sequences are defined once in [data-model.md](../data-model.md).

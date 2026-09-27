@@ -106,7 +106,7 @@ Users expect standard OS window lifecycle actions to function.
 
 ### Functional Requirements
 
-- **FR-001**: System MUST match the visual composition, proportions, typography, and assets of `design-assets/references/today.png` at exactly a 1440x900 desktop viewport.
+- **FR-001**: System MUST match the visual composition, proportions, typography, and assets of `removed reference artwork` at exactly a 1440x900 desktop viewport.
 - **FR-002**: System MUST render exactly four schedule cards for the reference date. (No "Lunch" card, no standalone Mr. Bloom message panel).
 - **FR-003**: System MUST provide interactive date navigation driving derived local state.
 - **FR-004**: System MUST allow selecting a timeline task via mouse or keyboard to synchronize its information into the Task Details panel.

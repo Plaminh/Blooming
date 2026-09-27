@@ -155,7 +155,7 @@
 - [x] T030 [P] Accessibility audit on `frontend/src/routes/statistics/+page.svelte` — verify: `<h1>` for "STATISTICS", `<h2>` for all panel titles, `<table>` with `<th>` headers, `aria-label` on all interactive elements (filter buttons, pagination buttons, month nav buttons, row chevrons, date-range selector, bar chart columns), visible focus rings on all interactive elements, `prefers-reduced-motion` respected (already handled in global CSS), status indicators use icon shape + text (not color alone)
 - [x] T031 Run `npm run check` from `frontend/` — verify no TypeScript errors after all changes
 - [x] T032 Run `npm run test` from `frontend/` — verify all existing and new tests pass
-- [x] T033 Visual verification — launch with `npm run tauri dev`, navigate to `/statistics`, compare side-by-side with `design-assets/app/references/statistic.png`. Verify layout, typography, colors, spacing, borders, icons, bar proportions, calendar states, table alignment, status badges. Verify no content overflow at 1280×800. Verify no console errors
+- [x] T033 Visual verification — launch with `npm run tauri dev`, navigate to `/statistics`, compare side-by-side with `removed reference artwork`. Verify layout, typography, colors, spacing, borders, icons, bar proportions, calendar states, table alignment, status badges. Verify no content overflow at 1280×800. Verify no console errors
 - [x] T034 Regression check — navigate to Today, Goals, Mr. Bloom, Settings pages and verify they render correctly with the STATISTICS sidebar item present. Verify no console errors on any page
 
 ---

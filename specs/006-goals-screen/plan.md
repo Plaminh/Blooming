@@ -6,7 +6,7 @@
 
 ## Summary
 
-Implement the Goals screen matching `design-assets/references/goal.png`, using shared components from the Today screen where applicable, creating specific Atomic Design components for the Goals view, and ensuring responsive state synchronization with local view-model fixtures without using React/JSX or assuming backend presence.
+Implement the Goals screen matching `removed reference artwork`, using shared components from the Today screen where applicable, creating specific Atomic Design components for the Goals view, and ensuring responsive state synchronization with local view-model fixtures without using React/JSX or assuming backend presence.
 
 ## Technical Context
 
@@ -109,7 +109,7 @@ frontend/src/
 
 ## Asset Inventory
 
-- `leaf-icon.png` (Goal details target date box / Garden header / Next milestone) - likely exists in `static/assets/widget/icons/leaf-icon.png`
+- `leaf-icon.png` (Goal details target date box / Garden header / Next milestone) - likely exists in `static/assets/icons/leaf-icon.png`
 - `book` icon for "Read 12 books"
 - `shoe` / `sneaker` icon for "Stay healthy"
 - `calendar` icon for Next milestone

@@ -24,12 +24,12 @@ The DOM and axe checks cover semantics and behavior; they do not prove pixel-per
 
 From `frontend/`, run `npm run dev`, then open `http://localhost:1420/auth`.
 
-1. At 1440x900, compare against `design-assets/app/references/authentication-login.png`. Check the teal frame/title bar, approximately 696px illustration column, warm-cream panel, decorative leaf, typography, segmented selector, ~596px controls, full-width action, lower separator, and prompt.
+1. At 1440x900, compare against `removed reference artwork`. Check the teal frame/title bar, approximately 696px illustration column, warm-cream panel, decorative leaf, typography, segmented selector, ~596px controls, full-width action, lower separator, and prompt.
 2. Confirm Login is default. Exercise both segmented buttons and both bottom mode-switch buttons; exactly one form is present at a time.
 3. Submit empty and invalid values. After submission, confirm errors persist while values remain invalid and clear only after correction. In Register, changing either password must revalidate confirmation.
 4. Confirm Remember me is a native checkbox and all three password controls toggle independently in their applicable modes.
 5. Resize moderately and shorten the viewport. The form must remain reachable, Register must not clip, the illustration must crop without distortion, and vertical scrolling must be available when content is taller than the viewport.
-6. Inspect the network panel. The runtime illustration may load from `/assets/authentication/backgrounds/authentication-background.png`; `authentication-login.png` must never be requested. No authentication/API request may occur.
+6. Inspect the network panel. The runtime illustration may load from `/assets/auth/authentication-background.png`; `authentication-login.png` must never be requested. No authentication/API request may occur.
 7. Browser title-bar and widget-to-main actions must safely no-op without errors.
 
 ## Tauri desktop validation

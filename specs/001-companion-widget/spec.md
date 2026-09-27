@@ -91,7 +91,7 @@ Users need to know when the system is offline so they understand why data might 
 
 ### Functional Requirements
 
-- **FR-001**: System MUST implement one shared widget shell providing the outer border, dark teal title bar matching `design-assets/widget/references/widget-reference.svg` (logo, `BLOOMING`, and window controls in the band above `y ≈ 64` on the `680 × 289` canvas), layered background scene (bright blue sky, city skyline, green foliage), logo, and "BLOOMING" title for all four states.
+- **FR-001**: System MUST implement one shared widget shell providing the outer border, dark teal title bar matching `removed reference artwork` (logo, `BLOOMING`, and window controls in the band above `y ≈ 64` on the `680 × 289` canvas), layered background scene (bright blue sky, city skyline, green foliage), logo, and "BLOOMING" title for all four states.
 - **FR-002**: System MUST render custom window controls (minimize, maximize/restore, close) in the custom title bar, and the ability to drag the window via the title bar.
 - **FR-003**: System MUST NOT render the native OS title bar in the final presentation.
 - **FR-004**: System MUST implement state-specific content through typed props or a local presentation model (no application-wide state management or backend dependency).
@@ -102,7 +102,7 @@ Users need to know when the system is offline so they understand why data might 
 
 ### Visual & Acceptance Requirements
 
-- **VR-001**: The default design canvas MUST be exactly `680 × 289` to match `design-assets/widget/references/widget-reference.svg`. Earlier “approximately `700 × 310`” sizing is superseded. Comparisons MUST preserve the `680:289` aspect ratio and MUST NOT stretch the widget to `700 × 310`.
+- **VR-001**: The default design canvas MUST be exactly `680 × 289` to match `removed reference artwork`. Earlier “approximately `700 × 310`” sizing is superseded. Comparisons MUST preserve the `680:289` aspect ratio and MUST NOT stretch the widget to `700 × 310`.
 - **VR-002**: The supplied leaf PNG logo, `BLOOMING` title, and three window controls MUST retain the exact same alignment in all four states. No leaf-balance pill is rendered. All four states MUST share the same background composition and title-bar structure.
 - **VR-003**: The thick dark teal/navy outer border MUST remain visible.
 - **VR-004**: The companion MUST remain anchored near the lower-left.
@@ -110,11 +110,11 @@ Users need to know when the system is offline so they understand why data might 
 - **VR-006**: Action buttons MUST be aligned along the lower-right area and MUST preserve the exact state-specific order defined in the user stories. Green buttons are primary; cream buttons are secondary.
 - **VR-007**: Text, buttons, title-bar controls, speech panels, and interactive elements MUST remain real UI elements.
 - **VR-008**: The MVP widget MUST use these supplied runtime PNG assets:
-  - `frontend/static/assets/widget/backgrounds/default-sky.png`
-  - `frontend/static/assets/widget/backgrounds/background-bushes.png`
-  - `frontend/static/assets/widget/characters/mr-bloom-spritesheet.png`
-  - `frontend/static/assets/widget/icons/leaf-icon.png`
-  - `frontend/static/assets/widget/plants/{monstera,sunflower,bonsai,jasmine,lavender}-spritesheet.png`
+  - `frontend/static/assets/widget/environment/daytime/morning.png`
+  - `frontend/static/assets/widget/environment/season/spring.png`
+  - `frontend/static/assets/mr-bloom/mr-bloom-spritesheet.png`
+  - `frontend/static/assets/icons/leaf-icon.png`
+  - `frontend/static/assets/plants/{monstera,sunflower,bonsai,jasmine,lavender}-spritesheet.png`
   `default-sky.png` and `background-bushes.png` are separate visual layers of the widget background. They MUST contain only sky, clouds, city skyline, foliage, plants, and ground. They MUST NOT contain the robot cat, title bar, logo, speech bubble, reminder panel, status indicators, timer, text, buttons, or window controls. The one-pixel source-dimension difference between the two background layers MUST NOT cause visible seams, clipping, drift, or misalignment in the rendered widget.
 - **VR-009**: Mr. Bloom MUST NOT be recreated as SVG. The authoritative source is an irregular `1536 × 1152` sheet with eight 144px rows; the runtime asset MUST be normalized to `1152 × 1152`, `4 × 8`, with `288 × 144` cells. One reusable character component selects the mapped row and only the permitted per-state columns defined in `data-model.md`. The viewport MUST show exactly one complete cell, and reduced-motion users MUST see the first permitted frame. Mapping: `paused` row 7, `behindSchedule` row 6, `offline` row 3, `reminders` row 4.
 - **VR-010**: Title bar, outer border, speech bubbles, reminder panel, buttons, timer, and textual content MUST be real Svelte/HTML/CSS UI.
@@ -122,7 +122,7 @@ Users need to know when the system is offline so they understand why data might 
 - **VR-012**: All runtime PNG and SVG artwork MUST retain transparency where present and crisp pixel-style edges without blurry interpolation.
 - **VR-013**: The widget MUST NOT be redesigned as a generic dashboard or modern web card. It MUST NOT introduce glassmorphism, gradients, excessive shadows, unrelated rounded cards, or visual styling inconsistent with the supplied pixel-art reference.
 - **VR-014**: Mr. Bloom may animate horizontally only through the selected state's permitted columns in `mr-bloom-spritesheet.png`. Plant sheets are lifecycle atlases, not animation loops: the widget shows exactly one species and one frame `0–15`. The active plant is presentation data only; reward calculation and garden growth stay out of scope.
-- **VR-015**: `design-assets/widget/references/widget-reference.svg` is a source-only visual reference (hybrid SVG, `680 × 289`, vector paths plus embedded rasters). It MUST NOT be moved into `frontend/static/`, bundled at runtime, edited, optimized, re-exported, or overwritten. Title bar, speech/reminder panel, text, buttons, status indicators, and window controls MUST be real Svelte HTML/CSS. Sky, bushes, and Mr. Bloom MUST still come from the runtime PNGs in VR-008.
+- **VR-015**: `removed reference artwork` is a source-only visual reference (hybrid SVG, `680 × 289`, vector paths plus embedded rasters). It MUST NOT be moved into `frontend/static/`, bundled at runtime, edited, optimized, re-exported, or overwritten. Title bar, speech/reminder panel, text, buttons, status indicators, and window controls MUST be real Svelte HTML/CSS. Sky, bushes, and Mr. Bloom MUST still come from the runtime PNGs in VR-008.
 
 ### Accessibility Requirements
 
@@ -148,7 +148,7 @@ Users need to know when the system is offline so they understand why data might 
 - **SC-008**: Keyboard focus, semantic-button, accessible-name, and contrast checks pass using standard automated accessibility tooling.
 - **SC-009**: Only the selected `mr-bloom-spritesheet.png` cell is visible; no neighboring sprite cell leaks into the widget.
 - **SC-010**: Both background layers align without visible seams, clipping, drift, or misalignment at the target viewport.
-- **SC-011**: No source-only art is requested or loaded at runtime. Browser/Tauri network inspection shows no request for `widget-reference.svg` or any `design-assets/` path.
+- **SC-011**: No source-only art is requested or loaded at runtime. Browser/Tauri network inspection shows no request for `widget-reference.svg` or any `removed reference artwork/` path.
 - **SC-012**: All runtime images preserve transparency and sharp rendering.
 - **SC-013**: Final comparison uses all four widget screenshots at the VR-001 canvas.
 - **SC-014**: The finished reminders fixture matches the source-only reference’s proportions, placement, spacing, borders, radii, colors, speech-bubble/panel shape, title-bar layout, button dimensions, typography scale, and character position when both are viewed at the VR-001 canvas.
@@ -158,5 +158,5 @@ Users need to know when the system is offline so they understand why data might 
 - The frontend uses the existing project architecture (SvelteKit + TypeScript + Tauri) as mandated by the project constitution.
 - The native window customization permissions and APIs are available and compatible with the current project state.
 - The runtime PNG assets listed in VR-008 already exist in the repository and are the mandated character, leaf, plant, and background art for this feature.
-- `design-assets/widget/references/widget-reference.svg` is the source-only composite visual reference for the reminders fixture and is not a runtime dependency.
+- `removed reference artwork` is the source-only composite visual reference for the reminders fixture and is not a runtime dependency.
 - Character animation is presentation-only and uses the normalized runtime atlas; no domain timing or persistence is introduced.

@@ -8,7 +8,7 @@
 - **Alternatives considered**: A feature-local `styles/theme.css` or reuse of `--auth-*` tokens from the authentication view.
 
 ### 2. Asset Identification
-- **Decision**: The background image is `/assets/onboarding-setup/backgrounds/onboarding-background.png`. The leaf icon is `/assets/widget/icons/leaf-icon.png`. Title-bar and window-control styles come from the shared `theme.css`.
+- **Decision**: The background image is `/assets/onboarding/onboarding-background.png`. The leaf icon is `/assets/icons/leaf-icon.png`. Title-bar and window-control styles come from the shared `theme.css`.
 - **Rationale**: Reuses the provided onboarding background and existing standard assets.
 - **Alternatives considered**: Attempting to slice the reference image, which is fragile and violates the reuse constraint.
 

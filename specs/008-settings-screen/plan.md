@@ -82,7 +82,7 @@ Implement a high-fidelity Settings screen for Blooming, reusing the shared appli
 | Blooming logo | `/assets/...` (Used in TitleBar) | `img` | ~40x40 | Shared |
 | Navigation icons | `$lib/shared/components/atoms/AppIcon.svelte` | `AppIcon` | ~24x24 | Shared |
 | Sidebar plant | `PlantSprite.svelte` | `PlantSprite` | N/A | Shared |
-| Leaf / Water | `/assets/widget/icons/leaf-icon.png`, `AppIcon` | `img`, `AppIcon` | 25x29 | Shared |
+| Leaf / Water | `/assets/icons/leaf-icon.png`, `AppIcon` | `img`, `AppIcon` | 25x29 | Shared |
 | Account/User | `$lib/shared/components/atoms/AppIcon.svelte` (name="user") | `AppIcon` | ~24x24 | Settings/Shared |
 | Gear icon | `$lib/shared/components/atoms/AppIcon.svelte` (name="settings") | `AppIcon` | ~24x24 | Settings/Shared |
 | Clock icon | `$lib/shared/components/atoms/AppIcon.svelte` (name="clock"?) | `AppIcon` | ~24x24 | Settings/Shared |
@@ -170,7 +170,7 @@ Editing fields modifies `draftSettings`. Cancel restores `savedSettings` into `d
 
 1. Run `npm run dev`. Navigate to `/settings`.
 2. Resize browser viewport precisely to 1540x975.
-3. Compare side-by-side with `design-assets/app/references/settings.png`.
+3. Compare side-by-side with `removed reference artwork`.
 4. Fix layout grid -> panel sizes -> typography -> colors.
 
 ## 18. Regression Strategy

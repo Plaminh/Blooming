@@ -20,7 +20,3 @@ def selector_loop_factory() -> asyncio.AbstractEventLoop:
     return asyncio.new_event_loop()
 
 
-def use_selector_event_loop_policy() -> None:
-    """Apply a psycopg-compatible policy for scripts that create their own loop."""
-    if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())

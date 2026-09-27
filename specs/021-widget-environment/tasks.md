@@ -3,7 +3,7 @@
 ## Phase 1: Inspection, Preparation & Asset Migration
 - [x] 1. **Inspect current assets**: Enumerate files inside `/daytime`, `/season`, and `/weather`. Classify each file (runtime, design/reference, or unused). Record an old-path -> target-path mapping.
 - [x] 2. **Find usages**: Search the entire repository for references to every current environmental asset. [P]
-- [x] 3. **Create target structure**: Create the `frontend/src/lib/assets/widget/environment/daytime/`, `season/`, and `weather/` directories.
+- [x] 3. **Create target structure**: Create the `frontend/static/assets/widget/environment/daytime/`, `season/`, and `weather/` directories.
 - [x] 4. **Move daytime assets**: Move runtime time-of-day assets into `environment/daytime/`.
 - [x] 5. **Move season assets**: Move runtime seasonal vegetation/environment layers into `environment/season/`.
 - [x] 6. **Move weather assets**: Move static weather overlays/effects into `environment/weather/`. Rename assets if needed (e.g. `thunder-storm.png` -> `storm-overlay.png`).

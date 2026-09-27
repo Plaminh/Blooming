@@ -23,5 +23,5 @@
 - **Alternatives considered**: Creating them in `shared` directly.
 
 ### Visual Reference
-- **Decision**: The native dimensions of `design-assets/app/references/settings.png` are exactly **1540x975**. We will use this viewport size for visual comparison.
+- **Decision**: The native dimensions of `removed reference artwork` are exactly **1540x975**. We will use this viewport size for visual comparison.
 - **Rationale**: Confirmed via PowerShell image inspection.

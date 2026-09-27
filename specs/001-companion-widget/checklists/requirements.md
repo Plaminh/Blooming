@@ -34,6 +34,6 @@
 - Checked all items against the supplied runtime PNG strategy.
 - The spec mandates the normalized runtime `mr-bloom-spritesheet.png` atlas and the two background layers (`default-sky.png`, `background-bushes.png`), including the one-pixel source-dimension alignment constraint.
 - Character animation is documented as a presentation concern with per-state permitted columns and reduced-motion behavior.
-- `design-assets/widget/references/widget-reference.svg` is documented as a source-only visual reference. It is the reminders comparison target and must not be imported or used as the production widget.
+- `removed reference artwork` is documented as a source-only visual reference. It is the reminders comparison target and must not be imported or used as the production widget.
 - Mr. Bloom is specified as the normalized runtime PNG atlas, not custom SVG. SVG/CSS items are indicators and chrome, not missing user-supplied rasters.
 - The four fixtures (Paused, Behind schedule, Offline, Reminders) are unchanged. Atlas cells supply pose only; state indicators remain independently controllable.

@@ -18,7 +18,7 @@
 
 **Purpose**: Project initialization, inspection, and asset setup
 
-- [x] T001 Inspect the reference image and measure the application window’s composition in `design-assets/app/references/onboarding-setup.png`
+- [x] T001 Inspect the reference image and measure the application window’s composition in `removed reference artwork`
 - [x] T002 Inspect the existing frontend architecture, routes, component hierarchy, styling system, fonts, and assets in `frontend/src/`
 - [x] T003 Identify reusable assets and components for the setup screen in `frontend/static/assets/` and `frontend/src/lib/`
 - [x] T004 Add or update the required font configuration without breaking the project’s existing stack in `frontend/src/lib/shared/styles/theme.css`
@@ -54,7 +54,7 @@
 
 **Goal**: As a user, I want to see a polished, pixel-art themed onboarding screen that perfectly matches the reference design.
 
-**Independent Test**: Can be tested visually by running the app and comparing the window layout against `design-assets/app/references/onboarding-setup.png`.
+**Independent Test**: Can be tested visually by running the app and comparing the window layout against `removed reference artwork`.
 
 ### Implementation for User Story 2
 
@@ -72,7 +72,7 @@
 
 - [x] T013 Run formatting, type checking, linting, and relevant frontend tests in `frontend/`
 - [x] T014 Render the screen at the reference viewport in `frontend/src/routes/onboarding-preview/+page.svelte` and capture a screenshot
-- [x] T015 Compare the implementation directly against `design-assets/app/references/onboarding-setup.png`
+- [x] T015 Compare the implementation directly against `removed reference artwork`
 - [x] T016 Correct visual mismatches in `frontend/src/lib/shared/styles/theme.css` and onboarding components, and repeat verification until the result is closely aligned
 
 ---

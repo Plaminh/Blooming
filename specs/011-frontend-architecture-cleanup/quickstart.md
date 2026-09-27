@@ -45,7 +45,7 @@ Due to the limitations of JSDOM in verifying layout persistence across navigatio
 ### 3. Visual and Thematic Regressions
 
 1. Navigate to **Today**, **Goals**, **Mr. Bloom**, **Settings**, and **Statistics**.
-2. Compare the screens against the approved reference images in `design-assets/references/`.
+2. Compare the screens against the approved reference images in `removed reference artwork`.
 3. **Expected Outcome**: 
    - No missing icons or empty rounded-square fallbacks.
    - All colors match the approved palette exactly.

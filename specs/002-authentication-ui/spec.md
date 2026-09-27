@@ -107,10 +107,10 @@ As a desktop user, I want the companion widget to remain available at startup an
 - **FR-005**: System MUST allow users to switch between modes using a segmented selector or bottom links without triggering a page reload.
 - **FR-006**: System MUST perform local, presentation-only validation for required fields, email format, minimum password length, and password matching (in Register mode).
 - **FR-007**: System MUST associate validation error messages with their corresponding inputs for accessibility and visual proximity.
-- **FR-008**: System MUST use `frontend/static/assets/authentication/backgrounds/authentication-background.png` for the left illustration, preserving its aspect ratio and pixel-art sharpness.
+- **FR-008**: System MUST use `frontend/static/assets/auth/authentication-background.png` for the left illustration, preserving its aspect ratio and pixel-art sharpness.
 - **FR-009**: System MUST NOT make real backend requests, access databases, or implement actual authentication logic (JWT, sessions, etc.).
 - **FR-010**: System MUST render semantic HTML forms and inputs, ensuring keyboard operability and logical focus order.
-- **FR-011**: System MUST NOT use the complete-screen reference image (`design-assets/app/references/authentication-login.png`) at runtime.
+- **FR-011**: System MUST NOT use the complete-screen reference image (`removed reference artwork`) at runtime.
 - **FR-012**: System MUST implement a `/auth` SvelteKit route for local UI preview and testing.
 - **FR-013**: Tauri MUST statically configure exactly one hidden, centered, frameless, opaque, resizable `main` window at `/auth` with a 1440x900 default and approximately 1000x700 minimum.
 - **FR-014**: The existing `companion-widget` window MUST remain visible and retain its current interactions while opening or focusing `main` only from a native double-click on its non-interactive surface.

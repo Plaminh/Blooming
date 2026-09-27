@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Implement the Blooming Statistics screen to match the design reference at `design-assets/app/references/statistic.png`. The screen displays study progress summaries, a study calendar, a daily study time chart, and a plan history table. It integrates into the shared application shell with a new sidebar navigation item."
+**Input**: User description: "Implement the Blooming Statistics screen to match the design reference at `removed reference artwork`. The screen displays study progress summaries, a study calendar, a daily study time chart, and a plan history table. It integrates into the shared application shell with a new sidebar navigation item."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -197,7 +197,7 @@ A user changes the visible reporting date range using the dropdown selector in t
 
 ## Assumptions
 
-- The design reference `design-assets/app/references/statistic.png` is the authoritative visual target. Minor sub-pixel variations are acceptable; structural deviations are not.
+- The design reference `removed reference artwork` is the authoritative visual target. Minor sub-pixel variations are acceptable; structural deviations are not.
 - Backend statistics endpoints are not yet available. All data displayed on the Statistics page will use typed local view-model/mock data until real backend integration is implemented in a future specification.
 - The existing `AppIcon` component will be extended with a `statistics` variant (simple ascending bar-chart SVG path). No new icon component is created.
 - The existing `SidebarNavigationItem` component accepts the necessary props to render the Statistics entry without modification to its API.

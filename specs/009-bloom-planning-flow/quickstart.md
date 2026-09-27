@@ -56,4 +56,4 @@ npm run tauri dev
 5. Click **SAVE TO TODAY**. Verify the draft clears and a success message appears in the chat.
 
 ## Visual Verification
-For each scenario above, capture a screenshot of the Tauri window and place it side-by-side with the corresponding reference image in `design-assets/references/`. Confirm matching typography, spacing, border styles, and colors.
+For each scenario above, capture a screenshot of the Tauri window and place it side-by-side with the corresponding reference image in `removed reference artwork`. Confirm matching typography, spacing, border styles, and colors.

@@ -22,4 +22,4 @@
 
 ## Phase 4: Integration and Polish
 - [x] T015 Run `npm run check` and `npx prettier` to ensure code formatting and type safety.
-- [x] T016 Visually compare `http://localhost:5173/today` against `design-assets/references/today.png` at 1440x900 viewport to verify exact geometric constraints and asset alignment.
+- [x] T016 Visually compare `http://localhost:5173/today` against `removed reference artwork` at 1440x900 viewport to verify exact geometric constraints and asset alignment.

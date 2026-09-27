@@ -26,7 +26,7 @@ description: "Task list for compact desktop companion widget implementation"
 - Routes: `frontend/src/routes/widget/`, `frontend/src/routes/widget-preview/`
 - Tauri: `frontend/src-tauri/`
 - Runtime PNGs: `frontend/static/assets/widget/`
-- Source-only visual reference: `design-assets/widget/references/widget-reference.svg`
+- Source-only visual reference: `removed reference artwork`
 
 ## Completion criteria
 
@@ -38,7 +38,7 @@ Feature status: **Implemented — manual acceptance pending**. Success Criteria 
 
 **Purpose**: Confirm assets and the `companion-widget` feature module inside the SvelteKit + Tauri app.
 
-- [x] T001 Validate runtime assets exist at `frontend/static/assets/widget/backgrounds/default-sky.png` (1880×837, RGB), `frontend/static/assets/widget/backgrounds/background-bushes.png` (1881×836, RGBA), normalized `frontend/static/assets/widget/characters/mr-bloom-spritesheet.png` (1152×1152, RGBA), `frontend/static/assets/widget/icons/leaf-icon.png`, and the five normalized plant atlases; confirm source-only artwork is not under `frontend/static/`; classify roles in `design-assets/widget/README.md`
+- [x] T001 Validate runtime assets exist at `frontend/static/assets/widget/environment/daytime/morning.png` (1880×837, RGB), `frontend/static/assets/widget/environment/season/spring.png` (1881×836, RGBA), normalized `frontend/static/assets/mr-bloom/mr-bloom-spritesheet.png` (1152×1152, RGBA), `frontend/static/assets/icons/leaf-icon.png`, and the five normalized plant atlases; confirm source-only artwork is not under `frontend/static/`; classify roles in `removed reference artwork`
 - [x] T002 Create `frontend/src/lib/features/companion-widget/` (`components/atoms/`, `components/molecules/`, `components/organisms/`, `fixtures/`, `types/`, `styles/`, `model/`, `index.ts`) and point `frontend/src/routes/widget/+page.svelte` at the feature export; do not introduce `src/lib/components/widget/`
 
 ---
@@ -54,7 +54,7 @@ Feature status: **Implemented — manual acceptance pending**. Success Criteria 
 - [x] T005 [P] Normalize the irregular source character sheet into a `1152×1152`, 4×8 runtime atlas with `288×144` cells, removing centered adjacent-row bleed while retaining detached effects; add state rows plus permitted columns (`paused [0,1,2,3]`, `behindSchedule [0,2]`, `offline [0,1,2,3]`, `reminders [1]`) and the shared scene box in `model/atlas.ts`
 - [x] T006 [P] Implement layered sky/bushes in `frontend/src/lib/features/companion-widget/components/molecules/WidgetSceneBackground.svelte` (shared 1880×837 wrapper, bottom-left alignment, uniform scale, `aria-hidden`, pixelated rendering; do not `object-fit` the two images independently)
 - [x] T007 [P] Implement reusable atlas-backed Mr. Bloom in `frontend/src/lib/features/companion-widget/components/atoms/MrBloomCharacter.svelte` (one normalized cell viewport at `220×110`, `overflow: hidden`, sequence reset/reduced motion, preserve alpha, no per-state duplicate component)
-- [x] T008 [P] Render the supplied `/assets/widget/icons/leaf-icon.png` in `WidgetTitleBar.svelte` (`40×40` image in a `28×31` logo slot); do not add a leaf-balance badge or custom leaf SVG
+- [x] T008 [P] Render the supplied `/assets/icons/leaf-icon.png` in `WidgetTitleBar.svelte` (`40×40` image in a `28×31` logo slot); do not add a leaf-balance badge or custom leaf SVG
 - [x] T009 Paused uses the cyan sleep effects baked into its four supplied frames; do not add a separate sleep overlay component
 - [x] T010 [P] Implement orange schedule alerts in `frontend/src/lib/features/companion-widget/components/atoms/ScheduleAlerts.svelte`
 - [x] T011 [P] Implement pink reminder alerts in `frontend/src/lib/features/companion-widget/components/atoms/ReminderAlerts.svelte`
@@ -161,7 +161,7 @@ Feature status: **Implemented — manual acceptance pending**. Success Criteria 
 - [x] T035 Install `vitest@^5.0.0`, `jsdom`, `@testing-library/svelte@^5`, `@testing-library/user-event@^14`, `@testing-library/jest-dom@^6`, and `axe-core@^4` in `frontend/package.json`; add `"test": "vitest run"`; configure `sveltekit()` + `svelteTesting()` and `environment: "jsdom"` in `frontend/vite.config.js`; do not add Playwright
 - [x] T036 [P] Test the cell mapping, in-grid and whole-pixel offsets, translate-before-scale order, and single-cell clipping in `frontend/src/lib/features/companion-widget/atlas.test.ts`
 - [x] T037 [P] Test `CompanionWidget` in `frontend/src/lib/features/companion-widget/CompanionWidget.test.ts`: exact text and button order for all four fixtures; callbacks fire; actions stay visible and inert when callbacks are omitted; omitted `timeText` renders no timer; behind-schedule has no timer; offline has no buttons; reminder labels stay fully readable; keyboard activation; window controls survive a missing Tauri host; shared scene box; per-state layout config; axe-core on all four fixtures
-- [x] T038 [P] Assert no runtime load of source-only art in `frontend/src/lib/features/companion-widget/assets.test.ts`: scan the whole frontend source tree plus rendered `img[src]` and inline styles for `design-assets`, `widget-reference`, and base64 images; confirm the active runtime `mr-bloom-spritesheet.png` remains allowed while atlas tests enforce `1152×1152` metadata
+- [x] T038 [P] Assert no runtime load of source-only art in `frontend/src/lib/features/companion-widget/assets.test.ts`: scan the whole frontend source tree plus rendered `img[src]` and inline styles for `removed reference artwork`, `widget-reference`, and base64 images; confirm the active runtime `mr-bloom-spritesheet.png` remains allowed while atlas tests enforce `1152×1152` metadata
 
 ---
 
@@ -169,7 +169,7 @@ Feature status: **Implemented — manual acceptance pending**. Success Criteria 
 
 **Purpose**: Manual visual/OS verification and quality gates. T039–T042 are outstanding; do **not** mark them from file existence or from passing automated tests.
 
-- [ ] T039 Manually confirm in browser/Tauri network inspection that no `design-assets/` path is ever requested; record the result in `specs/001-companion-widget/checklists/visual-acceptance.md`
+- [ ] T039 Manually confirm in browser/Tauri network inspection that no `removed reference artwork/` path is ever requested; record the result in `specs/001-companion-widget/checklists/visual-acceptance.md`
 - [ ] T040 Capture four screenshots at the spec canvas from `http://127.0.0.1:1420/widget-preview` (paused, behindSchedule, offline, reminders) into a scratch directory outside the repository; inspect every permitted animation frame and confirm no placeholders, no scrollbars/clipping/overlap, aligned backgrounds, exactly one normalized character cell, one far-left plant, and no leaf-balance pill; record gaps in `specs/001-companion-widget/checklists/visual-acceptance.md`
 - [ ] T041 Compare the finished **reminders** fixture to the reference SVG at the spec canvas (side by side or overlay in an external viewer, not inside the app): proportions, component placement, spacing, border thickness, corner radii, colors, panel shape, title-bar layout, button dimensions, typography scale, and character position; confirm live Svelte chrome rather than SVG rasters/text paths; record the result in `specs/001-companion-widget/checklists/visual-acceptance.md`
 - [ ] T042 Verify minimize, maximize/restore, close, and title-bar dragging on Windows via `npm run tauri dev`; repeat on Linux or explicitly document **unverified** in `specs/001-companion-widget/checklists/visual-acceptance.md`

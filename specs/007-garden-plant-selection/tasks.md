@@ -5,8 +5,8 @@
 
 ## Phase 1 — Preflight and foundation
 
-- [x] T001 Read the active Garden specification, plan, constitution, and `design-assets/references/garden.png`.
-- [x] T002 Confirm the exact native pixel dimensions and aspect ratio of `design-assets/references/garden.png`.
+- [x] T001 Read the active Garden specification, plan, constitution, and `removed reference artwork`.
+- [x] T002 Confirm the exact native pixel dimensions and aspect ratio of `removed reference artwork`.
 - [x] T003 Confirm the real SvelteKit Garden route (`src/routes/garden-selection/+page.svelte`) through filesystem routing and existing navigation.
 - [x] T004 Verify the existing CSS pipeline, global theme tokens, resets, and pixel-font loading at runtime in `src/app.html` and `src/lib/shared/styles/global.css`.
 - [x] T005 Inspect the shared Tauri title bar, draggable region, and window-control implementation in `src/lib/features/onboarding-setup/components/organisms/DesktopTitleBar.svelte`.
@@ -15,9 +15,9 @@
 
 ## Phase 2 — Asset inventory and validation
 
-- [x] T008 [P] Inspect and record Blooming leaf logo asset (`static/assets/widget/icons/leaf-icon.png`).
-- [x] T009 [P] Inspect and record Currency leaf icon asset (`static/assets/widget/icons/leaf-icon.png`).
-- [x] T010 [P] Inspect and record Monstera plant artwork asset (`static/assets/widget/plants/monstera-spritesheet.png`).
+- [x] T008 [P] Inspect and record Blooming leaf logo asset (`static/assets/icons/leaf-icon.png`).
+- [x] T009 [P] Inspect and record Currency leaf icon asset (`static/assets/icons/leaf-icon.png`).
+- [x] T010 [P] Inspect and record Monstera plant artwork asset (`static/assets/plants/monstera-spritesheet.png`).
 - [x] T011 [P] Inspect and record Plant shadow asset, if separate (or confirm CSS usage).
 - [x] T012 [P] Implement Lock icon as a code-native pixel-icon SVG in `src/lib/features/garden-selection/components/atoms/LockIcon.svelte`.
 - [x] T013 [P] Implement CarouselArrowIcon as a code-native pixel-icon SVG in `src/lib/features/garden-selection/components/atoms/CarouselArrowIcon.svelte` handling previous and next directions.
@@ -126,7 +126,7 @@
 ## Phase 11 — Visual verification
 
 - [x] T089 Start the existing development server and open the verified Garden route.
-- [x] T090 Render at the exact native dimensions of `design-assets/references/garden.png`.
+- [x] T090 Render at the exact native dimensions of `removed reference artwork`.
 - [x] T091 Compare side-by-side or overlay/diff with the reference and record visible mismatches.
 - [x] T092 Fix macro geometry first.
 - [x] T093 Fix component dimensions and alignment second.
@@ -151,8 +151,8 @@
 
 ## Explicit negative checks
 
-- [x] T109 Verify `design-assets/references/garden.png` is used only for inspection and comparison.
-- [x] T110 Verify no runtime import points into `design-assets/references`.
+- [x] T109 Verify `removed reference artwork` is used only for inspection and comparison.
+- [x] T110 Verify no runtime import points into `removed reference artwork`.
 - [x] T111 Verify no reference screenshot is used as an icon atlas, plant image, sprite sheet, or background.
 - [x] T112 Verify no deeply nested unstable asset import was introduced.
 - [x] T113 Verify no invented asset path exists.

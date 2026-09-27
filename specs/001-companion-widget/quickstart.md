@@ -10,12 +10,12 @@ Visual and cross-platform checks are **not** already passed.
 - Rust toolchain for Tauri 2 (`frontend/src-tauri`)
 - Working directory: `frontend/` unless noted
 - Runtime PNGs present:
-  - `static/assets/widget/backgrounds/default-sky.png`
-  - `static/assets/widget/backgrounds/background-bushes.png`
-  - `static/assets/widget/characters/mr-bloom-spritesheet.png`
-  - `static/assets/widget/icons/leaf-icon.png`
-  - `static/assets/widget/plants/*-spritesheet.png`
-- Source-only art under `../design-assets/` is never copied or served (spec VR-015)
+  - `static/assets/widget/environment/daytime/morning.png`
+  - `static/assets/widget/environment/season/spring.png`
+  - `static/assets/mr-bloom/mr-bloom-spritesheet.png`
+  - `static/assets/icons/leaf-icon.png`
+  - `static/assets/plants/*-spritesheet.png`
+- Source-only art under `../removed reference artwork/` is never copied or served (spec VR-015)
 
 ## 1. Types and unit/component tests
 
@@ -52,7 +52,7 @@ Manual checks (record results in [checklists/visual-acceptance.md](./checklists/
 - Capture four screenshots at the spec canvas, preserving its aspect ratio. Keep captures outside the repository, and point any capture tool's browser profile at an OS temporary directory.
 - Compare the **reminders** capture side by side with the reference SVG in an external viewer
 - Resize 90–110%: no scrollbars, clipping, or overlap
-- DevTools network: no request for any `design-assets/` path
+- DevTools network: no request for any `removed reference artwork/` path
 
 ## 3. Production static files
 

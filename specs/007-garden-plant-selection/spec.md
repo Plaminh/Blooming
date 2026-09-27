@@ -85,7 +85,7 @@ As a user, I want to navigate the screen using my keyboard and use standard wind
 - **FR-007**: System MUST provide a large green UNLOCK button with a lock icon, unlock cost, and leaf icon for locked plants.
 - **FR-008**: System MUST deduct the unlock cost exactly once from the local mock balance upon a successful unlock.
 - **FR-009**: System MUST prevent unlocking if the leaf balance is insufficient.
-- **FR-010**: System MUST enforce an asset inventory ensuring all visual elements map to real repository assets (e.g., using `/assets/...` or `$lib`) or correctly rendered sprite frames, without placeholders.
+- **FR-010**: System MUST enforce an asset inventory ensuring all visual elements map to real repository assets (e.g., using `/assets/...` or `/assets/...`) or correctly rendered sprite frames, without placeholders.
 - **FR-011**: System MUST be built following Atomic Design principles, defining clear Atoms, Molecules, and Organisms.
 - **FR-012**: System MUST scale gracefully at smaller supported desktop sizes without clipping or scrolling, keeping the entire frame visible.
 
@@ -107,7 +107,7 @@ As a user, I want to navigate the screen using my keyboard and use standard wind
 
 ### Measurable Outcomes
 
-- **SC-001**: Visual fidelity matches `design-assets/references/garden.png` at its native viewport (~1271 × 1062) accurately.
+- **SC-001**: Visual fidelity matches `removed reference artwork` at its native viewport (~1271 × 1062) accurately.
 - **SC-002**: Screen initializes with Monstera selected, `124` balance, and `120` unlock cost.
 - **SC-003**: Carousel navigation synchronizes the plant artwork, text, and unlock state without errors.
 - **SC-004**: Local unlock behavior correctly deducts the cost exactly once and prevents double charging.
@@ -121,4 +121,4 @@ As a user, I want to navigate the screen using my keyboard and use standard wind
 - The shared Svelte components, theme tokens, and pixel fonts exist in the repository and can be reused.
 - Plant inventory and local leaf balance can be modeled via typed local fixture/view-model data.
 - The application architecture supports route-specific sizing or scaling techniques for desktop window limits.
-- Asset loading follows existing conventions (`/assets/` for static, `$lib` for source tree).
+- Asset loading follows existing conventions (`/assets/` for static, `/assets/...` for source tree).

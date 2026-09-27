@@ -50,7 +50,7 @@
       <div class="auth-illustration-col">
         <div class="illustration-wrapper">
           <img
-            src="/assets/authentication/backgrounds/authentication-background.png"
+            src="/assets/auth/authentication-background.png"
             alt=""
             class="auth-bg-image"
           />

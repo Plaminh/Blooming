@@ -74,7 +74,7 @@ describe('AuthenticationView', () => {
     expect(screen.getByText('Small steps enrich brighter days.')).toBeInTheDocument();
 
     const imageSources = [...container.querySelectorAll('img')].map((image) => image.getAttribute('src'));
-    expect(imageSources).toContain('/assets/authentication/backgrounds/authentication-background.png');
+    expect(imageSources).toContain('/assets/auth/authentication-background.png');
     expect(container.innerHTML).not.toContain('authentication-login.png');
   });
 

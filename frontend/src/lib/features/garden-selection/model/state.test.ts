@@ -61,11 +61,63 @@ describe('GardenSelectionViewModel', () => {
     expect(vm.activePlantPresentation).toEqual({ species: 'monstera', frameIndex: 0, scale: 1 });
   });
 
-  it('keeps the starter Monstera pot on its first sprite even at zero vitality', async () => {
+  it('maps a dormant sprouting Monstera to the fourth vitality column', async () => {
     (api.get as any).mockResolvedValue({ ...mockGardenData, vitality: 0 });
     vm = new GardenSelectionViewModel();
     await vi.waitFor(() => expect(vm.loading).toBe(false));
-    expect(vm.activePlantPresentation).toEqual({ species: 'monstera', frameIndex: 0, scale: 1 });
+    expect(vm.activePlantPresentation).toEqual({ species: 'monstera', frameIndex: 3, scale: 1 });
+  });
+
+  it('plays watering only after API success and refreshes when it finishes', async () => {
+    const waterable = { ...mockGardenData, water_balance: 2, catalog: [{ ...mockGardenData.catalog[0], is_unlocked: true }] };
+    (api.get as any).mockResolvedValue(waterable);
+    vm = new GardenSelectionViewModel();
+    await vi.waitFor(() => expect(vm.loading).toBe(false));
+    vi.mocked(api.get).mockClear();
+    (api.post as any).mockResolvedValue({ water_balance: 1, vitality: 100, last_watered_at: "now" });
+
+    await vm.waterSelectedPlant(true);
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(vm.isWatering).toBe(true);
+    expect(vm.isPending).toBe(true);
+    await vm.finishWatering();
+    expect(api.get).toHaveBeenCalledTimes(1);
+    expect(vm.isWatering).toBe(false);
+    expect(vm.isPending).toBe(false);
+  });
+
+  it('does not animate on water failure', async () => {
+    const waterable = { ...mockGardenData, water_balance: 1, catalog: [{ ...mockGardenData.catalog[0], is_unlocked: true }] };
+    (api.get as any).mockResolvedValue(waterable);
+    vm = new GardenSelectionViewModel();
+    await vi.waitFor(() => expect(vm.loading).toBe(false));
+    (api.post as any).mockRejectedValue(new Error('offline'));
+    await vm.waterSelectedPlant(true);
+    expect(vm.isWatering).toBe(false);
+    expect(vm.vitality).toBe(100);
+  });
+
+  it('blocks rapid repeat watering while pending or animating', async () => {
+    const waterable = { ...mockGardenData, water_balance: 2, catalog: [{ ...mockGardenData.catalog[0], is_unlocked: true }] };
+    (api.get as any).mockResolvedValue(waterable);
+    vm = new GardenSelectionViewModel();
+    await vi.waitFor(() => expect(vm.loading).toBe(false));
+    (api.post as any).mockResolvedValue({ water_balance: 1, vitality: 100, last_watered_at: "now" });
+    await vm.waterSelectedPlant(true);
+    await vm.waterSelectedPlant(true);
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips animation but still refreshes when animation is disabled', async () => {
+    const waterable = { ...mockGardenData, water_balance: 1, catalog: [{ ...mockGardenData.catalog[0], is_unlocked: true }] };
+    (api.get as any).mockResolvedValue(waterable);
+    vm = new GardenSelectionViewModel();
+    await vi.waitFor(() => expect(vm.loading).toBe(false));
+    vi.mocked(api.get).mockClear();
+    (api.post as any).mockResolvedValue({ water_balance: 0, vitality: 100, last_watered_at: "now" });
+    await vm.waterSelectedPlant(false);
+    expect(vm.isWatering).toBe(false);
+    expect(api.get).toHaveBeenCalledTimes(1);
   });
 
   it('should allow unlocking when balance is sufficient', async () => {

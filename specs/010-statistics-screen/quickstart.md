@@ -122,7 +122,7 @@ npm run tauri dev
 
 ### Scenario 8: Visual Comparison
 
-1. Open `design-assets/app/references/statistic.png` side-by-side with the running app.
+1. Open `removed reference artwork` side-by-side with the running app.
 2. **Verify**: Layout proportions match (sidebar width, panel sizes, card sizes).
 3. **Verify**: Typography matches (pixel font for title, sans-serif for body).
 4. **Verify**: Colors match (green for studied days and bars, blue for active states).

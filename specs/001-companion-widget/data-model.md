@@ -89,7 +89,7 @@ export type CompanionWidgetProps = {
 
 ```typescript
 export const MR_BLOOM_ATLAS = {
-  src: "/assets/widget/characters/mr-bloom-spritesheet.png",
+  src: "/assets/mr-bloom/mr-bloom-spritesheet.png",
   sheetWidth: 1152,
   sheetHeight: 1152,
   columns: 4,
@@ -164,8 +164,8 @@ Invariants:
 
 ```typescript
 export const WIDGET_SCENE = {
-  skySrc: "/assets/widget/backgrounds/default-sky.png",
-  bushesSrc: "/assets/widget/backgrounds/background-bushes.png",
+  skySrc: "/assets/widget/environment/daytime/morning.png",
+  bushesSrc: "/assets/widget/environment/season/spring.png",
   frameWidth: 1880,  // sky width; clip bushes to this
   frameHeight: 837,  // sky height
   bushesWidth: 1881,

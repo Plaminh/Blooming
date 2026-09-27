@@ -79,7 +79,7 @@
 - [X] T030 Tune typography, colors, borders, spacing, icons, status treatments, progress bar, and pixel rendering to precisely match the reference.
 - [X] T031 Add or update unit/component/integration tests with existing tooling (e.g. Vitest/Playwright).
 - [ ] T032 Validate that all assets load and no blank/broken placeholder appears.
-- [ ] T033 Perform screenshot comparison against `design-assets/references/goal.png` at 1440 × 900, record mismatches, and iterate to defined tolerance.
+- [ ] T033 Perform screenshot comparison against `removed reference artwork` at 1440 × 900, record mismatches, and iterate to defined tolerance.
 - [ ] T034 Re-run Today/shared-shell regression checks to ensure extraction didn't break anything.
 - [ ] T035 Run existing formatter, type/check, lint, tests, build, and applicable Tauri validation.
 - [ ] T036 Review `git diff` and `git status`, removing temporary debug code, screenshots, scripts, and unused changes.

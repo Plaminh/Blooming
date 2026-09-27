@@ -84,7 +84,7 @@ describe("Mr. Bloom normalized atlas", () => {
     expect(sheet).toHaveAttribute("src", MR_BLOOM_ATLAS.src);
     expect(sheet).toHaveAttribute("width", "1152");
     expect(sheet).toHaveAttribute("height", "1152");
-    expect(MR_BLOOM_ATLAS.src).toBe("/assets/widget/characters/mr-bloom-spritesheet.png");
+    expect(MR_BLOOM_ATLAS.src).toBe("/assets/mr-bloom/mr-bloom-spritesheet.png");
   });
 
   it("cycles through all four paused columns and resets when kind changes", async () => {

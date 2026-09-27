@@ -7,27 +7,27 @@ This file defines the explicit structural mapping for the widget environmental a
 ### Daytime Layer (Time-of-day backgrounds)
 | Old Path | New Path | Action |
 |----------|----------|--------|
-| `/daytime/dawn.png` | `frontend/src/lib/assets/widget/environment/daytime/dawn.png` | Move |
-| `/daytime/morning.png` | `frontend/src/lib/assets/widget/environment/daytime/morning.png` | Move |
-| `/daytime/noon.png` | `frontend/src/lib/assets/widget/environment/daytime/noon.png` | Move |
-| `/daytime/afternoon.png` | `frontend/src/lib/assets/widget/environment/daytime/afternoon.png` | Move |
-| `/daytime/sunset.png` | `frontend/src/lib/assets/widget/environment/daytime/sunset.png` | Move |
-| `/daytime/night.png` | `frontend/src/lib/assets/widget/environment/daytime/night.png` | Move |
+| `/daytime/dawn.png` | `frontend/static/assets/widget/environment/daytime/dawn.png` | Move |
+| `/daytime/morning.png` | `frontend/static/assets/widget/environment/daytime/morning.png` | Move |
+| `/daytime/noon.png` | `frontend/static/assets/widget/environment/daytime/noon.png` | Move |
+| `/daytime/afternoon.png` | `frontend/static/assets/widget/environment/daytime/afternoon.png` | Move |
+| `/daytime/sunset.png` | `frontend/static/assets/widget/environment/daytime/sunset.png` | Move |
+| `/daytime/night.png` | `frontend/static/assets/widget/environment/daytime/night.png` | Move |
 
 ### Season Layer (Vegetation/environment overlays)
 | Old Path | New Path | Action |
 |----------|----------|--------|
-| `/season/spring.png` | `frontend/src/lib/assets/widget/environment/season/spring.png` | Move |
-| `/season/summer.png` | `frontend/src/lib/assets/widget/environment/season/summer.png` | Move |
-| `/season/autumn.png` | `frontend/src/lib/assets/widget/environment/season/autumn.png` | Move |
-| `/season/winter.png` | `frontend/src/lib/assets/widget/environment/season/winter.png` | Move |
+| `/season/spring.png` | `frontend/static/assets/widget/environment/season/spring.png` | Move |
+| `/season/summer.png` | `frontend/static/assets/widget/environment/season/summer.png` | Move |
+| `/season/autumn.png` | `frontend/static/assets/widget/environment/season/autumn.png` | Move |
+| `/season/winter.png` | `frontend/static/assets/widget/environment/season/winter.png` | Move |
 
 ### Weather Layer (Static weather effects)
 | Old Path | New Path | Action |
 |----------|----------|--------|
-| `/weather/cloudy.png` | `frontend/src/lib/assets/widget/environment/weather/cloudy.png` | Move |
-| `/weather/overcast.png` | `frontend/src/lib/assets/widget/environment/weather/overcast.png` | Move |
-| `/weather/thunder-storm.png` | `frontend/src/lib/assets/widget/environment/weather/storm-overlay.png` | Move & Rename |
+| `/weather/cloudy.png` | `frontend/static/assets/widget/environment/weather/cloudy.png` | Move |
+| `/weather/overcast.png` | `frontend/static/assets/widget/environment/weather/overcast.png` | Move |
+| `/weather/thunder-storm.png` | `frontend/static/assets/widget/environment/weather/storm-overlay.png` | Move & Rename |
 
 ## Composition Rule Constraints
 

@@ -71,7 +71,7 @@ Users see an animated procedural pixel rain effect when the weather condition in
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST structure runtime assets cleanly in `frontend/src/lib/assets/widget/environment/`.
+- **FR-001**: The system MUST structure runtime assets cleanly in `frontend/static/assets/widget/environment/`.
 - **FR-002**: The widget MUST dynamically render independent layers for Daytime, Season, Weather, Rain, Plant, Character, and UI.
 - **FR-003**: The environment MUST use the user's configured timezone for daytime evaluation.
 - **FR-004**: The system MUST provide deterministic frontend helpers for daytime and season logic.

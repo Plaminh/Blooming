@@ -34,7 +34,7 @@ Shared theme tokens (`--bloom-*`) come from `frontend/src/lib/shared/styles/them
 
 ### Scenario 1: Visual Verification
 1. Open the preview route (`http://127.0.0.1:1420/onboarding-preview`).
-2. Compare the screen directly against `design-assets/app/references/onboarding-setup.png`.
+2. Compare the screen directly against `removed reference artwork`.
 3. **Verify**: The layout must be a two-column desktop frame. The left panel must have the pixel-art illustration and quote. The right panel must have the correct typography, colors, and input controls.
 
 ### Scenario 2: Form Interaction

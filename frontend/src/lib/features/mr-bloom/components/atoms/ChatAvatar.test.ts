@@ -31,7 +31,7 @@ test('blinks while idle, switches to thinking frames, and resets after replying'
   expect(character()).toHaveAttribute('data-row', '0');
   expect(character()).toHaveAttribute('data-frame', '2');
   expect(container.querySelector('.avatar-leaf')).toBeNull();
-  expect(container.querySelector('.sheet')).toHaveAttribute('src', '/assets/widget/characters/mr-bloom-spritesheet.png');
+  expect(container.querySelector('.sheet')).toHaveAttribute('src', '/assets/mr-bloom/mr-bloom-spritesheet.png');
   await vi.advanceTimersByTimeAsync(3000);
   expect(character()).toHaveAttribute('data-frame', '1');
   await vi.advanceTimersByTimeAsync(140);

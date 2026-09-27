@@ -161,7 +161,7 @@ frontend/
 │           │   └── leaf-icon.png            # runtime title-bar logo
 │           └── plants/
 │               └── *-spritesheet.png        # normalized 8×2 plant atlases, 2304×896
-└── design-assets/widget/
+└── removed reference artwork
     └── references/
         └── widget-reference.svg                 # SOURCE-ONLY visual reference; never imported
 ```
@@ -172,18 +172,18 @@ frontend/
 
 | Path | Role | Load at runtime? |
 |---|---|---|
-| `frontend/static/assets/widget/backgrounds/default-sky.png` | Opaque sky/city layer | Yes, `/assets/widget/backgrounds/default-sky.png` |
-| `frontend/static/assets/widget/backgrounds/background-bushes.png` | Transparent foliage layer over sky | Yes, `/assets/widget/backgrounds/background-bushes.png` |
-| `frontend/static/assets/widget/characters/mr-bloom-spritesheet.png` | Normalized animated 4×8 Mr. Bloom atlas | Yes, `/assets/widget/characters/mr-bloom-spritesheet.png` |
-| `frontend/static/assets/widget/icons/leaf-icon.png` | Decorative title-bar logo beside `BLOOMING` | Yes, `/assets/widget/icons/leaf-icon.png` |
-| `frontend/static/assets/widget/plants/*-spritesheet.png` | Normalized 8×2 plant atlases | Yes, one species at a time |
-| `design-assets/widget/references/widget-reference.svg` | Source-only visual reference | **Never** (spec VR-015) |
+| `frontend/static/assets/widget/environment/daytime/morning.png` | Opaque sky/city layer | Yes, `/assets/widget/environment/daytime/morning.png` |
+| `frontend/static/assets/widget/environment/season/spring.png` | Transparent foliage layer over sky | Yes, `/assets/widget/environment/season/spring.png` |
+| `frontend/static/assets/mr-bloom/mr-bloom-spritesheet.png` | Normalized animated 4×8 Mr. Bloom atlas | Yes, `/assets/mr-bloom/mr-bloom-spritesheet.png` |
+| `frontend/static/assets/icons/leaf-icon.png` | Decorative title-bar logo beside `BLOOMING` | Yes, `/assets/icons/leaf-icon.png` |
+| `frontend/static/assets/plants/*-spritesheet.png` | Normalized 8×2 plant atlases | Yes, one species at a time |
+| `removed reference artwork` | Source-only visual reference | **Never** (spec VR-015) |
 
 Plant progression is presentation-only. Reward and garden logic stay outside this feature; the widget has no leaf-balance badge.
 
 ## Reference metrics
 
-Read from `design-assets/widget/references/widget-reference.svg` (the composite target for **reminders**) without importing or editing it. The SVG is a hybrid export: vector shapes plus embedded rasters, with labels as outlined paths rather than `<text>`, so all copy is re-authored as real text.
+Read from `removed reference artwork` (the composite target for **reminders**) without importing or editing it. The SVG is a hybrid export: vector shapes plus embedded rasters, with labels as outlined paths rather than `<text>`, so all copy is re-authored as real text.
 
 Implemented geometry is the single source of truth in `model/layout.ts`. All four states share `PANEL_POSITION` `{ x: 215, y: 60 }` and `MR_BLOOM_POSITION` `{ left: 70, bottom: 4 }`. Panel size, timer, status overlay, and action-row metrics stay per-state:
 

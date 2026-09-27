@@ -21,7 +21,7 @@ Navigate to `http://localhost:5173/settings` (or the Vite assigned port).
 
 ### 3. Visual Verification
 - Ensure the browser window is sized to **1540x975**.
-- Compare the rendered output against `design-assets/app/references/settings.png`.
+- Compare the rendered output against `removed reference artwork`.
 - Check title bar colors, pixel font hierarchy, cream background, green toggles, and panel layouts.
 
 ### 4. Run Tauri App

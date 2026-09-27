@@ -6,8 +6,14 @@
   import PlantIdentity from "../molecules/PlantIdentity.svelte";
   import CarouselControls from "../molecules/CarouselControls.svelte";
   import ActionPanel from "./ActionPanel.svelte";
+  import { environmentStore } from "$lib/shared/stores/environmentStore";
 
   let vm = new GardenSelectionViewModel();
+
+  function animationsAllowed(): boolean {
+    const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    return $environmentStore.animationEnabled !== false && !reduced;
+  }
 </script>
 
 <div class="garden-selection-content">
@@ -34,7 +40,13 @@
         onNext={() => vm.next()}
       >
         <div class="carousel-center">
-          <PlantPreviewArea species={vm.selectedPlant.species} />
+          <PlantPreviewArea
+            species={vm.selectedPlant.species}
+            growthStage={vm.growthStage}
+            vitality={vm.vitality}
+            watering={vm.isWatering}
+            onWateringComplete={() => void vm.finishWatering()}
+          />
           <PlantIdentity
             name={vm.selectedPlant.name}
             description={vm.selectedPlant.description}
@@ -48,8 +60,12 @@
         isSelected={vm.selectedPlant.id === vm.activePlantId}
         canUnlock={vm.canUnlockSelectedPlant}
         leavesBalance={vm.leavesBalance}
+        canWater={vm.canWaterSelectedPlant}
+        vitality={vm.vitality}
+        isPending={vm.isPending}
         onUnlock={() => vm.unlockSelectedPlant()}
         onSelect={() => vm.selectCurrentPlant()}
+        onWater={() => void vm.waterSelectedPlant(animationsAllowed())}
       />
     {/if}
   </div>

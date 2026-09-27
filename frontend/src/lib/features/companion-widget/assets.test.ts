@@ -10,7 +10,12 @@ const sources = import.meta.glob("../../../**/*.{ts,js,svelte,css}", {
   import: "default",
 }) as Record<string, string>;
 
-const SOURCE_ONLY_TOKENS = ["design-assets", "widget-reference"];
+const FORBIDDEN_IMAGE_REFERENCE_PATTERNS = [
+  /\$lib\/assets/,
+  /src\/lib\/assets/,
+  /\.\.\/.*\.(?:png|jpe?g|webp|svg|gif)/i,
+  /new URL\([^)]*\.(?:png|jpe?g|webp|svg|gif)/i,
+];
 
 describe("source-only asset exclusion", () => {
   it("covers the frontend source tree beyond the companion-widget folder", () => {
@@ -19,14 +24,14 @@ describe("source-only asset exclusion", () => {
     expect(paths.some((path) => !path.includes("companion-widget"))).toBe(true);
   });
 
-  it("never references the source-only reference art from application source", () => {
+  it("uses only root-relative runtime image references from application source", () => {
     const hits: string[] = [];
 
     for (const [path, source] of Object.entries(sources)) {
       if (path.endsWith(".test.ts")) continue;
-      for (const token of SOURCE_ONLY_TOKENS) {
-        if (source.includes(token)) {
-          hits.push(`${path} contains ${token}`);
+      for (const pattern of FORBIDDEN_IMAGE_REFERENCE_PATTERNS) {
+        if (pattern.test(source)) {
+          hits.push(`${path} matches ${pattern}`);
         }
       }
     }
@@ -68,16 +73,18 @@ describe("source-only asset exclusion", () => {
       ];
 
       for (const url of urls) {
-        for (const token of SOURCE_ONLY_TOKENS) {
-          expect(url).not.toContain(token);
-        }
         expect(url.startsWith("data:image")).toBe(false);
       }
 
       const imageSources = [...container.querySelectorAll("img")].map((img) => img.src);
       expect(imageSources.length).toBeGreaterThan(0);
       for (const src of imageSources) {
-        expect(src.includes("/assets/widget/") || src.includes("/assets/icons/leaf-icon.png")).toBe(true);
+        expect(
+          src.includes("/assets/mr-bloom/") ||
+          src.includes("/assets/plants/") ||
+          src.includes("/assets/icons/leaf-icon.png") ||
+          src.includes("/assets/widget/environment/"),
+        ).toBe(true);
       }
       unmount();
     }

@@ -1,7 +1,7 @@
 # Research Notes: Widget Environment Rendering
 
 ## Background
-The user requested the restructuring of static image assets (`daytime`, `season`, `weather`) from the repository root into `frontend/src/lib/assets/widget/environment/`, and the actual implementation of the widget's environment layers utilizing them.
+The user requested the restructuring of static image assets (`daytime`, `season`, `weather`) from the repository root into `frontend/static/assets/widget/environment/`, and the actual implementation of the widget's environment layers utilizing them.
 
 ## Clarifications Resolved
 - **Runtime vs Design Assets**: All images in the specified directories were validated as runtime assets meant for composing the Svelte widget scene.

@@ -52,7 +52,7 @@ the shared SessionDep/CurrentUser dependencies, including request rollback.
 | --- | --- |
 | `app/db/base.py` | Declarative `Base` |
 | `app/db/session.py` | Async engine and `AsyncSessionLocal` factory |
-| `app/db/models/` | The 23 mapped tables |
+| `app/db/models/` | The 24 mapped tables |
 | `app/api/deps.py` | `SessionDep` request-scoped session dependency |
 | `app/core/runtime.py` | Selector event loop helpers for psycopg |
 

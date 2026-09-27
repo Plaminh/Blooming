@@ -23,18 +23,18 @@ describe("plant presentation", () => {
       "jasmine",
       "lavender",
     ]);
-    expect(plantSource("monstera")).toBe("/assets/widget/plants/monstera-spritesheet.png");
-    expect(plantSource("jasmine")).toBe("/assets/widget/plants/jasmine-spritesheet.png");
+    expect(plantSource("monstera")).toBe("/assets/plants/monstera-spritesheet.png");
+    expect(plantSource("jasmine")).toBe("/assets/plants/jasmine-spritesheet.png");
     expect(Object.keys(PLANT_SOURCES)).toEqual([...PLANT_SPECIES]);
   });
 
-  it("maps lifecycle frames 0 and 15 onto the 8 × 2 atlas", () => {
+  it("maps lifecycle frames 0 and 15 onto the 4 × 4 atlas", () => {
     expect(plantCellForFrame(0)).toEqual({ col: 0, row: 0 });
-    expect(plantCellForFrame(7)).toEqual({ col: 7, row: 0 });
-    expect(plantCellForFrame(8)).toEqual({ col: 0, row: 1 });
-    expect(plantCellForFrame(15)).toEqual({ col: 7, row: 1 });
+    expect(plantCellForFrame(3)).toEqual({ col: 3, row: 0 });
+    expect(plantCellForFrame(4)).toEqual({ col: 0, row: 1 });
+    expect(plantCellForFrame(15)).toEqual({ col: 3, row: 3 });
     expect(plantSheetTransform(0, 0.25)).toBe("scale(0.25) translate(0px, 0px)");
-    expect(plantSheetTransform(15, 0.25)).toBe("scale(0.25) translate(-2016px, -448px)");
+    expect(plantSheetTransform(15, 0.25)).toBe("scale(0.25) translate(-768px, -768px)");
   });
 
   it("clamps invalid frame values to the 0–15 contract", () => {
@@ -42,7 +42,7 @@ describe("plant presentation", () => {
     expect(clampPlantFrameIndex(99)).toBe(15);
     expect(clampPlantFrameIndex(Number.NaN)).toBe(0);
     expect(plantCellForFrame(-1).col).toBe(0);
-    expect(plantCellForFrame(32).col).toBe(7);
+    expect(plantCellForFrame(32)).toEqual({ col: 3, row: 3 });
   });
 
   it("renders one clipped frame and does not autoplay", () => {

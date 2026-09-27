@@ -6,7 +6,7 @@
 
 ## Summary
 
-The repository originally contained `daytime/`, `season/`, and `weather/` directories at the project root which hold environmental assets for the widget. This plan details the completed migration of those assets to the standard `frontend/src/lib/assets/widget/environment/` hierarchy, and the implementation of the `WidgetSceneBackground.svelte` component. The environment rendering system integrates a centralized time source to switch daytime and seasonal layers independently, renders static weather ambiences (safely falling back to CLEAR when weather data is unavailable), and supports a procedural CSS rain layer that traverses the widget dynamically based on weather intensity.
+The repository originally contained `daytime/`, `season/`, and `weather/` directories at the project root which hold environmental assets for the widget. This plan details the completed migration of those assets to the standard `frontend/static/assets/widget/environment/` hierarchy, and the implementation of the `WidgetSceneBackground.svelte` component. The environment rendering system integrates a centralized time source to switch daytime and seasonal layers independently, renders static weather ambiences (safely falling back to CLEAR when weather data is unavailable), and supports a procedural CSS rain layer that traverses the widget dynamically based on weather intensity.
 
 ## Technical Context
 
@@ -73,7 +73,7 @@ frontend/src/lib/
 ## Migration & Implementation Plan
 
 ### 1. Asset Migration
-- Assets have been fully migrated to `frontend/src/lib/assets/widget/environment/`.
+- Assets have been fully migrated to `frontend/static/assets/widget/environment/`.
 - `daytime`, `season`, and `weather` at the repository root were successfully deleted.
 - Unused fields like `skySrc` and `bushesSrc` were scrubbed from `atlas.ts`.
 

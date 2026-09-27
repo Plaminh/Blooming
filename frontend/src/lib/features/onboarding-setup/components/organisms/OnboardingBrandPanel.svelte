@@ -4,7 +4,7 @@
 
 <aside class="brand-panel" aria-label="Blooming introduction">
   <img
-    src="/assets/onboarding-setup/backgrounds/onboarding-background.png"
+    src="/assets/onboarding/onboarding-background.png"
     alt=""
     class="brand-scene"
     width="432"

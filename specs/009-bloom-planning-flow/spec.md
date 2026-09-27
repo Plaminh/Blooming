@@ -114,7 +114,7 @@ As a user, I want to review a generated hour-by-hour timeline schedule so that I
 - **SC-004**: Each of the four screens is rendered at its native reference viewport size and visually matches the provided references.
 - **SC-005**: A screenshot is captured for each implemented state and compared side-by-side with its corresponding reference to ensure layout, typography, colors, and spacing are accurate.
 - **SC-006**: The browser console and terminal contain no new relevant errors or warnings.
-- **SC-007**: No runtime code imports anything directly from `design-assets/references`.
+- **SC-007**: No runtime code imports anything directly from `removed reference artwork`.
 
 ## Assumptions
 

@@ -84,7 +84,7 @@ Users can initiate actions such as creating, editing, and refining goals using t
 ### Functional Requirements
 
 - **FR-001**: The screen MUST load at the existing Goals route and render the shared app title bar, sidebar, and three-column layout.
-- **FR-002**: The screen MUST display the exact visual structure, colors, spacing, typography, and assets dictated by `design-assets/references/goal.png`.
+- **FR-002**: The screen MUST display the exact visual structure, colors, spacing, typography, and assets dictated by `removed reference artwork`.
 - **FR-003**: The screen MUST populate the My Goals list using the required local typed fixture data.
 - **FR-004**: The system MUST synchronize the Goal Details, Roadmap, Next Milestone, and Overall Progress panels when a goal is selected.
 - **FR-005**: The Roadmap MUST correctly render milestone cards, vertical timeline connectors, numbered nodes, dates, and status badges.
@@ -104,7 +104,7 @@ Users can initiate actions such as creating, editing, and refining goals using t
 
 ### Measurable Outcomes
 
-- **SC-001**: The Goals screen layout exactly matches the visual composition of `design-assets/references/goal.png` at a 1440 × 900 viewport.
+- **SC-001**: The Goals screen layout exactly matches the visual composition of `removed reference artwork` at a 1440 × 900 viewport.
 - **SC-002**: Selecting any goal from the list updates the detail panels without visual lag or broken states.
 - **SC-003**: All visible decorative assets, icons, and sprites from the reference are rendered without using missing/broken placeholders or generic Unicode substitutes.
 - **SC-004**: Implementation introduces zero regressions to the shared Today screen, app shell, or shared theme tokens.

@@ -7,7 +7,7 @@
 
 **Purpose**: Initialize context and verify repository constraints.
 
-- [X] T001 Read the active Settings spec, plan, constitution, and `design-assets/app/references/settings.png`.
+- [X] T001 Read the active Settings spec, plan, constitution, and `removed reference artwork`.
 - [X] T002 Verify the reference image’s exact native pixel dimensions and aspect ratio via script.
 - [X] T003 Confirm the real Settings route structure in `frontend/src/routes`.
 - [X] T004 Confirm how the shared sidebar navigates to Settings in `frontend/src/lib/shared/components/organisms/AppSidebar.svelte`.
@@ -30,7 +30,7 @@
 - [X] T016 Inspect and validate Mr. Bloom navigation icon in `AppIcon.svelte`.
 - [X] T017 Inspect and validate Settings gear icon in `AppIcon.svelte`.
 - [X] T018 Inspect and validate Sidebar plant artwork in `frontend/src/lib/features/companion-widget/components/atoms/PlantSprite.svelte`.
-- [X] T019 Inspect and validate Leaf counter icon (`frontend/static/assets/widget/icons/leaf-icon.png`).
+- [X] T019 Inspect and validate Leaf counter icon (`frontend/static/assets/icons/leaf-icon.png`).
 - [X] T020 Inspect and validate Water counter icon in `AppIcon.svelte`.
 - [X] T021 Inspect and validate Account/user icon in `AppIcon.svelte`.
 - [X] T022 Inspect and validate General gear icon in `AppIcon.svelte`.
@@ -137,7 +137,7 @@
 
 ## Phase 12: Pixel-accurate layout and styling
 
-**Purpose**: Precisely match `design-assets/app/references/settings.png` (1540x975).
+**Purpose**: Precisely match `removed reference artwork` (1540x975).
 
 - [X] T078 Apply global CSS grid constraints to `frontend/src/routes/settings/+page.svelte` to match the outer frame.
 - [X] T079 Adjust `AppSidebar` and Main content padding widths to match reference proportions.
@@ -172,7 +172,7 @@
 
 - [X] T094 Run `npm run dev` and navigate to `/settings`.
 - [X] T095 Resize the browser precisely to `1540x975`.
-- [X] T096 Compare the rendered application side-by-side with `design-assets/app/references/settings.png`.
+- [X] T096 Compare the rendered application side-by-side with `removed reference artwork`.
 - [X] T097 Adjust any visual mismatches in panel sizes, gaps, or typography iteratively until tolerance is satisfied.
 - [X] T098 Verify no broken icons are present.
 
@@ -196,7 +196,7 @@
 
 **Purpose**: Checklist confirming strict prohibitions were followed.
 
-- [X] T105 Confirm `design-assets/app/references/settings.png` is only used for comparison and is NOT imported into code.
+- [X] T105 Confirm `removed reference artwork` is only used for comparison and is NOT imported into code.
 - [X] T106 Confirm no screenshot is used as an icon atlas or background.
 - [X] T107 Confirm no invented asset paths or unstable nested paths (`../../`) exist.
 - [X] T108 Confirm no emoji, generic Unicode, blank squares, or broken images remain in the UI.
