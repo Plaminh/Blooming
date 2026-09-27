@@ -164,10 +164,12 @@ class GoalsService:
             if m.status == "COMPLETED" and str(m.id) not in draft_milestone_ids
         ]
         
-        for idx, m in enumerate(goal.milestones):
-            m.position = -idx - 1000
+        if goal.milestones:
+            offset = max((m.position for m in goal.milestones), default=0) + 1
+            for m in goal.milestones:
+                m.position = m.position + offset
             
-        await db.flush()
+            await db.flush()
 
         new_ids = set()
         
@@ -233,6 +235,7 @@ class GoalsService:
             select(Goal)
             .options(selectinload(Goal.milestones))
             .where(Goal.id == goal_id, Goal.user_id == user_id)
+            .execution_options(populate_existing=True)
         )
         goal = result.scalars().first()
         if not goal:
