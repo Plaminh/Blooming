@@ -16,7 +16,7 @@ from app.core.scheduler import DeterministicScheduler, ScheduleTask, ScheduleWin
 from app.core.time_utils import safe_timezone
 from app.crud.crud_daily_plan import daily_plan as crud_daily_plan
 from app.crud.crud_task import task as crud_task
-from app.db.models.daily_plans import PlanBlock, PlanRevision
+from app.db.models.daily_plans import PlanBlock, PlanRevision, DailyPlan
 from app.db.models.planning import PlanningSession
 from app.db.models.tasks import Task
 from app.db.models.users import UserSettings
@@ -76,6 +76,34 @@ class TodayService:
             for template in await due_recurring_tasks(db, user_id, day)
         )
         return infos
+
+    async def sync_daily_plan_completion(self, db: AsyncSession, plan_id: UUID) -> None:
+        """
+        Does this Daily Plan still contain unfinished actionable work?
+        If no, transitions its status to COMPLETED.
+        """
+        plan = await db.scalar(
+            select(DailyPlan)
+            .options(selectinload(DailyPlan.plan_blocks))
+            .where(DailyPlan.id == plan_id)
+        )
+        if not plan or plan.status in ("DRAFT", "ARCHIVED", "COMPLETED"):
+            return
+
+        has_unfinished = any(
+            b.block_type == "TASK" and b.status in ("PLANNED", "ACTIVE")
+            for b in plan.plan_blocks
+        )
+        
+        has_actionable_tasks = any(
+            b.block_type == "TASK"
+            for b in plan.plan_blocks
+        )
+
+        if not has_unfinished and has_actionable_tasks:
+            plan.status = "COMPLETED"
+            plan.completed_at = datetime.now(timezone.utc)
+            db.add(plan)
 
     async def _reusable_task(
         self, db: AsyncSession, user_id: UUID, raw_id: str | None
@@ -422,6 +450,12 @@ class TodayService:
             db.add(b)
 
         await db.flush()
+        
+        # Synchronize plan completion for all affected plans
+        plan_ids = {b.daily_plan_id for b in task_db.plan_blocks if b.daily_plan_id}
+        for pid in plan_ids:
+            await self.sync_daily_plan_completion(db, pid)
+
         if commit:
             await db.commit()
         return task_db
@@ -660,6 +694,7 @@ class TodayService:
         )
         await db.flush()
         await db.refresh(plan, ["plan_blocks"])
+        await self.sync_daily_plan_completion(db, plan.id)
         if commit:
             await db.commit()
         logger.info(
