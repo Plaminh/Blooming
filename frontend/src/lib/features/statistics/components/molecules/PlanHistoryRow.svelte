@@ -1,7 +1,7 @@
 <script lang="ts">
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
   import StatusBadge from '$lib/shared/components/atoms/StatusBadge.svelte';
-  import type { PlanHistoryEntry } from '../../types';
+  import type { PlanHistoryEntry } from '$lib/api/endpoints/statistics';
 
   let { entry, onNavigate }: {
     entry: PlanHistoryEntry;

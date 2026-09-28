@@ -1,6 +1,6 @@
 <script lang="ts">
   import BarChartColumn from '../atoms/BarChartColumn.svelte';
-  import type { DailyStudyEntry } from '../../types';
+  import type { DailyStudyEntry } from '$lib/api/endpoints/statistics';
 
   let { entries, subtitle }: { entries: DailyStudyEntry[], subtitle: string } = $props();
 

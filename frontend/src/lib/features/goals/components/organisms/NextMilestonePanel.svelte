@@ -39,7 +39,7 @@
         <div class="document-icon"><AppIcon name="document" size="roadmap-milestone" /></div>
         <div class="milestone-info">
           <h3>{milestone.title}</h3>
-          <p>{milestone.summary ?? milestone.description}</p>
+          <p>{milestone.description}</p>
         </div>
       </div>
       <div class="milestone-meta">

@@ -1,6 +1,6 @@
 <script lang="ts">
   import SummaryCard from '../atoms/SummaryCard.svelte';
-  import type { SummaryMetrics } from '../../types';
+  import type { SummaryMetrics } from '$lib/api/endpoints/statistics';
 
   let { metrics }: { metrics: SummaryMetrics } = $props();
 </script>

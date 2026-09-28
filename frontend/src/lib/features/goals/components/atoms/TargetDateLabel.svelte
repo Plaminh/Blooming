@@ -1,14 +1,14 @@
 <script lang="ts">
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
 
-  let { date, showIcon = true }: { date: string; showIcon?: boolean } = $props();
+  let { date, showIcon = true }: { date: string | null; showIcon?: boolean } = $props();
 </script>
 
 <div class="target-date">
   {#if showIcon}
     <AppIcon name="calendar" scale={0.92} />
   {/if}
-  <span>{date}</span>
+  <span>{date ?? 'No date set'}</span>
 </div>
 
 <style>

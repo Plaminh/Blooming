@@ -16,7 +16,9 @@ const FIXTURE_GOAL: Goal = {
   id: 'g1',
   title: 'Launch MVP',
   description: 'Get the first version of the app in the hands of users.',
+  roadmap_summary: null,
   target_date: '2024-06-30T00:00:00Z',
+  status: 'DRAFT',
   iconRef: 'sprout',
   milestones: []
 };

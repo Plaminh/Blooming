@@ -6,8 +6,10 @@ import type { Milestone } from '../../models';
 const FIXTURE_MILESTONE: Milestone = {
   id: 'm1',
   title: 'Design concept',
+  description: null,
   expected_outcome: 'Define core problem.',
   status: 'PENDING',
+  target_date: null,
   due_at: '2024-06-30T00:00:00Z',
 };
 

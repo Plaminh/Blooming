@@ -2,8 +2,8 @@
   import FilterButton from '../atoms/FilterButton.svelte';
   import PlanHistoryRow from '../molecules/PlanHistoryRow.svelte';
   import PaginationControls from '../molecules/PaginationControls.svelte';
-  import type { PlanHistoryEntry, HistoryFilter } from '../../types';
-  import { statisticsApi } from '../../api/statistics.api';
+  import { statisticsApi } from '$lib/api/endpoints/statistics';
+  import type { PlanHistoryEntry, HistoryFilter } from '$lib/api/endpoints/statistics';
 
   let { startDate, endDate, itemsPerPage = 4 }: {
     startDate: Date;

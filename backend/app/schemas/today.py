@@ -100,7 +100,7 @@ class TodayPreviewResponse(BaseModel):
     reality_check: str | None = None
     blocks: list[TodayBlock] = Field(default_factory=list)
     unscheduled_tasks: list[UnscheduledTaskInfo] = Field(default_factory=list)
-    reasons: list[dict[str, Any]] = Field(default_factory=list)
+    reasons: list[UnscheduledReason] = Field(default_factory=list)
     suggestions: list[RepairSuggestion] = Field(default_factory=list)
 
 

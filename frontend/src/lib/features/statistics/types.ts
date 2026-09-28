@@ -5,14 +5,6 @@ export interface StatisticsDateRange {
   displayLabel: string;
 }
 
-export interface SummaryMetrics {
-  studyTimeHours: number;
-  studyTimeMinutes: number;
-  studyDayCount: number;
-  completedPlanCount: number;
-  unfinishedPlanCount: number;
-}
-
 export type StudyStatus = 'studied' | 'no-record' | 'inactive' | 'empty';
 
 export interface CalendarDayState {
@@ -26,24 +18,7 @@ export interface CalendarMonth {
   studiedDays: CalendarDayState[];
 }
 
-export interface DailyStudyEntry {
-  dayLabel: string;
-  hours: number;
-  date: string;
-}
 
-export type PlanStatus = 'Completed' | 'Unfinished';
-
-export interface PlanHistoryEntry {
-  id: string;
-  dateLabel: string;
-  planName: string;
-  completedTasks: number;
-  totalTasks: number;
-  status: PlanStatus;
-}
-
-export type HistoryFilter = 'All' | 'Completed' | 'Unfinished';
 
 export interface PaginationState {
   currentPage: number;

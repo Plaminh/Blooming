@@ -44,11 +44,7 @@ export interface UserSettingsResponse {
   scene_season: string;
   weather_animation_enabled: boolean;
 }
-export interface WaterPlantResponse {
-  water_balance: number;
-  vitality: number;
-  last_watered_at: string;
-}
+
 
 
 export interface AvailabilityWindowDraft {
@@ -188,10 +184,11 @@ export interface TodayBlock {
   is_locked: boolean;
 }
 
-export interface UnscheduledTask {
-  draft_task_id: string | null;
-  title: string;
-  reason: string;
+export interface UnscheduledTaskInfo {
+  task_id?: string | null;
+  draft_task_id?: string | null;
+  title?: string | null;
+  reason?: string | null;
 }
 
 export interface UnscheduledReason {
@@ -202,17 +199,32 @@ export interface UnscheduledReason {
 
 export interface TodayResponse {
   plan_date: string;
-  status: string;
+  status: 'DRAFT' | 'CONFIRMED' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
   timezone: string;
-  unscheduled_tasks: UnscheduledTask[] | string[];
+  unscheduled_tasks: UnscheduledTaskInfo[] | string[];
   reasons: UnscheduledReason[];
   reality_check: string | null;
   blocks: TodayBlock[];
   suggestions?: RepairSuggestion[];
 }
 
-export interface TodayPreviewResponse extends TodayResponse {
+export interface TodayNoPlanResponse {
+  timezone: string;
+  plan_date: string;
+  status: 'NO_PLAN';
+  pending_tasks: UnscheduledTaskInfo[];
+}
+
+export interface TodayPreviewResponse {
+  plan_date: string;
+  status: 'PREVIEW';
+  timezone: string;
   preview_token: string;
+  reality_check: string | null;
+  blocks: TodayBlock[];
+  unscheduled_tasks: UnscheduledTaskInfo[];
+  reasons: UnscheduledReason[];
+  suggestions?: RepairSuggestion[];
 }
 
 export interface ChatResponse {

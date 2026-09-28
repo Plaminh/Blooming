@@ -1,5 +1,5 @@
 import { api } from '../client';
-import type { FocusSessionPayload, TodayDraft, TodayPreviewResponse, TodayResponse } from '../types';
+import type { FocusSessionPayload, TodayDraft, TodayPreviewResponse, TodayResponse, TodayNoPlanResponse } from '../types';
 
 export const previewTodayPlan = async (draft: TodayDraft): Promise<TodayPreviewResponse> => {
   return await api.post('/today/preview', { draft });
@@ -14,7 +14,7 @@ export const saveTodayPlan = async (
   });
 };
 
-export const getTodayPlan = async (requestedDate?: string | null): Promise<TodayResponse> => {
+export const getTodayPlan = async (requestedDate?: string | null): Promise<TodayResponse | TodayNoPlanResponse> => {
   return await api.get(requestedDate ? `/today?date=${requestedDate}` : "/today");
 };
 
@@ -22,7 +22,7 @@ export const completeTodayTask = async (taskId: string): Promise<void> => {
   await api.patch(`/today/tasks/${taskId}/status`, { status: "COMPLETED" });
 };
 
-export const replanToday = async (dateStr: string): Promise<TodayResponse> => {
+export const replanToday = async (dateStr: string): Promise<TodayResponse | TodayNoPlanResponse> => {
   return await api.post(`/today/replan?target_date=${dateStr}`);
 };
 

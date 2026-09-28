@@ -1,5 +1,4 @@
 import { api, getTodayPlan, completeTodayTask, replanToday, startFocusSession } from '$lib/api';
-import type { TodayResponse } from '$lib/api/types';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, screen, waitFor } from '@testing-library/svelte';
 import TodayPage from "../../../routes/(app)/today/+page.svelte";
@@ -15,27 +14,51 @@ vi.mock('$lib/api', () => ({
     post: vi.fn(),
     patch: vi.fn(),
     put: vi.fn()
-  }
+  },
+  getTodayPlan: vi.fn(),
+  completeTodayTask: vi.fn(),
+  replanToday: vi.fn(),
+  startFocusSession: vi.fn()
 }));
 
-const mockBlocks = [
+import type { TodayBlock, TodayNoPlanResponse, TodayResponse } from '$lib/api/types';
+
+const mockBlocks: TodayBlock[] = [
   {
     id: '1',
     task_id: '1',
+    draft_task_id: null,
     title: 'Study databases',
+    description: null,
+    category: null,
+    estimated_duration_minutes: 60,
+    importance: 'CORE',
+    preferred_break_duration_minutes: null,
+    source: null,
     planned_start_at: '2024-04-23T09:00:00Z',
     planned_end_at: '2024-04-23T10:00:00Z',
+    position: 0,
     status: 'ACTIVE',
-    block_type: 'WORK'
+    block_type: 'TASK',
+    is_locked: false
   },
   {
     id: '3',
     task_id: '3',
+    draft_task_id: null,
     title: 'Finish proposal',
+    description: null,
+    category: null,
+    estimated_duration_minutes: 60,
+    importance: 'CORE',
+    preferred_break_duration_minutes: null,
+    source: null,
     planned_start_at: '2024-04-23T11:00:00Z',
     planned_end_at: '2024-04-23T12:00:00Z',
+    position: 1,
     status: 'PLANNED',
-    block_type: 'WORK'
+    block_type: 'TASK',
+    is_locked: false
   }
 ];
 
@@ -51,9 +74,25 @@ describe('Today Screen Feature', () => {
       this.dispatchEvent(new Event('close'));
     };
 
-        vi.mocked(api.get).mockImplementation(async (url: string) => {
+      vi.mocked(api.get).mockImplementation(async (url: string) => {
       if (url === '/me/settings') return { default_focus_minutes: 50, default_break_minutes: 10 };
       throw new Error(`Unexpected request: ${url}`);
+    });
+
+    vi.mocked(getTodayPlan).mockImplementation(async (date: string | null | undefined): Promise<TodayResponse | TodayNoPlanResponse> => {
+      if (!date || date === '2024-04-23') {
+        return { plan_date: '2024-04-23', status: 'ACTIVE', timezone: 'UTC', blocks: mockBlocks, unscheduled_tasks: [], reasons: [], reality_check: null };
+      }
+      return { plan_date: date, status: 'NO_PLAN', timezone: 'UTC', pending_tasks: [] };
+    });
+
+    vi.mocked(replanToday).mockImplementation(async (date: string): Promise<TodayResponse | TodayNoPlanResponse> => {
+      return { plan_date: date, status: 'ACTIVE', timezone: 'UTC', blocks: [
+        {
+          id: '1', task_id: '1', title: 'Study databases (Replanned)', planned_start_at: '2024-04-23T09:30:00Z',
+          planned_end_at: '2024-04-23T10:30:00Z', status: 'ACTIVE', block_type: 'TASK', description: null, category: null, importance: 'CORE', preferred_break_duration_minutes: null, source: null, estimated_duration_minutes: 60, position: 0, is_locked: false, draft_task_id: null
+        }
+      ], unscheduled_tasks: [], reasons: [], reality_check: null };
     });
   });
 
@@ -146,7 +185,7 @@ describe('Today Screen Feature', () => {
     await waitFor(() => expect(api.put).toHaveBeenCalled());
 
     await fireEvent.click(screen.getByText('START FOCUS'));
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/focus/start', {
+    await waitFor(() => expect(startFocusSession).toHaveBeenCalledWith({
       task_id: '1',
       planned_focus_seconds: 45 * 60,
       planned_break_seconds: 15 * 60,
@@ -164,7 +203,7 @@ describe('Today Screen Feature', () => {
   });
 
   it('renders insufficient-time partial schedules as warnings after load', async () => {
-    vi.mocked(api.get).mockResolvedValue({
+    vi.mocked(getTodayPlan).mockResolvedValue({
       plan_date: '2024-04-23', status: 'ACTIVE', timezone: 'UTC', blocks: mockBlocks,
       unscheduled_tasks: [{ draft_task_id: 'd3', title: 'Optional reading', reason: 'INSUFFICIENT_TIME' }],
       reasons: [{ code: 'INSUFFICIENT_TIME', task_id: 'd3' }], reality_check: null
@@ -183,7 +222,7 @@ describe('Today Screen Feature', () => {
   });
 
   it('keeps action and network failures at error severity', async () => {
-    vi.mocked(api.post).mockRejectedValue(new Error('Network unavailable'));
+    vi.mocked(startFocusSession).mockRejectedValue(new Error('Network unavailable'));
     render(TodayPage);
     await waitFor(() => expect(screen.getAllByText('Study databases').length).toBeGreaterThan(0));
 
@@ -202,7 +241,7 @@ describe('Today Screen Feature', () => {
     const markCompleteBtn = screen.getByTestId('mark-complete-btn');
     await fireEvent.click(markCompleteBtn);
 
-    expect(api.patch).toHaveBeenCalledWith('/today/tasks/1/status', { status: 'COMPLETED' });
+    expect(completeTodayTask).toHaveBeenCalledWith('1');
     await waitFor(() => {
       expect(screen.getByTestId('mark-complete-btn')).toBeDisabled();
       expect(screen.getByTestId('mark-complete-btn')).toHaveTextContent('COMPLETED');
@@ -210,7 +249,7 @@ describe('Today Screen Feature', () => {
   });
 
   it('executes quick replan and refreshes schedule', async () => {
-    vi.mocked(api.post).mockResolvedValue({
+    vi.mocked(replanToday).mockResolvedValue({
       plan_date: '2024-04-23',
       status: 'ACTIVE',
       timezone: 'UTC',
@@ -218,11 +257,20 @@ describe('Today Screen Feature', () => {
         {
           id: '1',
           task_id: '1',
+          draft_task_id: null,
           title: 'Study databases (Replanned)',
+          description: null,
+          category: null,
+          estimated_duration_minutes: 60,
+          importance: 'CORE',
+          preferred_break_duration_minutes: null,
+          source: null,
           planned_start_at: '2024-04-23T09:30:00Z',
           planned_end_at: '2024-04-23T10:30:00Z',
+          position: 0,
           status: 'ACTIVE',
-          block_type: 'WORK', description: null, category: null, importance: null, urgency: null, is_recurring: false
+          block_type: 'TASK',
+          is_locked: false
         }
       ],
       unscheduled_tasks: [], reasons: [], reality_check: null

@@ -1,7 +1,16 @@
 import { render } from '@testing-library/svelte';
-import { expect, test, vi } from 'vitest';
+import { expect, test, vi, beforeEach, afterEach } from 'vitest';
 import type { Task } from '../../types';
 import TodayTimeline from './TodayTimeline.svelte';
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2024-04-23T12:00:00Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 test('spaces every hour equally and positions unsorted tasks by their start time', () => {
   const tasks: Task[] = [

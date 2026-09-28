@@ -44,7 +44,10 @@ describe('draft editor store integration', () => {
   it('keeps duration edits local until explicit generation, then saves the refreshed token', async () => {
     const edited = { ...draft, tasks: [{ ...draft.tasks[0], durationMin: 45 }] };
     vi.mocked(previewTodayPlan).mockResolvedValue(preview('fresh'));
-    vi.mocked(saveTodayPlan).mockResolvedValue({ ...preview('fresh') });
+    vi.mocked(saveTodayPlan).mockResolvedValue({
+      plan_date: draft.planDate, timezone: 'UTC', status: 'ACTIVE',
+      blocks: [], unscheduled_tasks: [], reasons: [], reality_check: 'COMFORTABLE'
+    });
 
     mrBloomStore.updateTaskDuration('d1', 40);
     mrBloomStore.updateTaskDuration('d1', 45);

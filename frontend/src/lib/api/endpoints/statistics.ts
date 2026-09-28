@@ -1,11 +1,32 @@
-import { api } from '$lib/api';
+import { api } from '../client';
 import { deviceTimezone } from '$lib/shared/deviceLocation';
-import type { 
-  SummaryMetrics, 
-  DailyStudyEntry, 
-  PlanHistoryEntry,
-  HistoryFilter
-} from '../types';
+
+export type HistoryFilter = 'All' | 'Completed' | 'Unfinished';
+
+export interface SummaryMetrics {
+  studyTimeHours: number;
+  studyTimeMinutes: number;
+  studyDayCount: number;
+  completedPlanCount: number;
+  unfinishedPlanCount: number;
+}
+
+export interface DailyStudyEntry {
+  dayLabel: string;
+  hours: number;
+  date: string;
+}
+
+export type PlanStatus = 'Completed' | 'Unfinished';
+
+export interface PlanHistoryEntry {
+  id: string;
+  dateLabel: string;
+  planName: string;
+  completedTasks: number;
+  totalTasks: number;
+  status: PlanStatus;
+}
 
 export interface PlanHistoryResponse {
   items: PlanHistoryEntry[];

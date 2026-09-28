@@ -4,8 +4,9 @@
   import StudyCalendarPanel from '$lib/features/statistics/components/organisms/StudyCalendarPanel.svelte';
   import DailyStudyTimeChart from '$lib/features/statistics/components/organisms/DailyStudyTimeChart.svelte';
   import PlanHistoryPanel from '$lib/features/statistics/components/organisms/PlanHistoryPanel.svelte';
-  import type { StatisticsDateRange, SummaryMetrics, DailyStudyEntry } from '$lib/features/statistics/types';
-  import { statisticsApi } from '$lib/features/statistics/api/statistics.api';
+  import type { StatisticsDateRange } from '$lib/features/statistics/types';
+  import { statisticsApi } from '$lib/api/endpoints/statistics';
+  import type { SummaryMetrics, DailyStudyEntry } from '$lib/api/endpoints/statistics';
 
   export const dateRanges: StatisticsDateRange[] = [
     {

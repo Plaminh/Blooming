@@ -7,7 +7,7 @@
   import { getTodayPlan, completeTodayTask, replanToday, startFocusSession, logAssistantEvent } from "$lib/api";
   import { api } from "$lib/api";
 
-  import type { TodayResponse } from "$lib/api/types";
+  import type { TodayResponse, TodayNoPlanResponse, TodayBlock } from "$lib/api/types";
   import { desktop } from "$lib/platform/desktopWindow";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
@@ -64,7 +64,7 @@
     loadError = null;
 
     try {
-      const data: TodayResponse = await getTodayPlan(requestedDate);
+      const data = await getTodayPlan(requestedDate);
 
       if (reqId !== currentRequestId) return;
 
@@ -90,16 +90,22 @@
     }
   }
 
-  function applySchedule(data: TodayResponse) {
+  function applySchedule(data: TodayResponse | TodayNoPlanResponse) {
     planTimezone = data.timezone ?? "UTC";
     const [year, month, day] = data.plan_date.split("-").map(Number);
     currentDate = new Date(year, month - 1, day, 12);
-    const unscheduledCount = data.unscheduled_tasks?.length ?? 0;
-    replanWarning = unscheduledCount
-      ? `${unscheduledCount} ${unscheduledCount === 1 ? "task couldn't" : "tasks couldn't"} fit today. Your scheduled work was saved. Adjust your availability or replan.`
-      : null;
-    if (data.status !== "NO_PLAN" && data.blocks) {
-      tasks = data.blocks.map((b) => {
+    
+    if (data.status === "NO_PLAN") {
+      replanWarning = null;
+      tasks = [];
+    } else {
+      const unscheduledCount = data.unscheduled_tasks?.length ?? 0;
+      replanWarning = unscheduledCount
+        ? `${unscheduledCount} ${unscheduledCount === 1 ? "task couldn't" : "tasks couldn't"} fit today. Your scheduled work was saved. Adjust your availability or replan.`
+        : null;
+      
+      if (data.blocks) {
+        tasks = data.blocks.map((b: TodayBlock) => {
         let start = new Date();
         let end = new Date();
         try {
@@ -143,8 +149,9 @@
           notes: b.description || "",
         };
       });
-    } else {
-      tasks = [];
+      } else {
+        tasks = [];
+      }
     }
 
     if (tasks.length === 0) {
@@ -237,7 +244,7 @@
     syncWarning = null;
     try {
       const dateStr = requestedDate || `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
-      const data: TodayResponse = await replanToday(dateStr);
+      const data = await replanToday(dateStr);
       applySchedule(data);
       void syncWidget("Replan completed, but widget sync failed.");
     } catch (err: unknown) {
