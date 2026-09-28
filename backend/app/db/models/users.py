@@ -124,10 +124,6 @@ class UserSettings(Base):
             name="user_settings_quiet_hours_pair",
         ),
         CheckConstraint(
-            "BTRIM(mr_bloom_display_name) <> ''",
-            name="user_settings_mr_bloom_name_not_blank",
-        ),
-        CheckConstraint(
             "weather_lat IS NULL OR weather_lat BETWEEN -90.00 AND 90.00",
             name="user_settings_weather_lat_valid",
         ),
@@ -180,9 +176,6 @@ class UserSettings(Base):
     )
     quiet_hours_start: Mapped[time | None] = mapped_column(Time)
     quiet_hours_end: Mapped[time | None] = mapped_column(Time)
-    mr_bloom_display_name: Mapped[str] = mapped_column(
-        String(60), nullable=False, server_default=text("'Mr. Bloom'")
-    )
     widget_visibility: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("TRUE")
     )

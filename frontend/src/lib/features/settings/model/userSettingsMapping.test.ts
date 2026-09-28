@@ -3,7 +3,7 @@ import { deriveFocusPreset, settingsResponseToOnboarding, settingsResponseToProf
 import type { UserSettingsResponse } from '$lib/api/types';
 
 const response: UserSettingsResponse = {
-  mr_bloom_display_name: 'Mr. Bloom', timezone: 'Asia/Ho_Chi_Minh',
+  timezone: 'Asia/Ho_Chi_Minh',
   default_focus_minutes: 45, default_break_minutes: 0,
   launch_on_startup: true, widget_always_on_top: true,
   milestone_reminder_lead_time_minutes: 1440, weather_enabled: true,
@@ -30,3 +30,4 @@ describe('user settings mapping', () => {
     expect(settings).not.toHaveProperty('emailReminders');
   });
 });
+

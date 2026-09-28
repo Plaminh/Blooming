@@ -5,8 +5,7 @@
     "concurrently": "^9.0.0"
   },
   "scripts": {
-    "db:up": "docker compose --env-file backend/.env up -d --wait && npm run db:migrate",
-    "db:migrate": "node scripts/db-migrate.cjs",
+    "db:up": "docker compose --env-file backend/.env up -d --wait",
     "backend": "node scripts/dev-backend.cjs",
     "wait:backend": "node scripts/wait-backend.cjs",
     "web": "cd frontend && npm run dev",

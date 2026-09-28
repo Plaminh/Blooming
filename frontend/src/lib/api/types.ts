@@ -48,7 +48,6 @@ export interface TodayResponse {
   blocks?: TodayBlock[];
 }
 export interface UserSettingsResponse {
-  mr_bloom_display_name: string;
   timezone: string;
   default_focus_minutes: number;
   default_break_minutes: number;
@@ -72,3 +71,4 @@ export interface WaterPlantResponse {
   vitality: number;
   last_watered_at: string;
 }
+

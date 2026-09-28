@@ -17,7 +17,6 @@ class UserSettingsUpdate(BaseModel):
     milestone_reminder_lead_time_minutes: int | None = Field(
         default=None, ge=0, le=43200
     )
-    mr_bloom_display_name: str | None = Field(default=None, min_length=1, max_length=60)
     widget_visibility: bool | None = Field(default=None)
     widget_always_on_top: bool | None = Field(default=None)
     launch_on_startup: bool | None = Field(default=None)
@@ -50,7 +49,6 @@ class UserSettingsUpdate(BaseModel):
             "default_focus_minutes",
             "default_break_minutes",
             "quiet_hours_enabled",
-            "mr_bloom_display_name",
             "widget_visibility",
             "widget_always_on_top",
             "launch_on_startup",
@@ -91,7 +89,6 @@ class UserSettingsResponse(BaseModel):
     quiet_hours_start: time | None
     quiet_hours_end: time | None
     milestone_reminder_lead_time_minutes: int = Field(ge=0, le=43200)
-    mr_bloom_display_name: str
     widget_visibility: bool
     widget_always_on_top: bool
     launch_on_startup: bool
@@ -102,3 +99,4 @@ class UserSettingsResponse(BaseModel):
     weather_lat: float | None
     weather_lon: float | None
     scene_season: SceneSeason
+

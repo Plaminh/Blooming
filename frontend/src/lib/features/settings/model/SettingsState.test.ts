@@ -91,7 +91,7 @@ describe('SettingsState', () => {
 
   it('saves successfully', async () => {
     vi.mocked(api.put).mockResolvedValue({
-      mr_bloom_display_name: 'Saved Name', timezone: 'Asia/Ho_Chi_Minh',
+timezone: 'Asia/Ho_Chi_Minh',
       default_focus_minutes: 50, default_break_minutes: 10,
       launch_on_startup: true, widget_always_on_top: true,
       milestone_reminder_lead_time_minutes: 1440, weather_enabled: true,
@@ -136,7 +136,7 @@ describe('SettingsState', () => {
 
   it('loads onboarding-persisted values into Settings exactly', () => {
     authoritativeSettings.set({
-      mr_bloom_display_name: 'Legacy Name', timezone: 'Europe/Paris',
+timezone: 'Europe/Paris',
       default_focus_minutes: 40, default_break_minutes: 8,
       launch_on_startup: false, widget_always_on_top: false,
       milestone_reminder_lead_time_minutes: 60, weather_enabled: true,
@@ -175,7 +175,7 @@ describe('SettingsState', () => {
 
   it('widget_visibility=false persists before native reconcile', async () => {
     vi.mocked(api.put).mockResolvedValue({
-      mr_bloom_display_name: 'Mr. Bloom', timezone: 'UTC',
+      timezone: 'UTC',
       default_focus_minutes: 25, default_break_minutes: 5,
       launch_on_startup: true, widget_always_on_top: false,
       milestone_reminder_lead_time_minutes: 1440, weather_enabled: false,
@@ -193,7 +193,7 @@ describe('SettingsState', () => {
 
   it('widget_visibility=true persists before native reconcile', async () => {
     vi.mocked(api.put).mockResolvedValue({
-      mr_bloom_display_name: 'Mr. Bloom', timezone: 'UTC',
+      timezone: 'UTC',
       default_focus_minutes: 25, default_break_minutes: 5,
       launch_on_startup: true, widget_always_on_top: false,
       milestone_reminder_lead_time_minutes: 1440, weather_enabled: false,
@@ -211,7 +211,7 @@ describe('SettingsState', () => {
 
   it('widget_always_on_top persists before native reconcile', async () => {
     vi.mocked(api.put).mockResolvedValue({
-      mr_bloom_display_name: 'Mr. Bloom', timezone: 'UTC',
+      timezone: 'UTC',
       default_focus_minutes: 25, default_break_minutes: 5,
       launch_on_startup: true, widget_always_on_top: true,
       milestone_reminder_lead_time_minutes: 1440, weather_enabled: false,
@@ -229,7 +229,7 @@ describe('SettingsState', () => {
 
   it('launch_on_startup persists before native reconcile', async () => {
     vi.mocked(api.put).mockResolvedValue({
-      mr_bloom_display_name: 'Mr. Bloom', timezone: 'UTC',
+      timezone: 'UTC',
       default_focus_minutes: 25, default_break_minutes: 5,
       launch_on_startup: true, widget_always_on_top: false,
       milestone_reminder_lead_time_minutes: 1440, weather_enabled: false,
@@ -258,7 +258,7 @@ describe('SettingsState', () => {
 
   it('backend success + native failure -> persisted/local value remains the new backend value and warns', async () => {
     vi.mocked(api.put).mockResolvedValue({
-      mr_bloom_display_name: 'Mr. Bloom', timezone: 'UTC',
+      timezone: 'UTC',
       default_focus_minutes: 25, default_break_minutes: 5,
       launch_on_startup: true, widget_always_on_top: true,
       milestone_reminder_lead_time_minutes: 1440, weather_enabled: false,
@@ -278,7 +278,7 @@ describe('SettingsState', () => {
 
   it('settingsUpdated emitted only after successful backend persistence', async () => {
     vi.mocked(api.put).mockResolvedValue({
-      mr_bloom_display_name: 'New Name', timezone: 'UTC',
+timezone: 'UTC',
       default_focus_minutes: 25, default_break_minutes: 5,
       launch_on_startup: true, widget_always_on_top: false,
       milestone_reminder_lead_time_minutes: 1440, weather_enabled: false,
@@ -305,3 +305,5 @@ describe('SettingsState', () => {
   });
 
 });
+
+

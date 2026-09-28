@@ -45,6 +45,13 @@ class Goal(Base):
             name="goals_completion_valid",
         ),
         Index("goals_user_status_idx", "user_id", "status", "target_date"),
+        Index(
+            "goals_user_idempotency_idx",
+            "user_id",
+            "source_idempotency_key",
+            unique=True,
+            postgresql_where=text("source_idempotency_key IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
