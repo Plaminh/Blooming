@@ -251,7 +251,7 @@ async def test_milestone_date_timezone_round_trip(db_session, test_user, test_go
     await db_session.commit()
 
     m_update = MilestoneUpdate(target_date=date(2026, 11, 5))
-    updated_m = await goals_service.update_milestone(
+    await goals_service.update_milestone(
         db_session, test_goal.id, m.id, m_update, test_user.id
     )
     await db_session.commit()
