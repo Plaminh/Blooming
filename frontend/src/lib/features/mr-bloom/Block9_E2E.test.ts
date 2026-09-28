@@ -3,16 +3,21 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import PlanningWorkspace from './components/organisms/PlanningWorkspace.svelte';
 import { mrBloomStore } from './stores/mrBloomStore';
-import { api } from '$lib/api';
+import { api, previewTodayPlan, saveTodayPlan } from '$lib/api';
 
 vi.mock('$lib/api', () => {
   class MockAPIError extends Error { constructor(message: string, public status: number) { super(message); } }
   const mockApi = { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn() };
   return {
-    api: mockApi, APIError: MockAPIError,
-    previewTodayPlan: (draft: any) => mockApi.post('/today/preview', { draft }),
-    saveTodayPlan: (sessionId: string, token: string, draft: any, replace: boolean) =>
-      mockApi.post('/today/save', { session_id: sessionId, preview_token: token, draft, replace_existing: replace }),
+    api: mockApi,
+    getTodayPlan: vi.fn(),
+    completeTodayTask: vi.fn(),
+    replanToday: vi.fn(),
+    startFocusSession: vi.fn(),
+    logAssistantEvent: vi.fn(),
+ APIError: MockAPIError,
+    previewTodayPlan: vi.fn(),
+    saveTodayPlan: vi.fn(),
     saveRoadmap: vi.fn()
   };
 });
@@ -29,7 +34,7 @@ const draft = (overrides: Record<string, unknown> = {}) => ({
 });
 
 async function send(chatResponse: Record<string, unknown>, message = 'Plan my day') {
-  (api.post as any).mockImplementation(async (url: string) => {
+  vi.mocked(api.post).mockImplementation(async (url: string) => {
     if (url === '/assistant/chat') return chatResponse;
     throw new Error(`Unexpected POST: ${url}`);
   });
@@ -46,7 +51,7 @@ describe('Block 9 E2E: time constraints and lifecycle', () => {
       previewMode: 'placeholder', sessionId: null, degraded: null, suggestions: [], assumptions: [],
       needsReplace: false, selectedTaskId: null, isDraftMutationPending: false, isPreviewPending: false, isSavePending: false, error: null
     });
-    (api.get as any).mockImplementation(async (url: string) => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
       if (url === '/me/settings') return { default_focus_minutes: 50, default_break_minutes: 10 };
       throw new Error(`Unexpected GET: ${url}`);
     });
@@ -61,7 +66,7 @@ describe('Block 9 E2E: time constraints and lifecycle', () => {
   it('PS-008 renders a deadline as a flexible constraint', async () => {
     await send({ reply: 'Draft ready', session_id: 's1', draft: draft({ tasks: [task({ deadline: '17:00', schedulingType: 'FLEXIBLE' })] }) });
     await waitFor(() => expect((screen.getByLabelText('Deadline') as HTMLInputElement).value).toBe('17:00'));
-    expect((get(mrBloomStore).activeDraft as any).tasks[0].schedulingType).toBe('FLEXIBLE');
+    expect((get(mrBloomStore).activeDraft as import('$lib/api/types').TodayDraft).tasks[0].schedulingType).toBe('FLEXIBLE');
   });
 
   it('PS-009 renders explicit availability without turning it into a task', async () => {
@@ -82,7 +87,7 @@ describe('Block 9 E2E: time constraints and lifecycle', () => {
   it('PS-015 keeps tomorrow as the draft plan date', async () => {
     await send({ reply: 'Tomorrow draft', session_id: 's1', draft: draft({ planDate: '2026-09-23' }) }, 'Tomorrow, study algorithms for 60 min');
     await waitFor(() => expect(get(mrBloomStore).activeDraft?.type).toBe('today'));
-    expect((get(mrBloomStore).activeDraft as any).planDate).toBe('2026-09-23');
+    expect((get(mrBloomStore).activeDraft as import('$lib/api/types').TodayDraft).planDate).toBe('2026-09-23');
   });
 
   it('invalid interval shows clarification and never exposes preview or Save', async () => {
@@ -95,9 +100,9 @@ describe('Block 9 E2E: time constraints and lifecycle', () => {
   it('editing after preview invalidates the token and the scheduler receives the edited draft', async () => {
     const initial = draft({ tasks: [task({ fixedStart: '14:00', fixedEnd: '15:00', schedulingType: 'FIXED' })] });
     const patched = { ...initial, tasks: [task({ fixedStart: null, fixedEnd: null, schedulingType: 'FLEXIBLE' })] };
-    (api.post as any).mockImplementation(async (url: string, payload: any) => {
+        vi.mocked(previewTodayPlan).mockResolvedValue({ preview_token: 'token', blocks: [], status: 'DRAFT', plan_date: '2026-09-22', timezone: 'UTC', unscheduled_tasks: [], reasons: [], reality_check: null } as import('$lib/api/types').TodayPreviewResponse);
+    vi.mocked(api.post).mockImplementation(async (url: string, payload: unknown) => {
       if (url === '/assistant/chat') return { reply: 'Draft ready', session_id: 's1', draft: initial };
-      if (url === '/today/preview') return { preview_token: 'token', timezone: 'Asia/Ho_Chi_Minh', blocks: [], status: 'DRAFT', unscheduled_tasks: [], reasons: [], reality_check: null };
       throw new Error(`Unexpected POST: ${url}: ${JSON.stringify(payload)}`);
     });
     render(PlanningWorkspace);
@@ -116,9 +121,9 @@ describe('Block 9 E2E: time constraints and lifecycle', () => {
 
   it('successful save clears the closed session before the next planning request', async () => {
     const current = draft();
-    mrBloomStore.update(state => ({ ...state, activeDraft: current as any, sessionId: 'closed', previewMode: 'timeline', preview: { preview_token: 'pt' } as any }));
-    (api.post as any).mockImplementation(async (url: string) => {
-      if (url === '/today/save') return { status: 'ACTIVE', blocks: [] };
+    mrBloomStore.update(state => ({ ...state, activeDraft: current as import('$lib/api/types').TodayDraft, sessionId: 'closed', previewMode: 'timeline', preview: { preview_token: 'pt' } as import('$lib/api/types').TodayPreviewResponse }));
+        vi.mocked(saveTodayPlan).mockResolvedValue({ status: 'ACTIVE', blocks: [], plan_date: '2026-09-22', timezone: 'UTC', unscheduled_tasks: [], reasons: [], reality_check: null } as import('$lib/api/types').TodayResponse);
+    vi.mocked(api.post).mockImplementation(async (url: string) => {
       if (url === '/assistant/chat') return { reply: 'New session', session_id: 'fresh', draft: null };
       throw new Error(`Unexpected POST: ${url}`);
     });

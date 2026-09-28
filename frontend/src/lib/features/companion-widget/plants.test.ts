@@ -1,7 +1,7 @@
 import { render } from "@testing-library/svelte";
 import { describe, expect, it } from "vitest";
 import CompanionWidget from "./components/organisms/CompanionWidget.svelte";
-import PlantSprite from "./components/atoms/PlantSprite.svelte";
+import PlantSprite from '$lib/shared/sprites/PlantSprite.svelte';
 import { pausedFixture } from "./fixtures";
 import {
   PLANT_ATLAS,
@@ -11,7 +11,7 @@ import {
   plantCellForFrame,
   plantSheetTransform,
   plantSource,
-} from "./model/plants";
+} from "$lib/shared/sprites/plants";
 import { WIDGET_LAYOUTS } from "./model/layout";
 
 describe("plant presentation", () => {

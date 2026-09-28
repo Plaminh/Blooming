@@ -3,6 +3,8 @@
   import RightRail from "$lib/features/today/components/organisms/RightRail.svelte";
   import TodayTimeline from "$lib/features/today/components/organisms/TodayTimeline.svelte";
   import type { FocusPreset, Task } from "$lib/features/today/types";
+  import type { Category } from "$lib/api/types";
+  import { getTodayPlan, completeTodayTask, replanToday, startFocusSession, logAssistantEvent } from "$lib/api";
   import { api } from "$lib/api";
 
   import type { TodayResponse } from "$lib/api/types";
@@ -62,7 +64,7 @@
     loadError = null;
 
     try {
-      const data: TodayResponse = await api.get(requestedDate ? `/today?date=${requestedDate}` : "/today");
+      const data: TodayResponse = await getTodayPlan(requestedDate);
 
       if (reqId !== currentRequestId) return;
 
@@ -70,7 +72,7 @@
       if (!requestedDate && data.status === "NO_PLAN") {
         try {
           const eventResult: { nudge?: { id: string; message: string; action: string } | null } =
-            await api.post('/assistant/events', {
+            await logAssistantEvent({
               event_id: `morning-no-plan-${data.plan_date}`, event_name: 'MORNING_NO_PLAN'
             });
           if (eventResult.nudge) await desktop.proactiveNudge(eventResult.nudge);
@@ -135,7 +137,7 @@
               : b.status === "ACTIVE"
                 ? "in-progress"
                 : "upcoming",
-          category: b.category ?? null,
+          category: (b.category ?? null) as Category,
           iconRef: b.block_type === "BREAK" ? "break" : "document",
           description: b.description || "",
           notes: b.description || "",
@@ -212,7 +214,7 @@
     actionError = null;
     syncWarning = null;
     try {
-      await api.patch(`/today/tasks/${taskId}/status`, { status: "COMPLETED" });
+      await completeTodayTask(taskId);
       tasks = tasks.map((task) =>
         task.task_id === taskId
           ? { ...task, status: "completed" }
@@ -235,7 +237,7 @@
     syncWarning = null;
     try {
       const dateStr = requestedDate || `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
-      const data: TodayResponse = await api.post(`/today/replan?target_date=${dateStr}`);
+      const data: TodayResponse = await replanToday(dateStr);
       applySchedule(data);
       void syncWidget("Replan completed, but widget sync failed.");
     } catch (err: unknown) {
@@ -271,7 +273,7 @@
     }
 
     try {
-      await api.post("/focus/start", {
+      await startFocusSession({
         task_id: selectedTask.task_id, // Send task_id, not block id
         planned_focus_seconds: focusMinutes * 60,
         planned_break_seconds: breakMinutes * 60,

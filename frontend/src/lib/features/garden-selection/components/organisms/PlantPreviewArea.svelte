@@ -3,10 +3,10 @@
   import {
     PLANT_ATLAS,
     PLANT_SOURCES,
-  } from "$lib/features/companion-widget/model/plants";
+  } from '$lib/shared/sprites/plants';
   import type { PlantSpecies } from "../../types";
   import type { GrowthStage } from "$lib/api/types";
-  import { getPlantFrame } from "$lib/features/garden/utils/spriteMapper";
+  import { getPlantFrame } from '$lib/shared/sprites/spriteMapper';
   import WateringSprite from "../atoms/WateringSprite.svelte";
 
   let {

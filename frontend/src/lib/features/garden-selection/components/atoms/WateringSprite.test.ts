@@ -1,7 +1,7 @@
 import { render } from "@testing-library/svelte";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import WateringSprite from "./WateringSprite.svelte";
-import { WATERING_ATLAS } from "$lib/features/companion-widget/model/plants";
+import { WATERING_ATLAS } from '$lib/shared/sprites/plants';
 
 describe("WateringSprite", () => {
   afterEach(() => vi.useRealTimers());

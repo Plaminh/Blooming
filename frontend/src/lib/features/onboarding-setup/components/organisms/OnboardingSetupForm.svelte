@@ -2,10 +2,10 @@
   import type { OnboardingSetupState } from '../../model/OnboardingSetupState.svelte';
   import Button from '../atoms/Button.svelte';
   import Checkbox from '../atoms/Checkbox.svelte';
-  import WeatherLocationPicker from '$lib/features/settings/components/molecules/WeatherLocationPicker.svelte';
+  import WeatherLocationPicker from '$lib/shared/components/molecules/WeatherLocationPicker.svelte';
   import FormField from '../molecules/FormField.svelte';
   import PresetSelector from '../molecules/PresetSelector.svelte';
-  import TimezonePicker from '../molecules/TimezonePicker.svelte';
+  import TimezonePicker from '$lib/shared/components/molecules/TimezonePicker.svelte';
   import type { OnboardingErrors } from '../../model/validation';
   import { validateOnboarding } from '../../model/validation';
 
@@ -69,7 +69,7 @@
             setupState.weatherLat = null;
             setupState.weatherLon = null;
           }}
-          onSelect={(place) => {
+          onSelect={(place: { locationName: string; lat: number; lon: number }) => {
             setupState.weatherLocationName = place.locationName;
             setupState.weatherLat = place.lat;
             setupState.weatherLon = place.lon;

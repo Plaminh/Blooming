@@ -19,10 +19,16 @@ vi.mock('$lib/api', () => {
   };
   return {
     api: mockApi,
+    getTodayPlan: vi.fn(),
+    completeTodayTask: vi.fn(),
+    replanToday: vi.fn(),
+    startFocusSession: vi.fn(),
+    logAssistantEvent: vi.fn(),
+
     APIError: MockAPIError,
-    saveTodayPlan: async (sId: string, token: string, draft: any, replace: boolean) => mockApi.post('/today/save', { session_id: sId, preview_token: token, draft, replace_existing: replace }),
-    previewTodayPlan: async (draft: any) => mockApi.post('/today/preview', { draft }),
-    saveRoadmap: async (sId: string, draft: any) => mockApi.post('/goals/from-roadmap', { session_id: sId, draft })
+    saveTodayPlan: vi.fn(),
+    previewTodayPlan: vi.fn(),
+    saveRoadmap: vi.fn()
   };
 });
 

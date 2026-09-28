@@ -228,7 +228,7 @@
 }
 
 .field-label {
-  color: #174b70;
+  color: var(--bloom-text-dark-blue);
   font-size: 18px;
   font-weight: 700;
   line-height: 1.2;

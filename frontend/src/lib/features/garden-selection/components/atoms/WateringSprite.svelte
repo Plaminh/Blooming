@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import SpriteRenderer from "$lib/shared/components/atoms/SpriteRenderer.svelte";
-  import { WATERING_ATLAS } from "$lib/features/companion-widget/model/plants";
+  import { WATERING_ATLAS } from '$lib/shared/sprites/plants';
 
   let { onComplete }: { onComplete: () => void } = $props();
   let frameIndex = $state(0);

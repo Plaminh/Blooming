@@ -1,9 +1,9 @@
 <script lang="ts">
   import AppIcon from '$lib/shared/components/atoms/AppIcon.svelte';
   import ToggleSwitch from '../atoms/ToggleSwitch.svelte';
-  import WeatherLocationPicker from '../molecules/WeatherLocationPicker.svelte';
+  import WeatherLocationPicker from '$lib/shared/components/molecules/WeatherLocationPicker.svelte';
   import { getSettingsState } from '../../model/SettingsState.svelte';
-  import TimezonePicker from '$lib/features/onboarding-setup/components/molecules/TimezonePicker.svelte';
+  import TimezonePicker from '$lib/shared/components/molecules/TimezonePicker.svelte';
 
   const settingsState = getSettingsState();
 
@@ -41,7 +41,7 @@
           settingsState.draftSettings.weatherLat = null;
           settingsState.draftSettings.weatherLon = null;
         }}
-        onSelect={(place) => {
+        onSelect={(place: { locationName: string; lat: number; lon: number }) => {
           settingsState.draftSettings.weatherLocationName = place.locationName;
           settingsState.draftSettings.weatherLat = place.lat;
           settingsState.draftSettings.weatherLon = place.lon;

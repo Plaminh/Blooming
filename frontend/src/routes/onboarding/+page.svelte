@@ -6,7 +6,8 @@
   import { desktop } from '$lib/platform/desktopWindow';
   import type { UserSettingsResponse } from '$lib/api/types';
   import { onMount } from 'svelte';
-  import { authoritativeSettings, onboardingToSettingsPayload, settingsResponseToOnboarding } from '$lib/features/settings/model/userSettingsMapping';
+  import { authoritativeSettings } from '$lib/features/settings/model/userSettingsMapping';
+  import { onboardingToSettingsPayload, settingsResponseToOnboarding } from '$lib/features/onboarding-setup/model/mappers';
 
   let initialData = $state<Partial<OnboardingSetupData> | null>(null);
   let loadError = $state('');

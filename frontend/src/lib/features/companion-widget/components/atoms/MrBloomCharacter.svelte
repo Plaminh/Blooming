@@ -7,8 +7,8 @@
     MR_BLOOM_CHAT_ANIMATIONS,
     type MrBloomChatAnimation,
     atlasCellForKind,
-    atlasSheetTransform,
   } from "../../model/atlas";
+import { atlasSheetTransform } from "$lib/shared/sprites/atlas";
 
   type Props = {
     kind?: CompanionWidgetKind;
@@ -29,7 +29,7 @@
   let cell = $derived(chatAnimation
     ? { row: chatAnimation.row, col: chatAnimation.frames[sequenceIndex % chatAnimation.frames.length].col }
     : atlasCellForKind(kind, sequenceIndex));
-  let sheetTransform = $derived(atlasSheetTransform(cell, scale));
+  let sheetTransform = $derived(atlasSheetTransform(cell, MR_BLOOM_ATLAS.cellWidth, MR_BLOOM_ATLAS.cellHeight, scale));
 
   onMount(() => {
     if (!window.matchMedia) return;

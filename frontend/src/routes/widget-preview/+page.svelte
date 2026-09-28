@@ -19,7 +19,7 @@
   import {
     PLANT_SPECIES,
     clampPlantFrameIndex,
-  } from "$lib/features/companion-widget/model/plants";
+  } from '$lib/shared/sprites/plants';
   import type { Weather } from "$lib/features/companion-widget/model/environment";
   import { environmentStore } from "$lib/shared/stores/environmentStore";
 

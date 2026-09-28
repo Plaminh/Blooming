@@ -3,11 +3,11 @@ import type {
   PlantFrameIndex,
   PlantSpecies,
   ActivePlantPresentation,
-} from "$lib/features/companion-widget/types/presentation";
+} from '$lib/shared/sprites/types';
 import {
   PLANT_SOURCES,
   PLANT_SPECIES,
-} from "$lib/features/companion-widget/model/plants";
+} from '$lib/shared/sprites/plants';
 
 export type PlantVitality = "HEALTHY" | "THIRSTY" | "WILTING" | "DORMANT";
 

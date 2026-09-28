@@ -1,5 +1,5 @@
-export type { PlantSpecies } from "$lib/features/companion-widget/types/presentation";
-import type { PlantSpecies } from "$lib/features/companion-widget/types/presentation";
+export type { PlantSpecies } from '$lib/shared/sprites/types';
+import type { PlantSpecies } from '$lib/shared/sprites/types';
 export type PlantId = string;
 
 export interface PlantPresentation {

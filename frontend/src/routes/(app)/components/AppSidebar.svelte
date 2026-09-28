@@ -1,7 +1,7 @@
 <script lang="ts">
-  import PlantSprite from "$lib/features/companion-widget/components/atoms/PlantSprite.svelte";
+  import PlantSprite from '$lib/shared/sprites/PlantSprite.svelte';
   import AppIcon from "$lib/shared/components/atoms/AppIcon.svelte";
-  import SidebarNavigationItem from "../molecules/SidebarNavigationItem.svelte";
+  import SidebarNavigationItem from "$lib/shared/components/molecules/SidebarNavigationItem.svelte";
   import { goto } from "$app/navigation";
   import { GardenSelectionViewModel } from "$lib/features/garden-selection/model/state.svelte";
 

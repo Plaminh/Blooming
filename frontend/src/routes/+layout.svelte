@@ -1,5 +1,5 @@
 <script lang="ts">
-  import "$lib/shared/styles/theme.css";
+  import "$lib/shared/styles/tokens.css";
   import "$lib/shared/styles/global.css";
 
   import { onMount } from "svelte";

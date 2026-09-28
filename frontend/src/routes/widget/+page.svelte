@@ -3,13 +3,13 @@
   import type {
     CompanionWidgetPresentation,
     ActivePlantPresentation
-  } from "$lib/features/companion-widget/types/presentation";
+  } from '$lib/features/companion-widget/types/presentation';
   import { onMount } from "svelte";
   import { environmentStore } from "$lib/shared/stores/environmentStore";
   import { authStore } from "$lib/shared/stores/authStore";
   import { api, APIError } from "$lib/api";
   import type { GardenState, TodayResponse } from "$lib/api/types";
-  import { selectedPlantPresentation } from "$lib/features/garden/utils/spriteMapper";
+  import { selectedPlantPresentation } from '$lib/shared/sprites/spriteMapper';
   import { desktop } from "$lib/platform/desktopWindow";
   import type { Weather } from "$lib/features/companion-widget/model/environment";
 

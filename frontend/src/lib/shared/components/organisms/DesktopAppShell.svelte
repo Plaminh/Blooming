@@ -3,7 +3,6 @@
   import type { DesktopWindowService } from '$lib/platform/desktopWindow';
   import { desktopWindowService } from '$lib/platform/desktopWindow';
   import FixedCanvas from '../templates/FixedCanvas.svelte';
-  import AppSidebar from './AppSidebar.svelte';
   import DesktopTitleBar from './DesktopTitleBar.svelte';
 
   let {
@@ -17,6 +16,7 @@
     onTitleBarAction = () => {},
     showTitleBarSizeControls = true,
     onTitleBarClose,
+    sidebar,
     overlay,
     children
   }: {
@@ -30,6 +30,7 @@
     onTitleBarAction?: (action: 'minimize' | 'maximize' | 'close') => void;
     showTitleBarSizeControls?: boolean;
     onTitleBarClose?: () => void;
+    sidebar?: Snippet;
     overlay?: Snippet;
     children: Snippet;
   } = $props();
@@ -39,8 +40,8 @@
   <div class="desktop-shell desktop-shell--{variant}" class:without-sidebar={!showSidebar}>
     <DesktopTitleBar {variant} {artworkVariant} {windowService} onAction={onTitleBarAction} showSizeControls={showTitleBarSizeControls} onClose={onTitleBarClose} />
     <div class="desktop-shell__body">
-      {#if showSidebar}
-        <AppSidebar {activeRoute} />
+      {#if sidebar}
+        {@render sidebar()}
       {/if}
       <div class="desktop-shell__main">
         {@render children()}

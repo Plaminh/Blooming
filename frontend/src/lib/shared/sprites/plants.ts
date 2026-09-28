@@ -1,8 +1,8 @@
 import type {
   PlantFrameIndex,
   PlantSpecies,
-} from "../types/presentation";
-import type { AtlasCell } from "./atlas";
+} from "$lib/shared/sprites/types";
+import type { AtlasCell } from "$lib/shared/sprites/atlas";
 
 export const PLANT_ATLAS = {
   sheetWidth: 1024,

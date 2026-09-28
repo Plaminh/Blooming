@@ -5,7 +5,7 @@ import {
   getPlantFrame,
   selectedPlantPresentation,
 } from "./spriteMapper";
-import type { PlantSpecies } from "$lib/features/companion-widget/types/presentation";
+import type { PlantSpecies } from '$lib/shared/sprites/types';
 
 const species: PlantSpecies[] = ["sunflower", "bonsai", "jasmine", "lavender", "monstera"];
 

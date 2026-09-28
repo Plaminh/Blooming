@@ -11,7 +11,7 @@ import {
   remindersFixture,
 } from "./fixtures";
 import type { CompanionWidgetPresentation } from "./types/presentation";
-import { WIDGET_SCENE } from "./model/atlas";
+import { WIDGET_SCENE } from "$lib/features/companion-widget/model/atlas";
 import { WIDGET_LAYOUTS, MR_BLOOM_POSITION, PANEL_POSITION } from "./model/layout";
 import { DAYTIME_ASSETS, SEASON_ASSETS, WEATHER_ASSETS } from "./model/environment";
 import type { DesktopWindowService } from "$lib/platform/desktopWindow";

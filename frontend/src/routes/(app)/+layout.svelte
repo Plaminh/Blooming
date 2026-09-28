@@ -1,7 +1,8 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import DesktopAppShell from '$lib/shared/components/organisms/DesktopAppShell.svelte';
-  import GardenPanel from '$lib/shared/components/organisms/GardenPanel.svelte';
+  import AppSidebar from './components/AppSidebar.svelte';
+  import GardenPanel from '$lib/features/garden/components/organisms/GardenPanel.svelte';
   import { overlayStore } from '$lib/shared/stores/overlayStore';
   import { authStore } from '$lib/shared/stores/authStore';
   import { environmentStore } from '$lib/shared/stores/environmentStore';
@@ -51,6 +52,11 @@
   <DesktopAppShell {activeRoute} {variant} {showSidebar} {canvasWidth} {canvasHeight} overlay={$overlayStore}
     showTitleBarSizeControls={!isGardenSelection}
     onTitleBarClose={isGardenSelection ? () => { void goto('/today'); } : undefined}>
+    {#snippet sidebar()}
+      {#if showSidebar}
+        <AppSidebar {activeRoute} />
+      {/if}
+    {/snippet}
     <div class="page-layer" style="grid-area: layer;">
       {@render children()}
     </div>

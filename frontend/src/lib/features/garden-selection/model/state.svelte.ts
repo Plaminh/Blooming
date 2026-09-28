@@ -2,9 +2,9 @@ import type { GardenState, GrowthStage } from "$lib/api/types";
 import {
   isPlantSpecies,
   selectedPlantPresentation,
-} from "$lib/features/garden/utils/spriteMapper";
-import type { ActivePlantPresentation } from "$lib/features/companion-widget/types/presentation";
-import { PLANT_SPECIES } from "$lib/features/companion-widget/model/plants";
+} from '$lib/shared/sprites/spriteMapper';
+import type { ActivePlantPresentation } from '$lib/shared/sprites/types';
+import { PLANT_SPECIES } from '$lib/shared/sprites/plants';
 import { desktop } from "$lib/platform/desktopWindow";
 import { SvelteSet } from "svelte/reactivity";
 import type { PlantPresentation } from "../types";

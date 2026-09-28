@@ -1,17 +1,14 @@
-export type CompanionWidgetKind =
-  "focusing" | "ending" | "paused" | "behindSchedule" | "offline" | "reminders";
+import type { Weather } from "../model/environment";
+import type { ActivePlantPresentation } from "$lib/shared/sprites/types";
+export type { ActivePlantPresentation, PlantSpecies, PlantFrameIndex } from "$lib/shared/sprites/types";
+export type CompanionWidgetKind = "focusing" | "ending" | "paused" | "behindSchedule" | "offline" | "reminders";
 
-export type PlantSpecies =
-  "monstera" | "sunflower" | "bonsai" | "jasmine" | "lavender";
 
-export type PlantFrameIndex =
-  0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15;
 
-export interface ActivePlantPresentation {
-  species: PlantSpecies;
-  frameIndex: PlantFrameIndex;
-  scale?: number;
-}
+
+
+
+
 
 type WidgetScenePresentation = {
   /** Presentation-only lifecycle state; this feature performs no growth logic. */
@@ -82,7 +79,7 @@ export type CompanionWidgetPresentation =
 
 export type CompanionWidgetProps = {
   presentation: CompanionWidgetPresentation;
-  weather?: import("../model/environment").Weather;
+  weather?: Weather;
   timezone?: string;
   rainEnabled?: boolean;
 };

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { ActivePlantPresentation } from "../../types/presentation";
+  import type { ActivePlantPresentation } from "$lib/shared/sprites/types";
   import {
     PLANT_ATLAS,
     clampPlantFrameIndex,
     plantSheetTransform,
     plantSource,
-  } from "../../model/plants";
+  } from "$lib/shared/sprites/plants";
 
   type Props = {
     plant: ActivePlantPresentation;

@@ -1,16 +1,16 @@
 import { render } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import MrBloomCharacter from "./components/atoms/MrBloomCharacter.svelte";
+import MrBloomCharacter from "$lib/features/companion-widget/components/atoms/MrBloomCharacter.svelte";
 import {
   MR_BLOOM_ATLAS,
   MR_BLOOM_FRAME_SEQUENCE,
   MR_BLOOM_ROWS,
   atlasCellForKind,
-  atlasCellOffset,
   atlasFrameColumn,
-  atlasSheetTransform,
-} from "./model/atlas";
+} from "../../model/atlas";
+import { atlasCellOffset } from "$lib/shared/sprites/atlas";
+import { atlasSheetTransform } from "$lib/shared/sprites/atlas";
 
 function mockReducedMotion(reduce: boolean) {
   vi.stubGlobal("matchMedia", (query: string) => ({
@@ -65,8 +65,8 @@ describe("Mr. Bloom normalized atlas", () => {
     });
     expect(MR_BLOOM_ATLAS.columns * MR_BLOOM_ATLAS.cellWidth).toBe(MR_BLOOM_ATLAS.sheetWidth);
     expect(MR_BLOOM_ATLAS.rows * MR_BLOOM_ATLAS.cellHeight).toBe(MR_BLOOM_ATLAS.sheetHeight);
-    expect(atlasCellOffset({ col: 2, row: 4 })).toEqual({ x: 576, y: 576 });
-    expect(atlasSheetTransform({ col: 2, row: 4 }, 0.5)).toBe(
+    expect(atlasCellOffset({ col: 2, row: 4 }, 288, 144)).toEqual({ x: 576, y: 576 });
+    expect(atlasSheetTransform({ col: 2, row: 4 }, 288, 144, 0.5)).toBe(
       "scale(0.5) translate(-576px, -576px)",
     );
   });

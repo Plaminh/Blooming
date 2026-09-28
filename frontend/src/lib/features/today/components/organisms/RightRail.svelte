@@ -4,7 +4,7 @@
   import FocusPresetOption from "../atoms/FocusPresetOption.svelte";
   import NextSessionSummary from "../molecules/NextSessionSummary.svelte";
   import CustomFocusDialog from './CustomFocusDialog.svelte';
-  import GardenPanel from "$lib/shared/components/organisms/GardenPanel.svelte";
+  import GardenPanel from "$lib/features/garden/components/organisms/GardenPanel.svelte";
 
   let {
     task,

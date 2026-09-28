@@ -1,7 +1,8 @@
+import { api, getTodayPlan, completeTodayTask, replanToday, startFocusSession } from '$lib/api';
+import type { TodayResponse } from '$lib/api/types';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, screen, waitFor } from '@testing-library/svelte';
 import TodayPage from "../../../routes/(app)/today/+page.svelte";
-import { api } from '$lib/api';
 import * as navigation from '$app/navigation';
 
 vi.mock('$app/navigation', () => ({
@@ -50,16 +51,8 @@ describe('Today Screen Feature', () => {
       this.dispatchEvent(new Event('close'));
     };
 
-    (api.get as any).mockImplementation(async (url: string) => {
+        vi.mocked(api.get).mockImplementation(async (url: string) => {
       if (url === '/me/settings') return { default_focus_minutes: 50, default_break_minutes: 10 };
-      const parsedUrl = new URL(url, "http://localhost");
-      if (parsedUrl.pathname === '/today') {
-        const dateParam = parsedUrl.searchParams.get('date');
-        if (!dateParam || dateParam === '2024-04-23') {
-          return { plan_date: '2024-04-23', status: 'ACTIVE', timezone: 'UTC', blocks: mockBlocks };
-        }
-        return { plan_date: dateParam, status: 'NO_PLAN', timezone: 'UTC', blocks: [] };
-      }
       throw new Error(`Unexpected request: ${url}`);
     });
   });
@@ -137,7 +130,7 @@ describe('Today Screen Feature', () => {
     expect(startFocusBtn).not.toBeDisabled();
     
     await fireEvent.click(startFocusBtn);
-    expect(api.post).toHaveBeenCalledWith('/focus/start', expect.any(Object));
+    expect(startFocusSession).toHaveBeenCalledWith(expect.any(Object));
   });
 
   it('uses saved custom durations when starting focus', async () => {
@@ -165,7 +158,7 @@ describe('Today Screen Feature', () => {
     render(TodayPage);
 
     await waitFor(() => {
-      expect(api.get).toHaveBeenCalledWith('/today?date=2024-04-24');
+      expect(getTodayPlan).toHaveBeenCalledWith('2024-04-24');
     });
     expect(screen.getByText('Wed, Apr 24, 2024')).toBeInTheDocument();
   });
@@ -174,8 +167,8 @@ describe('Today Screen Feature', () => {
     vi.mocked(api.get).mockResolvedValue({
       plan_date: '2024-04-23', status: 'ACTIVE', timezone: 'UTC', blocks: mockBlocks,
       unscheduled_tasks: [{ draft_task_id: 'd3', title: 'Optional reading', reason: 'INSUFFICIENT_TIME' }],
-      reasons: [{ code: 'INSUFFICIENT_TIME', task_id: 'd3' }]
-    } as any);
+      reasons: [{ code: 'INSUFFICIENT_TIME', task_id: 'd3' }], reality_check: null
+    });
 
     render(TodayPage);
 
@@ -202,7 +195,7 @@ describe('Today Screen Feature', () => {
   });
 
   it('marks task complete and updates status', async () => {
-    vi.mocked(api.patch).mockResolvedValue({ id: '1', status: 'COMPLETED' } as any);
+    vi.mocked(completeTodayTask).mockResolvedValue(undefined);
     render(TodayPage);
     await waitFor(() => expect(screen.getAllByText('Study databases').length).toBeGreaterThan(0));
 
@@ -229,10 +222,11 @@ describe('Today Screen Feature', () => {
           planned_start_at: '2024-04-23T09:30:00Z',
           planned_end_at: '2024-04-23T10:30:00Z',
           status: 'ACTIVE',
-          block_type: 'WORK'
+          block_type: 'WORK', description: null, category: null, importance: null, urgency: null, is_recurring: false
         }
-      ]
-    } as any);
+      ],
+      unscheduled_tasks: [], reasons: [], reality_check: null
+    });
 
     render(TodayPage);
     await waitFor(() => expect(screen.getAllByText('Study databases').length).toBeGreaterThan(0));
@@ -241,7 +235,7 @@ describe('Today Screen Feature', () => {
     await fireEvent.click(quickReplanBtn);
 
     const todayStr = (new Date()).toLocaleDateString('en-CA');
-    expect(api.post).toHaveBeenCalledWith(`/today/replan?target_date=${todayStr}`);
+    expect(replanToday).toHaveBeenCalledWith(todayStr);
     await waitFor(() => {
       expect(screen.getAllByText('Study databases (Replanned)').length).toBeGreaterThan(0);
     });

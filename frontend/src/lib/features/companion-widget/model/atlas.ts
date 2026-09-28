@@ -1,4 +1,5 @@
 import type { CompanionWidgetKind } from "../types/presentation";
+import type { AtlasCell } from "$lib/shared/sprites/atlas";
 
 export const MR_BLOOM_ATLAS = {
   src: "/assets/mr-bloom/mr-bloom-spritesheet.png",
@@ -10,11 +11,6 @@ export const MR_BLOOM_ATLAS = {
   cellHeight: 144,
   frameIntervalMs: 550,
 } as const;
-
-export type AtlasCell = {
-  col: number;
-  row: number;
-};
 
 export const MR_BLOOM_CHAT_ANIMATIONS = {
   idle: {
@@ -29,10 +25,6 @@ export const MR_BLOOM_CHAT_ANIMATIONS = {
 
 export type MrBloomChatAnimation = keyof typeof MR_BLOOM_CHAT_ANIMATIONS;
 
-/**
- * Confirmed by inspecting the 4 × 8 sheet, top-left origin, zero-based rows:
- * row 3 waiting/thinking, row 4 alert/waving, row 6 worried/sad, row 7 sleeping.
- */
 export const MR_BLOOM_ROWS: Record<CompanionWidgetKind, number> = {
   focusing: 3,
   ending: 4,
@@ -42,7 +34,6 @@ export const MR_BLOOM_ROWS: Record<CompanionWidgetKind, number> = {
   reminders: 4,
 };
 
-/** Columns whose baked effects do not conflict with each state's overlay. */
 export const MR_BLOOM_FRAME_SEQUENCE = {
   focusing: [0, 1, 2, 3],
   ending: [0, 1],
@@ -61,24 +52,7 @@ export const WIDGET_SCENE = {
   anchor: "bottom-left",
 } as const;
 
-export function atlasCellOffset(cell: AtlasCell): { x: number; y: number } {
-  return {
-    x: cell.col * MR_BLOOM_ATLAS.cellWidth,
-    y: cell.row * MR_BLOOM_ATLAS.cellHeight,
-  };
-}
-
-export function atlasSheetTransform(cell: AtlasCell, scale: number): string {
-  const { x, y } = atlasCellOffset(cell);
-  // CSS applies transform functions right-to-left. Translate in unscaled
-  // sheet space first, then scale, so only the target cell is shown.
-  return `scale(${scale}) translate(${-x}px, ${-y}px)`;
-}
-
-export function atlasFrameColumn(
-  kind: CompanionWidgetKind,
-  sequenceIndex: number,
-): number {
+export function atlasFrameColumn(kind: CompanionWidgetKind, sequenceIndex: number): number {
   const sequence = MR_BLOOM_FRAME_SEQUENCE[kind];
   if (!Number.isFinite(sequenceIndex)) return sequence[0];
   return sequence[Math.max(0, Math.trunc(sequenceIndex)) % sequence.length];

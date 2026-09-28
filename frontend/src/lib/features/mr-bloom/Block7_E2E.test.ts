@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, screen, waitFor } from '@testing-library/svelte';
 import PlanningWorkspace from './components/organisms/PlanningWorkspace.svelte';
 import TodayPage from '../../../routes/(app)/today/+page.svelte';
-import { api } from '$lib/api';
+import { api, previewTodayPlan, saveTodayPlan, getTodayPlan } from '$lib/api';
 
 vi.mock('$lib/api', () => {
   class MockAPIError extends Error {
@@ -20,10 +20,16 @@ vi.mock('$lib/api', () => {
   };
   return {
     api: mockApi,
+    getTodayPlan: vi.fn(),
+    completeTodayTask: vi.fn(),
+    replanToday: vi.fn(),
+    startFocusSession: vi.fn(),
+    logAssistantEvent: vi.fn(),
+
     APIError: MockAPIError,
-    saveTodayPlan: async (sId: string, token: string, draft: any, replace: boolean) => mockApi.post('/today/save', { session_id: sId, preview_token: token, draft, replace_existing: replace }),
-    previewTodayPlan: async (draft: any) => mockApi.post('/today/preview', { draft }),
-    saveRoadmap: async (sId: string, draft: any) => mockApi.post('/goals/from-roadmap', { session_id: sId, draft })
+    saveTodayPlan: vi.fn(),
+    previewTodayPlan: vi.fn(),
+    saveRoadmap: vi.fn()
   };
 });
 
@@ -40,45 +46,40 @@ describe('Block 7 E2E-001: Simple Today Plan Happy Path', () => {
 
     let planSaved = false;
 
-    (api.get as any).mockImplementation(async (url: string) => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
       if (url === '/me/settings') return { default_focus_minutes: 50, default_break_minutes: 10 };
       const parsedUrl = new URL(url, "http://localhost");
-      if (parsedUrl.pathname === '/today') {
-        if (!planSaved) {
-          return { plan_date: '2026-09-22', status: 'NO_PLAN', timezone: 'UTC', blocks: [] };
-        } else {
-          return {
-            plan_date: '2026-09-22',
-            status: 'ACTIVE',
-            timezone: 'UTC',
-            blocks: [
-              {
-                id: 'b1',
-                task_id: 't1',
-                title: 'Today I need to read chapter 3 for',
-                planned_start_at: '2026-09-22T06:00:00Z',
-                planned_end_at: '2026-09-22T06:45:00Z',
-                status: 'PLANNED',
-                block_type: 'TASK'
-              },
-              {
-                id: 'b2',
-                task_id: 't2',
-                title: 'review flashcards for',
-                planned_start_at: '2026-09-22T06:50:00Z',
-                planned_end_at: '2026-09-22T07:20:00Z',
-                status: 'PLANNED',
-                block_type: 'TASK'
-              }
-            ]
-          };
-        }
-      }
       throw new Error(`Unexpected GET: ${url}`);
     });
 
-    (api.post as any).mockImplementation(async (url: string, payload: any) => {
+        vi.mocked(previewTodayPlan).mockResolvedValue({
+      preview_token: 'pt1',
+      plan_date: '2026-09-22',
+      status: 'DRAFT',
+      timezone: 'UTC',
+      unscheduled_tasks: [],
+      reasons: [],
+      reality_check: null,
+      blocks: [
+        { id: 'b1', draft_task_id: 'd1', title: 'Today I need to read chapter 3 for', block_type: 'TASK', estimated_duration_minutes: 45, planned_start_at: '2026-09-22T06:00:00Z', planned_end_at: '2026-09-22T06:45:00Z', status: 'DRAFT', task_id: null, description: null, category: null, importance: null, preferred_break_duration_minutes: null, source: null, position: 0, is_locked: false },
+        { id: 'b2', draft_task_id: null, estimated_duration_minutes: null, title: 'Break', block_type: 'BREAK', planned_start_at: '2026-09-22T06:45:00Z', planned_end_at: '2026-09-22T06:50:00Z', status: 'DRAFT', task_id: null, description: null, category: null, importance: null, preferred_break_duration_minutes: null, source: null, position: 0, is_locked: false },
+        { id: 'b3', draft_task_id: 'd2', title: 'review flashcards for', block_type: 'TASK', estimated_duration_minutes: 30, planned_start_at: '2026-09-22T06:50:00Z', planned_end_at: '2026-09-22T07:20:00Z', status: 'DRAFT', task_id: null, description: null, category: null, importance: null, preferred_break_duration_minutes: null, source: null, position: 0, is_locked: false }
+      ] 
+    });
+
+    vi.mocked(saveTodayPlan).mockImplementation(async () => {
+      planSaved = true;
+      return { plan_date: '2026-09-22', status: 'ACTIVE', timezone: 'UTC', unscheduled_tasks: [], reasons: [], reality_check: null, blocks: [] };
+    });
+
+    vi.mocked(getTodayPlan).mockImplementation(async (date) => {
+      if (!planSaved) return { plan_date: '2026-09-22', status: 'NO_PLAN', timezone: 'UTC', unscheduled_tasks: [], reasons: [], reality_check: null, blocks: [] };
+      return { plan_date: '2026-09-22', status: 'ACTIVE', timezone: 'UTC', unscheduled_tasks: [], reasons: [], reality_check: null, blocks: [] };
+    });
+
+    vi.mocked(api.post).mockImplementation(async (url: string, payload: unknown) => {
       if (url === '/assistant/chat') {
+
         return {
           reply: 'I have created a draft. Please review.',
           session_id: 's1',
@@ -98,20 +99,8 @@ describe('Block 7 E2E-001: Simple Today Plan Happy Path', () => {
           suggestions: []
         };
       }
-      if (url === '/today/preview') {
-        return {
-          preview_token: 'pt1',
-          blocks: [
-            { id: 'b1', draft_task_id: 'd1', title: 'Today I need to read chapter 3 for', block_type: 'TASK', estimated_duration_minutes: 45, planned_start_at: '2026-09-22T06:00:00Z', planned_end_at: '2026-09-22T06:45:00Z' },
-            { id: 'b2', title: 'Break', block_type: 'BREAK', planned_start_at: '2026-09-22T06:45:00Z', planned_end_at: '2026-09-22T06:50:00Z' },
-            { id: 'b3', draft_task_id: 'd2', title: 'review flashcards for', block_type: 'TASK', estimated_duration_minutes: 30, planned_start_at: '2026-09-22T06:50:00Z', planned_end_at: '2026-09-22T07:20:00Z' }
-          ]
-        };
-      }
-      if (url === '/today/save') {
-        planSaved = true;
-        return { status: 'SUCCESS' };
-      }
+      
+      
       throw new Error(`Unexpected POST: ${url}`);
     });
   });
@@ -153,7 +142,7 @@ describe('Block 7 E2E-001: Simple Today Plan Happy Path', () => {
 
     // Wait for preview response and SAVE button
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/today/preview', expect.any(Object));
+      expect(previewTodayPlan).toHaveBeenCalledWith(expect.any(Object));
       expect(screen.getByRole('button', { name: /^SAVE$/i })).toBeInTheDocument();
     });
 
@@ -163,7 +152,7 @@ describe('Block 7 E2E-001: Simple Today Plan Happy Path', () => {
 
     // Wait for the save post request to complete
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/today/save', expect.any(Object));
+      expect(saveTodayPlan).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.any(Object), false);
     });
     
     // Open/reload Today -> Verify the two persisted tasks

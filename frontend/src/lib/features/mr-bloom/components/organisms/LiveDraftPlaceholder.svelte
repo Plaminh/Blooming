@@ -1,5 +1,5 @@
 <script lang="ts">
-  import PlantSprite from "$lib/features/companion-widget/components/atoms/PlantSprite.svelte";
+  import PlantSprite from '$lib/shared/sprites/PlantSprite.svelte';
   import PanelHeading from "../atoms/PanelHeading.svelte";
 </script>
 

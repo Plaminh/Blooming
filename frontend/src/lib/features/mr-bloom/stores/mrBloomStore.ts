@@ -1,3 +1,4 @@
+import type { PatchOp } from "$lib/api/types";
 import { writable } from 'svelte/store';
 import {
   api, APIError, previewTodayPlan, saveTodayPlan,
@@ -153,7 +154,7 @@ function createMrBloomStore() {
     return value ? `${planDate}T${value}:00` : null;
   }
 
-  function applyLocalTodayOps(draft: TodayDraft, ops: import('$lib/api').PatchOp[]): TodayDraft {
+  function applyLocalTodayOps(draft: TodayDraft, ops: PatchOp[]): TodayDraft {
     let next = draft;
     for (const op of ops) {
       if (op.op === 'set_windows') {
@@ -194,7 +195,7 @@ function createMrBloomStore() {
     }
     return next;
   }
-  function applyPatch(ops: import('$lib/api').PatchOp[]): Promise<void> {
+  function applyPatch(ops: PatchOp[]): Promise<void> {
     draftRevision += 1;
     previewSequence += 1;
     update(state => {

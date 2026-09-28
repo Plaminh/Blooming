@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { WIDGET_SCENE } from "../../model/atlas";
+  import { WIDGET_SCENE } from "$lib/features/companion-widget/model/atlas";
   import {
     type Daytime,
     type Season,

@@ -14,7 +14,7 @@
   import OfflineStatus from "../atoms/OfflineStatus.svelte";
   import MrBloomCharacter from "../atoms/MrBloomCharacter.svelte";
   import PixelStatus from "../atoms/PixelStatus.svelte";
-  import PlantSprite from "../atoms/PlantSprite.svelte";
+  import PlantSprite from '$lib/shared/sprites/PlantSprite.svelte';
   import TimerDisplay from "../atoms/TimerDisplay.svelte";
   import WidgetTitleBar from "../molecules/WidgetTitleBar.svelte";
   import SpeechBubble from "../molecules/SpeechBubble.svelte";
