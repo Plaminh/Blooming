@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import httpx
 from cachetools import TTLCache
 
-from app.models.enums import WeatherCondition, WeatherStatus
+from app.core.enums import WeatherCondition, WeatherStatus
 from app.schemas.weather import PlaceCandidate, PlaceSearchResponse, WeatherResponse
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"

@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from app.models.enums import WeatherCondition, WeatherStatus
+from app.core.enums import WeatherCondition, WeatherStatus
 from app.services.weather_service import (
     WeatherProviderError,
     _forecast_cache,

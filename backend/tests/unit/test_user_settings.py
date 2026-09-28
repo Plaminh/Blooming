@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from app.models.enums import SceneSeason
+from app.core.enums import SceneSeason
 from app.schemas.user_settings import UserSettingsUpdate
 
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import CurrentUser, SessionDep
-from app.models.enums import WeatherCondition, WeatherStatus
+from app.core.enums import WeatherCondition, WeatherStatus
 from app.schemas.weather import PlaceSearchResponse, WeatherResponse
 from app.services.user_settings_service import get_user_settings
 from app.services.weather_service import (

@@ -3,46 +3,49 @@
 This document captures the state of the repository before the Phase 1 refactoring begins.
 
 ## Backend Automated Tests
-**Command**: `pytest tests/unit/ tests/integration/ tests/api/`
+**Command**: `pytest tests/unit/`
 **Date**: 2026-09-28
 **Environment**: Local Windows
 
 **Result**: 
-- Passed: 693
-- Failed: 3
-- Skipped: 6
-- Warnings: 12
+- Passed: 488
+- Failed: 0
+- Skipped: 0
+- Errors: 0
+- Duration: 20.45s
 
-**Existing Failures** (Must not be fixed as part of the refactor, these will remain failures unless required for refactor to proceed):
-1. `tests/api/test_assistant_routes.py::test_successful_today_save_completes_planning_session` (IntegrityError: daily_plans_confirmation_valid)
-2. `tests/api/test_today_draft.py::test_today_draft_round_trip` (TypeError)
-3. `tests/api/test_today_draft.py::test_today_draft_other_user_plan`
-
-## Frontend Automated Tests
-**Command**: `npm run test`
+**Command**: `pytest -m "not live_llm and not external" tests/` (Integration and DB tests)
 **Date**: 2026-09-28
 **Environment**: Local Windows
 
 **Result**:
+- Passed: N/A
+- Failed: N/A
+- Status: BLOCKED (Docker daemon not running, unable to start testcontainers)
+
+## Frontend Baseline
+**Command**: `npm run test`
+**Date**: 2026-09-28
+**Result**: 
 - Test Files: 58 passed
 - Tests: 411 passed
-- Failed: 0
-- Skipped: 0
-- Build Result: Passed
+- Errors: 0
+- Duration: 84.07s
 
-**Typescript Check**
 **Command**: `npm run check`
-**Result**: 0 errors and 0 warnings (Passed)
+**Date**: 2026-09-28
+**Result**: 
+- Passed: svelte-check found 0 errors and 0 warnings
 
-## Database Baseline
-**Verification Steps Run**:
-1. Confirmed Docker/PostgreSQL bootstrap runs correctly using `docker compose up -d postgres`.
-2. Confirmed backend connects successfully (verified during backend infrastructure test suite).
-3. Ran existing database schema and infrastructure tests (`pytest tests/infrastructure`).
+## Database / Bootstrap Baseline
+**Result**: BLOCKED
+- Docker/PostgreSQL bootstrap: BLOCKED (Docker not running)
+- Backend DB connection: BLOCKED (Docker not running)
+- Existing schema tests: BLOCKED
 
-**Result**: PASS
-- Bootstrap completed without errors.
-- Schema initialized perfectly, reference data loaded.
-- `infrastructure` tests passed 100%.
-
-
+## Existing Failures 
+- **KNOWN_BASELINE_FAILURE**: 
+  - `tests/api/test_assistant_routes.py::test_successful_today_save_completes_planning_session` (IntegrityError: daily_plans_confirmation_valid)
+  - `tests/api/test_today_draft.py::test_today_draft_round_trip` (TypeError)
+  - `tests/api/test_today_draft.py::test_today_draft_other_user_plan`
+  *(Note: these integration tests are currently BLOCKED from running, but are known to be failing in the baseline based on historical data. They will remain failures unless required for refactor to proceed.)*

@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.models.enums import SceneSeason
+from app.core.enums import SceneSeason
 
 
 class UserSettingsUpdate(BaseModel):

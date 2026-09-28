@@ -12,6 +12,8 @@ from __future__ import annotations
 import os
 import pytest
 from datetime import datetime
+
+pytestmark = [pytest.mark.external, pytest.mark.live_llm]
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession

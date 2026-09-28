@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class ReminderResponse(BaseModel):
     id: UUID
@@ -19,8 +19,7 @@ class ReminderResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 from enum import Enum
 from pydantic import model_validator

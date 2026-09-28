@@ -5,7 +5,7 @@ import httpx
 import pytest
 from cachetools import TTLCache
 
-from app.models.enums import WeatherCondition, WeatherStatus
+from app.core.enums import WeatherCondition, WeatherStatus
 from app.services import weather_service as service
 
 

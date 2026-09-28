@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.enums import WeatherCondition, WeatherStatus
+from app.core.enums import WeatherCondition, WeatherStatus
 
 
 class PlaceCandidate(BaseModel):
