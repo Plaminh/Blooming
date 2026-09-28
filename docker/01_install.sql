@@ -1,1 +1,1 @@
-\ir schema/install.sql
+\ir database/install.sql

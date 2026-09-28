@@ -6,15 +6,15 @@ installer. The schema is fully maintained in SQL files (one table per file).
 
 ## Run locally
 
-Start PostgreSQL from the repository root with the backend environment file:
+Start PostgreSQL from the repository root:
 
 ```cmd
-docker compose --env-file backend/.env up -d postgres
+docker compose up -d postgres
 ```
 
-Compose does not automatically read `backend/.env`. If an existing PostgreSQL
+The database credentials are automatically read from the repository root `.env` file. If an existing PostgreSQL
 volume was initialized with another password, update that volume's database
-user password to match `POSTGRES_PASSWORD` in `backend/.env`; recreating the
+user password to match `POSTGRES_PASSWORD` in `.env`; recreating the
 container alone does not change passwords stored in an existing volume.
 
 Use the repository scripts to start the backend. This automatically sets `PYTHONPYCACHEPREFIX` to store bytecode in `.cache/python` instead of creating `__pycache__` directories throughout the source.

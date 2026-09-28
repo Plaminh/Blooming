@@ -33,7 +33,7 @@ docker compose up -d
 After installation, run the transactional smoke test. It inserts one connected record through every scope and then rolls everything back.
 
 ```bash
-docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/schema/tests/00_schema_smoke_test.sql'
+docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/database/tests/00_schema_smoke_test.sql'
 ```
 
 ## Design rules
