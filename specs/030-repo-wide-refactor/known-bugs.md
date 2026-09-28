@@ -9,6 +9,7 @@ This register tracks existing bugs present before the repo-wide refactor began. 
 - **Expected behavior**: Plan is saved successfully and session completes.
 - **Severity**: High (but pre-existing)
 - **Related Test**: `test_successful_today_save_completes_planning_session`
+- **Status**: Verified against 2026-09-28 baseline
 
 ## BUG-002: Today Draft Round Trip Failure
 - **Feature**: Today Plan Draft
@@ -17,6 +18,7 @@ This register tracks existing bugs present before the repo-wide refactor began. 
 - **Expected behavior**: Draft is correctly serialized and deserialized.
 - **Severity**: Medium
 - **Related Test**: `test_today_draft_round_trip`
+- **Status**: Verified against 2026-09-28 baseline
 
 ## BUG-003: Today Draft Other User Security
 - **Feature**: Today Plan Draft
@@ -25,3 +27,4 @@ This register tracks existing bugs present before the repo-wide refactor began. 
 - **Expected behavior**: Should cleanly reject the request with a 403/404.
 - **Severity**: Medium
 - **Related Test**: `test_today_draft_other_user_plan`
+- **Status**: Verified against 2026-09-28 baseline
