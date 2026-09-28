@@ -22,13 +22,13 @@ class TaskBase(BaseModel):
     fixed_end_at: datetime | None = None
     deadline_at: datetime | None = None
 
-    @field_validator('title')
+    @field_validator("title")
     def validate_title(cls, v):
         if not v.strip():
             raise ValueError("Title must not be empty or whitespace only")
         return v.strip()
 
-    @field_validator('fixed_start_at', 'fixed_end_at', 'deadline_at')
+    @field_validator("fixed_start_at", "fixed_end_at", "deadline_at")
     def validate_timezone_aware(cls, v):
         if v is not None and v.tzinfo is None:
             raise ValueError("Datetime must be timezone-aware")
@@ -49,13 +49,15 @@ class TaskBase(BaseModel):
 class TaskCreate(TaskBase):
     dependencies: list[UUID] = Field(default_factory=list)
 
-    @model_validator(mode='after')
-    def validate_fixed_window(self) -> 'TaskCreate':
-        if self.scheduling_type == 'FIXED':
+    @model_validator(mode="after")
+    def validate_fixed_window(self) -> "TaskCreate":
+        if self.scheduling_type == "FIXED":
             if not self.fixed_start_at or not self.fixed_end_at:
                 raise ValueError("FIXED tasks require fixed_start_at and fixed_end_at")
             if self.fixed_end_at <= self.fixed_start_at:
-                raise ValueError("fixed_end_at must be strictly greater than fixed_start_at")
+                raise ValueError(
+                    "fixed_end_at must be strictly greater than fixed_start_at"
+                )
         else:
             if self.fixed_start_at or self.fixed_end_at:
                 raise ValueError("FLEXIBLE tasks cannot have fixed start/end times")
@@ -77,13 +79,13 @@ class TaskUpdate(BaseModel):
     deadline_at: datetime | None = None
     dependencies: list[UUID] | None = None
 
-    @field_validator('title')
+    @field_validator("title")
     def validate_title(cls, v):
         if v is not None and not v.strip():
             raise ValueError("Title must not be empty or whitespace only")
         return v.strip() if v is not None else v
 
-    @field_validator('fixed_start_at', 'fixed_end_at', 'deadline_at')
+    @field_validator("fixed_start_at", "fixed_end_at", "deadline_at")
     def validate_timezone_aware(cls, v):
         if v is not None and v.tzinfo is None:
             raise ValueError("Datetime must be timezone-aware")
@@ -129,7 +131,7 @@ class TimelineGenerateRequest(BaseModel):
             raise ValueError("Invalid timezone name")
         return v
 
-    @field_validator('availability_windows')
+    @field_validator("availability_windows")
     def validate_windows(cls, windows):
         for w in windows:
             if w.end_at <= w.start_at:

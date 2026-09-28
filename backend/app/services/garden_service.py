@@ -37,11 +37,7 @@ async def _ensure_garden_state(
     user_id: UUID,
 ) -> tuple[GardenState, bool]:
     # Serialize balance changes, including first-time state creation.
-    await db.execute(
-        select(User.id)
-        .where(User.id == user_id)
-        .with_for_update()
-    )
+    await db.execute(select(User.id).where(User.id == user_id).with_for_update())
 
     inserted = await db.scalar(
         insert(GardenState)
@@ -135,17 +131,11 @@ async def get_garden_state(
 ) -> GardenStateResponse:
     garden, created = await _ensure_garden_state(db, user_id)
 
-    plants = (
-        await db.scalars(
-            select(Plant).where(Plant.is_active == True)
-        )
-    ).all()
+    plants = (await db.scalars(select(Plant).where(Plant.is_active == True))).all()
 
     ownerships = (
         await db.scalars(
-            select(PlantOwnership).where(
-                PlantOwnership.user_id == user_id
-            )
+            select(PlantOwnership).where(PlantOwnership.user_id == user_id)
         )
     ).all()
 
@@ -275,8 +265,7 @@ async def unlock_plant(
         resource_type="LEAVES",
         amount=-plant.unlock_cost,
         idempotency_key=(
-            f"unlock_{user_id}_{plant_id}_"
-            f"{datetime.now(timezone.utc).timestamp()}"
+            f"unlock_{user_id}_{plant_id}_{datetime.now(timezone.utc).timestamp()}"
         ),
     )
     db.add(event)
@@ -333,9 +322,7 @@ async def water_plant(
     idempotency_key = f"water_{user_id}_{operation_key}"
 
     existing_event = await db.scalar(
-        select(RewardEvent).where(
-            RewardEvent.idempotency_key == idempotency_key
-        )
+        select(RewardEvent).where(RewardEvent.idempotency_key == idempotency_key)
     )
 
     if existing_event:

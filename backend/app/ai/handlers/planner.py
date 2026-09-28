@@ -7,14 +7,14 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
-from app.ai.budget import BudgetMode, available_routes, get_budget_mode
+from app.ai.llm.budget import BudgetMode, available_routes, get_budget_mode
 from app.ai.carryover import carried_tasks
 from app.ai.context import ChatContext
-from app.ai.drafts import assemble_today, primary_plan_date
-from app.ai.parser import ParsedPlan, ParsedTask, extract_day_ref, parse
-from app.ai.providers import LLMError, llm_provider
-from app.ai.router import normalize
-from app.ai.validators import check_today
+from app.ai.drafting.drafts import assemble_today, primary_plan_date
+from app.ai.nlu.parser import ParsedPlan, ParsedTask, extract_day_ref, parse
+from app.ai.llm.providers import LLMError, llm_provider
+from app.ai.nlu.router import normalize
+from app.ai.drafting.validators import check_today
 from app.core.config import settings
 from app.schemas.assistant import Assumption, ChatResponse
 from app.schemas.drafts import TodayDraft
@@ -67,10 +67,14 @@ class LLMTask(BaseModel):
             start = datetime.strptime(self.fixed_start, "%H:%M")
             end = datetime.strptime(self.fixed_end, "%H:%M")
             if end <= start:
-                raise ValueError("fixed_end must be later than fixed_start on the same day")
+                raise ValueError(
+                    "fixed_end must be later than fixed_start on the same day"
+                )
             interval_minutes = int((end - start).total_seconds() // 60)
             if not 5 <= interval_minutes <= 480:
-                raise ValueError("fixed interval duration must be between 5 and 480 minutes")
+                raise ValueError(
+                    "fixed interval duration must be between 5 and 480 minutes"
+                )
             self.duration_min = interval_minutes
             self.duration_is_explicit = True
         if self.duration_min is None:
@@ -150,7 +154,9 @@ def _parsed_from_llm(value: LLMDayPlan, ctx: ChatContext, message: str) -> Parse
             ParsedTask(
                 title=l_task.title.strip()[:200],
                 duration_min=duration,
-                source="USER" if l_task.duration_is_explicit or legacy_user_explicit else "AI",
+                source="USER"
+                if l_task.duration_is_explicit or legacy_user_explicit
+                else "AI",
                 importance=l_task.importance,
                 priority="HIGH" if l_task.priority == "URGENT" else l_task.priority,
                 category=l_task.category,
@@ -219,8 +225,7 @@ async def _llm_plan(
             for error in first_error.errors(include_url=False)
         ]
         impossible_interval = any(
-            "fixed_end must be later" in message
-            or "fixed interval duration" in message
+            "fixed_end must be later" in message or "fixed interval duration" in message
             for message in validation_messages
         )
         if impossible_interval:
@@ -260,7 +265,9 @@ async def _llm_plan(
                 purpose="PLANNER",
             )
             value = LLMDayPlan.model_validate(fixed)
-            return _parsed_from_llm(value, ctx, original_message or message), reply or value.reply
+            return _parsed_from_llm(
+                value, ctx, original_message or message
+            ), reply or value.reply
         except (LLMError, ValidationError):
             return (
                 (ParsedPlan(confidence=0.0), reply)
@@ -530,6 +537,8 @@ async def plan_day(
         question=question,
         intent="PLAN_DAY",
         tier="PARSER",
-        degraded=degraded_reason if provider_failed else (mode.value if mode != BudgetMode.NORMAL else None),
+        degraded=degraded_reason
+        if provider_failed
+        else (mode.value if mode != BudgetMode.NORMAL else None),
         draft=None,
     )

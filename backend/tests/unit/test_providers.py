@@ -3,7 +3,13 @@ import logging
 
 import httpx
 import pytest
-from app.ai.providers import CircuitBreaker, LLMError, LLMProvider, parse_retry_after, strictify_schema
+from app.ai.llm.providers import (
+    CircuitBreaker,
+    LLMError,
+    LLMProvider,
+    parse_retry_after,
+    strictify_schema,
+)
 from app.ai.handlers.planner import LLMDayPlan
 from app.core.config import settings
 from pydantic import SecretStr
@@ -142,7 +148,10 @@ async def test_strict_and_json_object_payloads(monkeypatch):
         return httpx.Response(200, json=envelope('{"ok":true}'))
 
     provider = LLMProvider(httpx.AsyncClient(transport=httpx.MockTransport(respond)))
-    schema = {"type": "object", "properties": {"ok": {"type": "boolean", "default": True}}}
+    schema = {
+        "type": "object",
+        "properties": {"ok": {"type": "boolean", "default": True}},
+    }
     await provider.call(
         "groq:openai/gpt-oss-20b", [], require_json=True, json_schema=schema
     )
@@ -201,7 +210,7 @@ async def test_client_lifecycle():
 
 @pytest.mark.asyncio
 async def test_exhausted_request_budget_sends_nothing(monkeypatch):
-    from app.ai.providers import llm_deadline
+    from app.ai.llm.providers import llm_deadline
 
     monkeypatch.setattr(settings, "GROQ_API_KEY", SecretStr("test-secret"))
     calls = []
@@ -222,7 +231,7 @@ async def test_exhausted_request_budget_sends_nothing(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_request_budget_shrinks_the_per_call_timeout(monkeypatch):
-    from app.ai.providers import llm_deadline
+    from app.ai.llm.providers import llm_deadline
 
     monkeypatch.setattr(settings, "GROQ_API_KEY", SecretStr("test-secret"))
     monkeypatch.setattr(settings, "AI_TIMEOUT_SECONDS", 20.0)

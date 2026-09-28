@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.schemas.drafts import RoadmapDraft, TodayDraft
 from app.schemas.patches import PatchOp
-from app.ai.router import normalize
+from app.ai.nlu.router import normalize
 
 
 def apply_patch(
@@ -20,7 +20,10 @@ def apply_patch(
     for op in ops:
         if op.op == "set_plan_date":
             # "Today" is the draft owner's local day, not the server's.
-            if op.plan_date is None or op.plan_date < datetime.now(draft_timezone).date():
+            if (
+                op.plan_date is None
+                or op.plan_date < datetime.now(draft_timezone).date()
+            ):
                 raise ValueError("Plan date cannot be in the past")
             for item in result.tasks:
                 for field_name in ("deadline", "fixedStart", "fixedEnd"):
@@ -38,7 +41,9 @@ def apply_patch(
             result.planDate = op.plan_date
             continue
         if op.op == "remove_deferred_task":
-            remaining = [item for item in result.deferred_tasks if item.task.id != op.task_id]
+            remaining = [
+                item for item in result.deferred_tasks if item.task.id != op.task_id
+            ]
             if len(remaining) == len(result.deferred_tasks):
                 raise ValueError("Task not found")
             result.deferred_tasks = remaining
@@ -149,7 +154,7 @@ def apply_patch(
                             ),
                         )
     validated = TodayDraft.model_validate(result.model_dump())
-    from app.ai.validators import check_today
+    from app.ai.drafting.validators import check_today
 
     issues = check_today(validated)
     # A duration/importance edit may resolve one member of an already-ambiguous

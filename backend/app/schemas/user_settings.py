@@ -99,4 +99,3 @@ class UserSettingsResponse(BaseModel):
     weather_lat: float | None
     weather_lon: float | None
     scene_season: SceneSeason
-

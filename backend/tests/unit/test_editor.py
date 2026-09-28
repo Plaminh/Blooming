@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from app.ai.budget import BudgetMode
+from app.ai.llm.budget import BudgetMode
 from app.ai.context import ChatContext
 from app.ai.handlers import editor
 from app.schemas.drafts import TaskDraft, TodayDraft
@@ -24,7 +24,9 @@ def _context():
 
 
 @pytest.mark.asyncio
-async def test_deterministic_editor_returns_updated_draft_without_auto_preview(monkeypatch):
+async def test_deterministic_editor_returns_updated_draft_without_auto_preview(
+    monkeypatch,
+):
     provider = AsyncMock()
     monkeypatch.setattr(editor.llm_provider, "call", provider)
     monkeypatch.setattr(
@@ -44,9 +46,12 @@ async def test_deterministic_editor_returns_updated_draft_without_auto_preview(m
 
 @pytest.mark.asyncio
 async def test_edit_03_unique_article_near_match_updates_only_target(monkeypatch):
-    monkeypatch.setattr(editor, "get_budget_mode", AsyncMock(return_value=BudgetMode.LEAN))
+    monkeypatch.setattr(
+        editor, "get_budget_mode", AsyncMock(return_value=BudgetMode.LEAN)
+    )
     draft = TodayDraft(
-        planDate=date.today(), windows=[{"start": "09:00", "end": "17:00"}],
+        planDate=date.today(),
+        windows=[{"start": "09:00", "end": "17:00"}],
         tasks=[
             TaskDraft(id="d1", title="Study Algorithms", durationMin=45),
             TaskDraft(id="d2", title="Read Book", durationMin=30, importance="CORE"),
@@ -59,7 +64,10 @@ async def test_edit_03_unique_article_near_match_updates_only_target(monkeypatch
 
     assert result.question is None
     assert result.preview is None
-    assert [(task.id, task.title, task.durationMin, task.importance) for task in result.draft.tasks] == [
+    assert [
+        (task.id, task.title, task.durationMin, task.importance)
+        for task in result.draft.tasks
+    ] == [
         ("d1", "Study Algorithms", 45, "CORE"),
         ("d2", "Read Book", 20, "OPTIONAL"),
     ]
@@ -67,7 +75,8 @@ async def test_edit_03_unique_article_near_match_updates_only_target(monkeypatch
 
 def _duplicate_notes_draft() -> TodayDraft:
     return TodayDraft(
-        planDate=date.today(), windows=[{"start": "09:00", "end": "17:00"}],
+        planDate=date.today(),
+        windows=[{"start": "09:00", "end": "17:00"}],
         tasks=[
             TaskDraft(id="review-1", title="Review notes", durationMin=30),
             TaskDraft(id="study", title="Study algorithms", durationMin=60),
@@ -90,7 +99,9 @@ def _duplicate_notes_draft() -> TodayDraft:
 async def test_edit_04_pending_ordinal_selects_only_one_duplicate(
     monkeypatch, follow_up, first_duration, second_duration
 ):
-    monkeypatch.setattr(editor, "get_budget_mode", AsyncMock(return_value=BudgetMode.LEAN))
+    monkeypatch.setattr(
+        editor, "get_budget_mode", AsyncMock(return_value=BudgetMode.LEAN)
+    )
     original = "Change Review notes to 20 minutes."
 
     result = await editor.edit(
@@ -108,7 +119,9 @@ async def test_edit_04_pending_ordinal_selects_only_one_duplicate(
 
 @pytest.mark.asyncio
 async def test_edit_04_still_ambiguous_follow_up_keeps_clarification(monkeypatch):
-    monkeypatch.setattr(editor, "get_budget_mode", AsyncMock(return_value=BudgetMode.LEAN))
+    monkeypatch.setattr(
+        editor, "get_budget_mode", AsyncMock(return_value=BudgetMode.LEAN)
+    )
     result = await editor.edit(
         "Change Review notes to 20 minutes.\nThe Review notes one.",
         _duplicate_notes_draft(),
@@ -116,7 +129,9 @@ async def test_edit_04_still_ambiguous_follow_up_keeps_clarification(monkeypatch
     )
     assert result.question == "Which task did you mean?"
     assert [(task.id, task.durationMin) for task in result.draft.tasks] == [
-        ("review-1", 30), ("study", 60), ("review-2", 25)
+        ("review-1", 30),
+        ("study", 60),
+        ("review-2", 25),
     ]
 
 

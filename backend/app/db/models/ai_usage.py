@@ -3,12 +3,17 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.db.base import Base
 
+
 class AiUsageLog(Base):
     __tablename__ = "ai_usage_log"
 
     id = Column(BigInteger, primary_key=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     purpose = Column(String(20), nullable=False)
     provider = Column(String(20), nullable=False)
     model = Column(String(80), nullable=False)

@@ -2,7 +2,7 @@ import re
 from typing import Literal, cast
 
 from app.schemas.patches import PatchOp
-from app.ai.router import has_diacritics, normalize
+from app.ai.nlu.router import has_diacritics, normalize
 from app.schemas.drafts import TodayDraft
 from pydantic import TypeAdapter
 
@@ -30,11 +30,15 @@ def _referenced_title(text: str) -> str | None:
 def _resolve_task_id(text: str, draft: TodayDraft) -> str | None:
     ordinal_match = re.search(r"\b(first|1st|second|2nd)\b", text)
     ordinal = (
-        0 if ordinal_match and ordinal_match.group(1) in {"first", "1st"}
-        else 1 if ordinal_match else None
+        0
+        if ordinal_match and ordinal_match.group(1) in {"first", "1st"}
+        else 1
+        if ordinal_match
+        else None
     )
     exact = [
-        task for task in draft.tasks
+        task
+        for task in draft.tasks
         if normalize(task.title) in text and len(normalize(task.title)) > 2
     ]
     if len(exact) > 1:
@@ -128,9 +132,7 @@ def parse_edit(message: str, draft: TodayDraft, ctx_date=None) -> list[PatchOp] 
             values["importance"] = "OPTIONAL"
         elif core:
             values["importance"] = "CORE"
-        return [
-            TypeAdapter(PatchOp).validate_python(values)
-        ]
+        return [TypeAdapter(PatchOp).validate_python(values)]
 
     priority = re.search(r"\b(low|medium|high|urgent)\s+priority\b", text)
     if priority:

@@ -4,11 +4,11 @@ from datetime import timedelta
 
 from pydantic import BaseModel, Field, ValidationError
 
-from app.ai.budget import BudgetMode, available_routes, get_budget_mode
+from app.ai.llm.budget import BudgetMode, available_routes, get_budget_mode
 from app.ai.editor_rules import parse_edit
 from app.schemas.patches import PatchOp
-from app.ai.patches import apply_patch
-from app.ai.providers import LLMError, llm_provider
+from app.ai.drafting.patches import apply_patch
+from app.ai.llm.providers import LLMError, llm_provider
 from app.core.config import settings
 from app.schemas.assistant import ChatResponse
 from app.schemas.drafts import TodayDraft

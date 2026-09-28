@@ -16,7 +16,10 @@ _CACHE_SECONDS = 300
 
 
 async def calibration_multipliers(
-    db: AsyncSession, user_id: UUID, *, minimum_samples: int = 5,
+    db: AsyncSession,
+    user_id: UUID,
+    *,
+    minimum_samples: int = 5,
     now: datetime | None = None,
 ) -> dict[str, float]:
     if now is None:
@@ -57,7 +60,13 @@ async def calibration_multipliers(
         category, estimate_minutes = task_info[task_id]
         ratios[category].append(actual_seconds / 60 / estimate_minutes)
     values = {
-        category: round(min(2.0, max(0.6, 1 + (median(samples) - 1) * len(samples) / (len(samples) + 2))), 2)
+        category: round(
+            min(
+                2.0,
+                max(0.6, 1 + (median(samples) - 1) * len(samples) / (len(samples) + 2)),
+            ),
+            2,
+        )
         for category, samples in ratios.items()
         if len(samples) >= minimum_samples
     }

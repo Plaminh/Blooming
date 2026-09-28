@@ -22,12 +22,12 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 from pydantic import ValidationError
 
-from app.ai.budget import BudgetMode
+from app.ai.llm.budget import BudgetMode
 from app.ai.context import ChatContext
 from app.ai.handlers import planner
 from app.ai.handlers.planner import LLMDayPlan, LLMTask, _parsed_from_llm
-from app.ai.providers import LLMError
-from app.ai.validators import check_today
+from app.ai.llm.providers import LLMError
+from app.ai.drafting.validators import check_today
 
 
 @pytest.fixture
@@ -52,6 +52,7 @@ def base_context():
 # ===========================================================================
 # Group 2 & 3: LLM Structured Extraction Schema & Application-Owned Fields
 # ===========================================================================
+
 
 def test_schema_valid_tasks_and_windows():
     """Valid tasks, availability windows, fixed times, and deadlines validate cleanly."""
@@ -131,11 +132,13 @@ def test_schema_invalid_enums():
 
 def test_schema_allows_empty_tasks_for_availability_only():
     """Schema allows empty task list when user specifies availability only."""
-    plan = LLMDayPlan.model_validate({
-        "reply": "Noted your availability.",
-        "windows": [("14:00", "18:00")],
-        "tasks": [],
-    })
+    plan = LLMDayPlan.model_validate(
+        {
+            "reply": "Noted your availability.",
+            "windows": [("14:00", "18:00")],
+            "tasks": [],
+        }
+    )
     assert len(plan.tasks) == 0
     assert plan.windows == [("14:00", "18:00")]
 
@@ -170,7 +173,8 @@ def test_schema_disallows_and_ignores_application_owned_fields(base_context):
     assert parsed.tasks[0].source_task_id is None
 
     # Normalization into draft
-    from app.ai.drafts import assemble_today
+    from app.ai.drafting.drafts import assemble_today
+
     draft, _ = assemble_today(parsed, base_context, [])
     # Task ID is deterministically assigned as 'd1', not 'custom-uuid-override'
     assert draft.tasks[0].id == "d1"
@@ -182,24 +186,51 @@ def test_schema_disallows_and_ignores_application_owned_fields(base_context):
 # Group 4, 9, 10: Deterministic Assembly, Authority, Scheduler & Persistence
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_today_assembly_deterministic_ids_and_boundaries(base_context):
     """Canonical draft assembly enforces d1/d2 order, preview=None, and zero DB writes."""
-    mock_llm = AsyncMock(return_value={
-        "reply": "Here is your plan.",
-        "tasks": [
-            {"title": "Task One", "duration_min": 45, "importance": "CORE", "priority": "HIGH"},
-            {"title": "Task Two", "duration_min": 30, "importance": "OPTIONAL", "priority": "MEDIUM"},
-            {"title": "Task Three", "duration_min": 60, "importance": "CORE", "priority": "LOW"},
-        ],
-        "windows": [["09:00", "17:00"]],
-        "assumptions": [],
-    })
+    mock_llm = AsyncMock(
+        return_value={
+            "reply": "Here is your plan.",
+            "tasks": [
+                {
+                    "title": "Task One",
+                    "duration_min": 45,
+                    "importance": "CORE",
+                    "priority": "HIGH",
+                },
+                {
+                    "title": "Task Two",
+                    "duration_min": 30,
+                    "importance": "OPTIONAL",
+                    "priority": "MEDIUM",
+                },
+                {
+                    "title": "Task Three",
+                    "duration_min": 60,
+                    "importance": "CORE",
+                    "priority": "LOW",
+                },
+            ],
+            "windows": [["09:00", "17:00"]],
+            "assumptions": [],
+        }
+    )
 
     with patch.object(planner.llm_provider, "call", mock_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
                     response = await planner.plan_day(
                         "Plan Task One 45m, Task Two 30m, Task Three 60m",
                         base_context,
@@ -231,27 +262,55 @@ async def test_today_assembly_deterministic_ids_and_boundaries(base_context):
 
 
 @pytest.mark.asyncio
-async def test_today_01_exact_request_uses_llm_semantics_without_parser_corruption(base_context):
+async def test_today_01_exact_request_uses_llm_semantics_without_parser_corruption(
+    base_context,
+):
     """TODAY-01 stays on the LLM path and preserves its semantic extraction."""
     message = (
         "Today I need to study algorithms for 1 hour, write the report for 45 minutes, "
         "and optionally read a book for 30 minutes. I am available from 1 PM to 5 PM."
     )
-    mock_llm = AsyncMock(return_value={
-        "reply": "I drafted the three requested tasks.",
-        "windows": [["13:00", "17:00"]],
-        "tasks": [
-            {"title": "Study algorithms", "duration_min": 60, "duration_is_explicit": True, "importance": "CORE"},
-            {"title": "Write the report", "duration_min": 45, "duration_is_explicit": True, "importance": "CORE"},
-            {"title": "Read a book", "duration_min": 30, "duration_is_explicit": True, "importance": "OPTIONAL"},
-        ],
-        "assumptions": [],
-    })
+    mock_llm = AsyncMock(
+        return_value={
+            "reply": "I drafted the three requested tasks.",
+            "windows": [["13:00", "17:00"]],
+            "tasks": [
+                {
+                    "title": "Study algorithms",
+                    "duration_min": 60,
+                    "duration_is_explicit": True,
+                    "importance": "CORE",
+                },
+                {
+                    "title": "Write the report",
+                    "duration_min": 45,
+                    "duration_is_explicit": True,
+                    "importance": "CORE",
+                },
+                {
+                    "title": "Read a book",
+                    "duration_min": 30,
+                    "duration_is_explicit": True,
+                    "importance": "OPTIONAL",
+                },
+            ],
+            "assumptions": [],
+        }
+    )
 
     with patch.object(planner.llm_provider, "call", mock_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:model")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:model"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
                     response = await planner.plan_day(message, base_context, "en")
 
     mock_llm.assert_awaited_once()
@@ -259,9 +318,18 @@ async def test_today_01_exact_request_uses_llm_semantics_without_parser_corrupti
     assert response.degraded is None
     assert response.preview is None
     assert response.draft is not None
-    assert [(window.start, window.end) for window in response.draft.windows] == [("13:00", "17:00")]
+    assert [(window.start, window.end) for window in response.draft.windows] == [
+        ("13:00", "17:00")
+    ]
     assert [
-        (task.id, task.title, task.durationMin, task.importance, task.fixedStart, task.fixedEnd)
+        (
+            task.id,
+            task.title,
+            task.durationMin,
+            task.importance,
+            task.fixedStart,
+            task.fixedEnd,
+        )
         for task in response.draft.tasks
     ] == [
         ("d1", "Study algorithms", 60, "CORE", None, None),
@@ -288,30 +356,46 @@ async def test_parse_02_preserves_fixed_meeting_through_today_draft(base_context
         "Finish the report for 60 minutes before noon.\n"
         "Study algorithms for 45 minutes."
     )
-    mock_llm = AsyncMock(return_value={
-        "reply": "I extracted your availability and three tasks.",
-        "windows": [["08:00", "13:00"]],
-        "tasks": [
-            {
-                "title": "Meeting", "duration_min": None,
-                "fixed_start": "09:00", "fixed_end": "10:00",
-            },
-            {
-                "title": "Finish the report", "duration_min": 60,
-                "duration_is_explicit": True, "deadline": "12:00",
-            },
-            {
-                "title": "Study algorithms", "duration_min": 45,
-                "duration_is_explicit": True,
-            },
-        ],
-        "assumptions": [],
-    })
+    mock_llm = AsyncMock(
+        return_value={
+            "reply": "I extracted your availability and three tasks.",
+            "windows": [["08:00", "13:00"]],
+            "tasks": [
+                {
+                    "title": "Meeting",
+                    "duration_min": None,
+                    "fixed_start": "09:00",
+                    "fixed_end": "10:00",
+                },
+                {
+                    "title": "Finish the report",
+                    "duration_min": 60,
+                    "duration_is_explicit": True,
+                    "deadline": "12:00",
+                },
+                {
+                    "title": "Study algorithms",
+                    "duration_min": 45,
+                    "duration_is_explicit": True,
+                },
+            ],
+            "assumptions": [],
+        }
+    )
 
     with patch.object(planner.llm_provider, "call", mock_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:model")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:model"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
                     response = await planner.plan_day(message, base_context, "en")
 
     mock_llm.assert_awaited_once()
@@ -319,10 +403,16 @@ async def test_parse_02_preserves_fixed_meeting_through_today_draft(base_context
     assert response.degraded is None
     assert response.preview is None
     assert response.draft is not None
-    assert [(window.start, window.end) for window in response.draft.windows] == [("08:00", "13:00")]
+    assert [(window.start, window.end) for window in response.draft.windows] == [
+        ("08:00", "13:00")
+    ]
     assert len(response.draft.tasks) == 3
     meeting, report, study = response.draft.tasks
-    assert (meeting.title, meeting.durationMin, meeting.schedulingType) == ("Meeting", 60, "FIXED")
+    assert (meeting.title, meeting.durationMin, meeting.schedulingType) == (
+        "Meeting",
+        60,
+        "FIXED",
+    )
     assert meeting.fixedStart.strftime("%H:%M") == "09:00"
     assert meeting.fixedEnd.strftime("%H:%M") == "10:00"
     assert report.title == "Finish the report"
@@ -336,40 +426,62 @@ async def test_parse_02_preserves_fixed_meeting_through_today_draft(base_context
 # Group 5: Natural-Language Robustness Tests (Semantic Variations)
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "phrase,expected_title,expected_duration,expected_importance",
     [
-        ("I can work between 1 PM and 5 PM. Read docs for 20 mins if there is time.", "Read docs", 20, "OPTIONAL"),
+        (
+            "I can work between 1 PM and 5 PM. Read docs for 20 mins if there is time.",
+            "Read docs",
+            20,
+            "OPTIONAL",
+        ),
         ("Maybe read docs for 20 minutes if possible", "read docs", 20, "OPTIONAL"),
         ("Optional technical reading 20m", "technical reading", 20, "OPTIONAL"),
         ("45 minutes of writing code", "writing code", 45, "CORE"),
         ("Take an hour to debug authentication", "debug authentication", 60, "CORE"),
-        ("Hey Mr. Bloom, let's get kanji practice done for 30m", "kanji practice", 30, "CORE"),
+        (
+            "Hey Mr. Bloom, let's get kanji practice done for 30m",
+            "kanji practice",
+            30,
+            "CORE",
+        ),
     ],
 )
 async def test_natural_language_robustness_variations(
     base_context, phrase, expected_title, expected_duration, expected_importance
 ):
     """Multiple semantically equivalent paraphrases parse into canonical TodayDraft without parser regex additions."""
-    mock_llm = AsyncMock(return_value={
-        "reply": "Extracted your plan.",
-        "tasks": [
-            {
-                "title": expected_title,
-                "duration_min": expected_duration,
-                "importance": expected_importance,
-                "priority": "MEDIUM",
-            }
-        ],
-        "windows": [["09:00", "17:00"]],
-        "assumptions": [],
-    })
+    mock_llm = AsyncMock(
+        return_value={
+            "reply": "Extracted your plan.",
+            "tasks": [
+                {
+                    "title": expected_title,
+                    "duration_min": expected_duration,
+                    "importance": expected_importance,
+                    "priority": "MEDIUM",
+                }
+            ],
+            "windows": [["09:00", "17:00"]],
+            "assumptions": [],
+        }
+    )
 
     with patch.object(planner.llm_provider, "call", mock_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
                     response = await planner.plan_day(phrase, base_context, "en")
 
     mock_llm.assert_awaited_once()
@@ -386,6 +498,7 @@ async def test_natural_language_robustness_variations(
 # Group 6: Invalid LLM Output and Repair
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_invalid_llm_output_triggers_repair_and_recovers(base_context):
     """Malformed output on first turn triggers a single targeted repair that recovers cleanly."""
@@ -398,7 +511,9 @@ async def test_invalid_llm_output_triggers_repair_and_recovers(base_context):
             # First turn returns invalid duration (<5)
             return {
                 "reply": "Drafting plan",
-                "tasks": [{"title": "Quick task", "duration_min": 1, "importance": "CORE"}],
+                "tasks": [
+                    {"title": "Quick task", "duration_min": 1, "importance": "CORE"}
+                ],
                 "windows": [],
                 "assumptions": [],
             }
@@ -406,7 +521,9 @@ async def test_invalid_llm_output_triggers_repair_and_recovers(base_context):
             # Second turn (repair) returns fixed valid duration
             return {
                 "reply": "Repaired plan",
-                "tasks": [{"title": "Quick task", "duration_min": 15, "importance": "CORE"}],
+                "tasks": [
+                    {"title": "Quick task", "duration_min": 15, "importance": "CORE"}
+                ],
                 "windows": [],
                 "assumptions": [],
             }
@@ -414,9 +531,18 @@ async def test_invalid_llm_output_triggers_repair_and_recovers(base_context):
     mock_provider = AsyncMock(side_effect=mock_call)
 
     with patch.object(planner.llm_provider, "call", mock_provider):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
                     response = await planner.plan_day("Quick task", base_context, "en")
 
     assert call_count == 2
@@ -426,18 +552,35 @@ async def test_invalid_llm_output_triggers_repair_and_recovers(base_context):
 
 
 @pytest.mark.asyncio
-async def test_invalid_llm_output_failed_repair_falls_back_without_invalid_draft(base_context):
+async def test_invalid_llm_output_failed_repair_falls_back_without_invalid_draft(
+    base_context,
+):
     """When both original extraction and repair fail, system falls back safely without exposing invalid draft."""
-    mock_provider = AsyncMock(return_value={
-        "reply": "Attempted plan",
-        "tasks": [{"title": "Broken task", "duration_min": -50, "importance": "INVALID"}],
-    })
+    mock_provider = AsyncMock(
+        return_value={
+            "reply": "Attempted plan",
+            "tasks": [
+                {"title": "Broken task", "duration_min": -50, "importance": "INVALID"}
+            ],
+        }
+    )
 
     with patch.object(planner.llm_provider, "call", mock_provider):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
-                    response = await planner.plan_day("Study 60 min", base_context, "en")
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
+                    response = await planner.plan_day(
+                        "Study 60 min", base_context, "en"
+                    )
 
     # Repair failed -> fallback parser took over
     assert response.tier == "PARSER"
@@ -451,6 +594,7 @@ async def test_invalid_llm_output_failed_repair_falls_back_without_invalid_draft
 # Group 7: Provider Failure and Degraded Parser Fallback
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "error_instance",
@@ -460,15 +604,28 @@ async def test_invalid_llm_output_failed_repair_falls_back_without_invalid_draft
         LLMError("429 Rate limit exceeded"),
     ],
 )
-async def test_provider_failures_fall_back_to_degraded_parser(base_context, error_instance):
+async def test_provider_failures_fall_back_to_degraded_parser(
+    base_context, error_instance
+):
     """Provider exceptions degrade cleanly to the deterministic parser with tier=PARSER, degraded=LLM_FAILED."""
     failing_llm = AsyncMock(side_effect=error_instance)
 
     with patch.object(planner.llm_provider, "call", failing_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
-                    response = await planner.plan_day("StudyKanji 45m and review 15m", base_context, "en")
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
+                    response = await planner.plan_day(
+                        "StudyKanji 45m and review 15m", base_context, "en"
+                    )
 
     failing_llm.assert_awaited_once()
     assert response.tier == "PARSER"
@@ -483,10 +640,21 @@ async def test_budget_rules_only_skips_llm_and_sets_rules_only(base_context):
     spy_llm = AsyncMock()
 
     with patch.object(planner.llm_provider, "call", spy_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.RULES_ONLY)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
-                    response = await planner.plan_day("Study kanji 45m", base_context, "en")
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.RULES_ONLY),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value=""),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
+                    response = await planner.plan_day(
+                        "Study kanji 45m", base_context, "en"
+                    )
 
     spy_llm.assert_not_called()
     assert response.tier == "PARSER"
@@ -498,15 +666,25 @@ async def test_budget_rules_only_skips_llm_and_sets_rules_only(base_context):
 # Group 8: Clarification Fallback (No Fake Tasks Invented)
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 async def test_clarification_fallback_when_neither_produces_draft(base_context):
     """When neither LLM nor parser can produce a valid draft, ask one clarification question without fake tasks."""
     failing_llm = AsyncMock(side_effect=LLMError("LLM offline"))
 
     with patch.object(planner.llm_provider, "call", failing_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
                     # Ambiguous / unresolvable input that deterministic parser cannot turn into tasks
                     response = await planner.plan_day("??? ...", base_context, "en")
 
@@ -520,17 +698,21 @@ async def test_clarification_fallback_when_neither_produces_draft(base_context):
 
 
 @pytest.mark.asyncio
-async def test_parse_04_llm_estimate_creates_transparent_non_persisted_draft(base_context):
+async def test_parse_04_llm_estimate_creates_transparent_non_persisted_draft(
+    base_context,
+):
     extraction = {
         "reply": "I estimated the missing duration for your review.",
-        "tasks": [{
-            "title": "Organize Zarkon materials",
-            "duration_min": 45,
-            "duration_is_explicit": False,
-            "importance": "CORE",
-            "priority": "MEDIUM",
-            "category": "Work",
-        }],
+        "tasks": [
+            {
+                "title": "Organize Zarkon materials",
+                "duration_min": 45,
+                "duration_is_explicit": False,
+                "importance": "CORE",
+                "priority": "MEDIUM",
+                "category": "Work",
+            }
+        ],
         "windows": [],
         "assumptions": [
             "Estimated 45 minutes for Organize Zarkon materials",
@@ -538,9 +720,17 @@ async def test_parse_04_llm_estimate_creates_transparent_non_persisted_draft(bas
         ],
     }
 
-    with patch.object(planner.llm_provider, "call", AsyncMock(return_value=extraction)) as llm_call:
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:planner")):
+    with patch.object(
+        planner.llm_provider, "call", AsyncMock(return_value=extraction)
+    ) as llm_call:
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:planner"),
+            ):
                 response = await planner.plan_day(
                     "Organize Zarkon materials.", base_context, "en"
                 )
@@ -551,15 +741,18 @@ async def test_parse_04_llm_estimate_creates_transparent_non_persisted_draft(bas
     assert len(response.draft.tasks) == 1
     task = response.draft.tasks[0]
     assert (task.title, task.durationMin, task.estimateSource) == (
-        "Organize Zarkon materials", 45, "AI"
+        "Organize Zarkon materials",
+        45,
+        "AI",
     )
     assert task.fixedStart is None
     assert task.fixedEnd is None
     assert task.deadline is None
     assumption_texts = [item.text for item in response.assumptions]
-    assert assumption_texts.count(
-        "Estimated 45 minutes for Organize Zarkon materials"
-    ) == 1
+    assert (
+        assumption_texts.count("Estimated 45 minutes for Organize Zarkon materials")
+        == 1
+    )
     assert assumption_texts.index(
         "Estimated 45 minutes for Organize Zarkon materials"
     ) < assumption_texts.index("Kept a distinct planning assumption")
@@ -573,28 +766,42 @@ async def test_parse_04_llm_estimate_creates_transparent_non_persisted_draft(bas
 # Group 11: Authoritative LLM, Carried Work Bypass Safety & Edge Conditions
 # ===========================================================================
 
+
 @pytest.mark.asyncio
-async def test_llm_semantics_authoritative_over_conflicting_parser_semantics(base_context):
+async def test_llm_semantics_authoritative_over_conflicting_parser_semantics(
+    base_context,
+):
     """Successful LLM extraction is authoritative and not overridden by conflicting parser semantics."""
-    mock_llm = AsyncMock(return_value={
-        "reply": "Extracted plan",
-        "tasks": [
-            {
-                "title": "Task A",
-                "duration_min": 75,
-                "importance": "OPTIONAL",
-                "priority": "LOW",
-                "category": "Learning",
-            }
-        ],
-        "windows": [("10:00", "16:00")],
-        "assumptions": ["LLM assumption only"],
-    })
+    mock_llm = AsyncMock(
+        return_value={
+            "reply": "Extracted plan",
+            "tasks": [
+                {
+                    "title": "Task A",
+                    "duration_min": 75,
+                    "importance": "OPTIONAL",
+                    "priority": "LOW",
+                    "category": "Learning",
+                }
+            ],
+            "windows": [("10:00", "16:00")],
+            "assumptions": ["LLM assumption only"],
+        }
+    )
 
     with patch.object(planner.llm_provider, "call", mock_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
                     response = await planner.plan_day("Task A 60m", base_context, "en")
 
     assert response.tier == "LLM"
@@ -613,28 +820,42 @@ async def test_llm_semantics_authoritative_over_conflicting_parser_semantics(bas
 @pytest.mark.asyncio
 async def test_unrecognized_new_task_not_bypassed_by_carried_work(base_context):
     """Unrecognized natural language task does not trigger pre-LLM carried task bypass."""
-    from app.ai.parser import ParsedTask
-    carried_work = [ParsedTask(title="Previous Unfinished Task", duration_min=45, source="AI")]
+    from app.ai.nlu.parser import ParsedTask
+
+    carried_work = [
+        ParsedTask(title="Previous Unfinished Task", duration_min=45, source="AI")
+    ]
 
     message = "Do some deep architectural refactoring and analysis"
-    mock_llm = AsyncMock(return_value={
-        "reply": "Drafted your refactoring session.",
-        "tasks": [
-            {
-                "title": "deep architectural refactoring",
-                "duration_min": 90,
-                "importance": "CORE",
-                "priority": "HIGH",
-            }
-        ],
-        "windows": [],
-        "assumptions": [],
-    })
+    mock_llm = AsyncMock(
+        return_value={
+            "reply": "Drafted your refactoring session.",
+            "tasks": [
+                {
+                    "title": "deep architectural refactoring",
+                    "duration_min": 90,
+                    "importance": "CORE",
+                    "priority": "HIGH",
+                }
+            ],
+            "windows": [],
+            "assumptions": [],
+        }
+    )
 
     with patch.object(planner.llm_provider, "call", mock_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=carried_work)):
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=carried_work),
+                ):
                     response = await planner.plan_day(message, base_context, "en")
 
     mock_llm.assert_awaited_once()
@@ -646,20 +867,35 @@ async def test_unrecognized_new_task_not_bypassed_by_carried_work(base_context):
 
 
 @pytest.mark.asyncio
-async def test_window_only_llm_output_returns_no_draft_and_asks_clarification(base_context):
+async def test_window_only_llm_output_returns_no_draft_and_asks_clarification(
+    base_context,
+):
     """LLM returning windows but zero tasks does not create an empty TodayDraft when no carried tasks exist."""
-    mock_llm = AsyncMock(return_value={
-        "reply": "I see you have time in the afternoon.",
-        "tasks": [],
-        "windows": [("14:00", "18:00")],
-        "assumptions": [],
-    })
+    mock_llm = AsyncMock(
+        return_value={
+            "reply": "I see you have time in the afternoon.",
+            "tasks": [],
+            "windows": [("14:00", "18:00")],
+            "assumptions": [],
+        }
+    )
 
     with patch.object(planner.llm_provider, "call", mock_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
-                    response = await planner.plan_day("I am free from 2pm to 6pm", base_context, "en")
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
+                    response = await planner.plan_day(
+                        "I am free from 2pm to 6pm", base_context, "en"
+                    )
 
     assert response.tier == "LLM"
     assert response.draft is None
@@ -668,20 +904,35 @@ async def test_window_only_llm_output_returns_no_draft_and_asks_clarification(ba
 
 
 @pytest.mark.asyncio
-async def test_assumption_only_llm_output_returns_no_draft_and_asks_clarification(base_context):
+async def test_assumption_only_llm_output_returns_no_draft_and_asks_clarification(
+    base_context,
+):
     """LLM returning assumptions but zero tasks does not create an empty TodayDraft when no carried tasks exist."""
-    mock_llm = AsyncMock(return_value={
-        "reply": "Understood your budget constraint.",
-        "tasks": [],
-        "windows": [],
-        "assumptions": ["User has a 2 hour limit today."],
-    })
+    mock_llm = AsyncMock(
+        return_value={
+            "reply": "Understood your budget constraint.",
+            "tasks": [],
+            "windows": [],
+            "assumptions": ["User has a 2 hour limit today."],
+        }
+    )
 
     with patch.object(planner.llm_provider, "call", mock_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
-                    response = await planner.plan_day("I only have 2 hours", base_context, "en")
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
+                    response = await planner.plan_day(
+                        "I only have 2 hours", base_context, "en"
+                    )
 
     assert response.tier == "LLM"
     assert response.draft is None
@@ -696,10 +947,21 @@ async def test_empty_llm_output_returns_no_draft_and_asks_clarification(base_con
     mock_llm = AsyncMock(return_value={})
 
     with patch.object(planner.llm_provider, "call", mock_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
-                    response = await planner.plan_day("Hello Mr Bloom", base_context, "en")
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
+                    response = await planner.plan_day(
+                        "Hello Mr Bloom", base_context, "en"
+                    )
 
     assert response.tier == "LLM"
     assert response.draft is None
@@ -709,27 +971,40 @@ async def test_empty_llm_output_returns_no_draft_and_asks_clarification(base_con
 @pytest.mark.asyncio
 async def test_invalid_fixed_interval_not_silently_converted_to_flexible(base_context):
     """An impossible fixed interval (e.g. 15:30 to 14:00) is preserved as FIXED and triggers clarification."""
-    mock_llm = AsyncMock(return_value={
-        "reply": "Extracted task with fixed window.",
-        "tasks": [
-            {
-                "title": "Practice SQL",
-                "duration_min": 90,
-                "importance": "CORE",
-                "priority": "MEDIUM",
-                "fixed_start": "15:30",
-                "fixed_end": "14:00",
-            }
-        ],
-        "windows": [],
-        "assumptions": [],
-    })
+    mock_llm = AsyncMock(
+        return_value={
+            "reply": "Extracted task with fixed window.",
+            "tasks": [
+                {
+                    "title": "Practice SQL",
+                    "duration_min": 90,
+                    "importance": "CORE",
+                    "priority": "MEDIUM",
+                    "fixed_start": "15:30",
+                    "fixed_end": "14:00",
+                }
+            ],
+            "windows": [],
+            "assumptions": [],
+        }
+    )
 
     with patch.object(planner.llm_provider, "call", mock_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
-                with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=[])):
-                    response = await planner.plan_day("Practice SQL from 15:30 to 14:00 for 90m", base_context, "en")
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
+                with patch(
+                    "app.ai.handlers.planner.carried_tasks",
+                    new=AsyncMock(return_value=[]),
+                ):
+                    response = await planner.plan_day(
+                        "Practice SQL from 15:30 to 14:00 for 90m", base_context, "en"
+                    )
 
     mock_llm.assert_awaited_once()  # A semantically impossible interval is not auto-reinterpreted.
     assert response.tier == "PARSER"
@@ -747,13 +1022,19 @@ async def test_invalid_fixed_interval_not_silently_converted_to_flexible(base_co
 @pytest.mark.asyncio
 async def test_pure_plan_command_with_carried_tasks_uses_rules_tier(base_context):
     """Pure plan command with existing carried work drafts immediately using RULES tier without calling LLM."""
-    from app.ai.parser import ParsedTask
-    carried_work = [ParsedTask(title="Scheduled Yesterday", duration_min=45, source="AI")]
+    from app.ai.nlu.parser import ParsedTask
+
+    carried_work = [
+        ParsedTask(title="Scheduled Yesterday", duration_min=45, source="AI")
+    ]
 
     spy_llm = AsyncMock()
 
     with patch.object(planner.llm_provider, "call", spy_llm):
-        with patch("app.ai.handlers.planner.carried_tasks", new=AsyncMock(return_value=carried_work)):
+        with patch(
+            "app.ai.handlers.planner.carried_tasks",
+            new=AsyncMock(return_value=carried_work),
+        ):
             response = await planner.plan_day("Lập lịch hôm nay", base_context, "vi")
 
     spy_llm.assert_not_called()

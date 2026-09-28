@@ -12,8 +12,8 @@ from datetime import date, datetime, timedelta
 
 from app.ai.calibration import apply_multiplier
 from app.ai.context import ChatContext
-from app.ai.parser import MIN_SPREAD_CHUNK, ParsedPlan, ParsedTask
-from app.ai.router import normalize
+from app.ai.nlu.parser import MIN_SPREAD_CHUNK, ParsedPlan, ParsedTask
+from app.ai.nlu.router import normalize
 from app.schemas.assistant import Assumption
 from app.schemas.drafts import (
     AvailabilityWindowDraft,
@@ -50,7 +50,9 @@ def _week_bounds(today: date, which: str) -> tuple[date, date]:
     return monday, monday + timedelta(days=6)
 
 
-def _spread(task: ParsedTask, first_day: date, today: date) -> list[tuple[ParsedTask, date]]:
+def _spread(
+    task: ParsedTask, first_day: date, today: date
+) -> list[tuple[ParsedTask, date]]:
     """Split "tuần này ôn thi 10 tiếng" into roughly equal daily sessions."""
     start, end = _week_bounds(today, task.spread or "THIS_WEEK")
     start = max(start, first_day)
@@ -68,7 +70,9 @@ def _spread(task: ParsedTask, first_day: date, today: date) -> list[tuple[Parsed
         title = task.title if count == 1 else f"{task.title} ({index + 1}/{count})"
         sessions.append(
             (
-                replace(task, title=title[:200], duration_min=minutes, spread=None, day=None),
+                replace(
+                    task, title=title[:200], duration_min=minutes, spread=None, day=None
+                ),
                 days[index],
             )
         )
@@ -88,7 +92,9 @@ def _first_occurrence(task: ParsedTask, day: date) -> date:
 
 def _task_dates(plan: ParsedPlan, ctx: ChatContext) -> list[tuple[ParsedTask, date]]:
     today = ctx.now.date()
-    default_day = today + timedelta(days=max(plan.plan_date_offset, ctx.default_date_offset))
+    default_day = today + timedelta(
+        days=max(plan.plan_date_offset, ctx.default_date_offset)
+    )
     dated: list[tuple[ParsedTask, date]] = []
     for task in plan.tasks:
         day = task.day.resolve(today) if task.day else default_day
@@ -211,10 +217,14 @@ def primary_plan_date(plan: ParsedPlan, ctx: ChatContext) -> date:
 
 def _layout(
     plan: ParsedPlan, ctx: ChatContext
-) -> tuple[date, list[tuple[str, str]], list[tuple[ParsedTask, date]], list[Assumption]]:
+) -> tuple[
+    date, list[tuple[str, str]], list[tuple[ParsedTask, date]], list[Assumption]
+]:
     today = ctx.now.date()
     dated = _task_dates(plan, ctx)
-    default_day = today + timedelta(days=max(plan.plan_date_offset, ctx.default_date_offset))
+    default_day = today + timedelta(
+        days=max(plan.plan_date_offset, ctx.default_date_offset)
+    )
     plan_date = min((day for _, day in dated), default=default_day)
     assumptions: list[Assumption] = []
 

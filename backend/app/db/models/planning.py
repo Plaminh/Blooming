@@ -93,8 +93,7 @@ class PlanningMessage(Base):
             "BTRIM(content) <> ''", name="planning_messages_content_not_blank"
         ),
         CheckConstraint(
-            "structured_payload IS NULL"
-            " OR jsonb_typeof(structured_payload) = 'object'",
+            "structured_payload IS NULL OR jsonb_typeof(structured_payload) = 'object'",
             name="planning_messages_payload_object",
         ),
         Index(
@@ -122,6 +121,4 @@ class PlanningMessage(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    planning_session: Mapped[PlanningSession] = relationship(
-        back_populates="messages"
-    )
+    planning_session: Mapped[PlanningSession] = relationship(back_populates="messages")

@@ -144,6 +144,7 @@ async def get_forecast(lat: float, lon: float) -> WeatherResponse:
     if task is None:
         task = asyncio.create_task(_fetch_uncached(key))
         _forecast_inflight[key] = task
+
         def release(completed: asyncio.Task[WeatherResponse]) -> None:
             if _forecast_inflight.get(key) is completed:
                 _forecast_inflight.pop(key)

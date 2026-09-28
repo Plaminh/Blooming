@@ -69,7 +69,7 @@ def _window(start_h: int, end_h: int) -> ScheduleWindow:
 async def test_pv_001_draft_creation_no_preview_token():
     """Initial plan_day() returns a draft but NO preview token and NO preview."""
     from app.ai.handlers import planner
-    from app.ai.budget import BudgetMode
+    from app.ai.llm.budget import BudgetMode
 
     ctx = ChatContext(
         db=AsyncMock(),
@@ -81,8 +81,14 @@ async def test_pv_001_draft_creation_no_preview_token():
         default_date_offset=0,
     )
 
-    with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-        with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq")):
+    with patch(
+        "app.ai.handlers.planner.get_budget_mode",
+        new=AsyncMock(return_value=BudgetMode.NORMAL),
+    ):
+        with patch(
+            "app.ai.handlers.planner.available_routes",
+            new=AsyncMock(return_value="groq"),
+        ):
             result = await planner.plan_day("Study 60 min", ctx, "en")
 
     assert result.draft is not None
@@ -176,18 +182,29 @@ def test_parse_02_fixed_meeting_is_reserved_before_flexible_work():
     meeting_id, report_id, study_id = uuid4(), uuid4(), uuid4()
     tasks = [
         ScheduleTask(
-            id=meeting_id, title="Meeting", estimated_duration_minutes=60,
-            priority="MEDIUM", scheduling_type="FIXED", created_at=_dt(7),
-            fixed_start_at=_dt(9), fixed_end_at=_dt(10),
+            id=meeting_id,
+            title="Meeting",
+            estimated_duration_minutes=60,
+            priority="MEDIUM",
+            scheduling_type="FIXED",
+            created_at=_dt(7),
+            fixed_start_at=_dt(9),
+            fixed_end_at=_dt(10),
         ),
         ScheduleTask(
-            id=report_id, title="Finish the report", estimated_duration_minutes=60,
-            priority="MEDIUM", scheduling_type="FLEXIBLE",
+            id=report_id,
+            title="Finish the report",
+            estimated_duration_minutes=60,
+            priority="MEDIUM",
+            scheduling_type="FLEXIBLE",
             created_at=_dt(7, 1),
         ),
         ScheduleTask(
-            id=study_id, title="Study algorithms", estimated_duration_minutes=45,
-            priority="MEDIUM", scheduling_type="FLEXIBLE",
+            id=study_id,
+            title="Study algorithms",
+            estimated_duration_minutes=45,
+            priority="MEDIUM",
+            scheduling_type="FLEXIBLE",
             created_at=_dt(7, 2),
         ),
     ]
@@ -198,7 +215,9 @@ def test_parse_02_fixed_meeting_is_reserved_before_flexible_work():
     meeting = next(block for block in result.blocks if block.task_id == meeting_id)
     report = next(block for block in result.blocks if block.task_id == report_id)
     assert (meeting.block_type, meeting.start_at, meeting.end_at) == (
-        "FIXED_EVENT", _dt(9), _dt(10)
+        "FIXED_EVENT",
+        _dt(9),
+        _dt(10),
     )
     assert report.end_at <= _dt(12)
     for block in result.blocks:
@@ -214,7 +233,7 @@ def test_parse_02_fixed_meeting_is_reserved_before_flexible_work():
 async def test_pv_006_invalid_draft_no_preview():
     """check_today() issues block the preview path — planner returns clarification."""
     from app.ai.handlers import planner
-    from app.ai.budget import BudgetMode
+    from app.ai.llm.budget import BudgetMode
 
     ctx = ChatContext(
         db=AsyncMock(),
@@ -227,8 +246,14 @@ async def test_pv_006_invalid_draft_no_preview():
     )
 
     # Empty plan → assembler produces draft with no tasks → check_today flags NO_TASKS
-    with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-        with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq")):
+    with patch(
+        "app.ai.handlers.planner.get_budget_mode",
+        new=AsyncMock(return_value=BudgetMode.NORMAL),
+    ):
+        with patch(
+            "app.ai.handlers.planner.available_routes",
+            new=AsyncMock(return_value="groq"),
+        ):
             result = await planner.plan_day("", ctx, "en")  # Empty → no tasks
 
     assert result.preview is None  # Must not generate preview
@@ -290,7 +315,7 @@ def test_pv_012_reality_check_overloaded():
 async def test_pv_015_llm_claims_fit_scheduler_overloaded():
     """LLM text claiming all tasks fit must not override scheduler OVERLOADED result."""
     from app.ai.handlers import planner
-    from app.ai.budget import BudgetMode
+    from app.ai.llm.budget import BudgetMode
 
     ctx = ChatContext(
         db=AsyncMock(),
@@ -307,14 +332,27 @@ async def test_pv_015_llm_claims_fit_scheduler_overloaded():
         "reply": "Great! Everything fits perfectly in your schedule!",
         "windows": [["09:00", "10:00"]],
         "tasks": [
-            {"title": "Task A", "duration_min": 120, "importance": "CORE", "priority": "HIGH"},
+            {
+                "title": "Task A",
+                "duration_min": 120,
+                "importance": "CORE",
+                "priority": "HIGH",
+            },
         ],
         "assumptions": [],
     }
 
-    with patch.object(planner.llm_provider, "call", AsyncMock(return_value=llm_response)):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq")):
+    with patch.object(
+        planner.llm_provider, "call", AsyncMock(return_value=llm_response)
+    ):
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq"),
+            ):
                 result = await planner.plan_day(
                     "I have exactly 1 hour, do task a for 2 hours",
                     ctx,
@@ -423,16 +461,24 @@ def test_cl_003_overlapping_fixed_tasks_both_rejected():
     t1_id = uuid4()
     t2_id = uuid4()
     task1 = ScheduleTask(
-        id=t1_id, title="Meeting 1", estimated_duration_minutes=60,
-        priority="MEDIUM", scheduling_type="FIXED",
+        id=t1_id,
+        title="Meeting 1",
+        estimated_duration_minutes=60,
+        priority="MEDIUM",
+        scheduling_type="FIXED",
         created_at=_dt(8),
-        fixed_start_at=_dt(10), fixed_end_at=_dt(11),
+        fixed_start_at=_dt(10),
+        fixed_end_at=_dt(11),
     )
     task2 = ScheduleTask(
-        id=t2_id, title="Meeting 2", estimated_duration_minutes=60,
-        priority="MEDIUM", scheduling_type="FIXED",
+        id=t2_id,
+        title="Meeting 2",
+        estimated_duration_minutes=60,
+        priority="MEDIUM",
+        scheduling_type="FIXED",
         created_at=_dt(8),
-        fixed_start_at=_dt(10, 30), fixed_end_at=_dt(11, 30),
+        fixed_start_at=_dt(10, 30),
+        fixed_end_at=_dt(11, 30),
     )
     windows = [_window(9, 17)]
     result = DeterministicScheduler().schedule([task1, task2], windows)
@@ -457,7 +503,9 @@ def test_preview_no_persistence():
     )
     user_id = uuid4()
     # This is a synchronous, pure scheduling call — no DB session used
-    result, _, _ = today_service._normalize_and_schedule(draft, _tz(), draft.planDate, user_id)
+    result, _, _ = today_service._normalize_and_schedule(
+        draft, _tz(), draft.planDate, user_id
+    )
     assert isinstance(result.blocks, list)
 
 
@@ -466,16 +514,18 @@ def test_pv_005_block_type_buffer():
         planDate=date(2026, 9, 20),
         timezone="UTC",
         windows=[AvailabilityWindowDraft(start="09:00", end="10:00")],
-        tasks=[TaskDraft(
-            id="t1",
-            title="Task without break",
-            durationMin=30,
-            priority="MEDIUM",
-            importance="CORE",
-            estimateSource="USER",
-            schedulingType="FLEXIBLE",
-            dependencies=[]
-        )]
+        tasks=[
+            TaskDraft(
+                id="t1",
+                title="Task without break",
+                durationMin=30,
+                priority="MEDIUM",
+                importance="CORE",
+                estimateSource="USER",
+                schedulingType="FLEXIBLE",
+                dependencies=[],
+            )
+        ],
     )
     result, reality_check, _ = today_service._normalize_and_schedule(
         draft, _tz(), draft.planDate, uuid4()

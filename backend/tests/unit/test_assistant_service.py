@@ -2,9 +2,14 @@ from unittest.mock import ANY, AsyncMock
 from uuid import uuid4
 
 import pytest
-from app.ai.router import Route
+from app.ai.nlu.router import Route
 from app.schemas.assistant import ChatRequest, ChatResponse
-from app.schemas.drafts import AvailabilityWindowDraft, RoadmapDraft, TaskDraft, TodayDraft
+from app.schemas.drafts import (
+    AvailabilityWindowDraft,
+    RoadmapDraft,
+    TaskDraft,
+    TodayDraft,
+)
 from app.services import assistant_service
 
 
@@ -55,7 +60,9 @@ async def test_plan_delegates_with_trusted_context(monkeypatch):
     )
     assert result.intent == "PLAN_DAY"
     build.assert_awaited_once()
-    planner.assert_awaited_once_with("Plan my day: study 30 min", context, "en", history=None, light=False)
+    planner.assert_awaited_once_with(
+        "Plan my day: study 30 min", context, "en", history=None, light=False
+    )
 
 
 @pytest.mark.asyncio
@@ -78,43 +85,61 @@ async def test_edit_delegates_current_draft(monkeypatch):
         db=AsyncMock(),
         user_id=uuid4(),
     )
-    editor.assert_awaited_once_with("change task 1 to 45 min", draft, context, history=None)
+    editor.assert_awaited_once_with(
+        "change task 1 to 45 min", draft, context, history=None
+    )
 
 
 @pytest.mark.asyncio
 async def test_pending_edit_combines_original_request_with_ordinal_answer(monkeypatch):
     draft = _existing_draft()
     context = object()
-    monkeypatch.setattr(assistant_service, "build_context", AsyncMock(return_value=context))
-    editor = AsyncMock(return_value=ChatResponse(reply="updated", intent="EDIT_DRAFT", draft=draft))
+    monkeypatch.setattr(
+        assistant_service, "build_context", AsyncMock(return_value=context)
+    )
+    editor = AsyncMock(
+        return_value=ChatResponse(reply="updated", intent="EDIT_DRAFT", draft=draft)
+    )
     monkeypatch.setattr(assistant_service, "edit", editor)
 
     await assistant_service.chat(
         ChatRequest(message="First one.", current_draft=draft),
-        db=AsyncMock(), user_id=uuid4(), pending_intent="EDIT_DRAFT",
+        db=AsyncMock(),
+        user_id=uuid4(),
+        pending_intent="EDIT_DRAFT",
         pending_message="Change Review notes to 20 minutes.",
     )
 
     editor.assert_awaited_once_with(
         "Change Review notes to 20 minutes.\nFirst one.",
-        draft, context, history=None,
+        draft,
+        context,
+        history=None,
     )
 
 
 @pytest.mark.asyncio
-async def test_explicit_today_plan_replaces_conflicting_draft_and_pending_edit(monkeypatch):
+async def test_explicit_today_plan_replaces_conflicting_draft_and_pending_edit(
+    monkeypatch,
+):
     old_draft = TodayDraft(
         planDate="2026-09-25",
         windows=[AvailabilityWindowDraft(start="09:00", end="12:00")],
         tasks=[
             TaskDraft(
-                id="old-1", title="Old fixed task", durationMin=60,
-                schedulingType="FIXED", fixedStart="2026-09-25T09:00:00",
+                id="old-1",
+                title="Old fixed task",
+                durationMin=60,
+                schedulingType="FIXED",
+                fixedStart="2026-09-25T09:00:00",
                 fixedEnd="2026-09-25T10:00:00",
             ),
             TaskDraft(
-                id="old-2", title="Conflicting fixed task", durationMin=60,
-                schedulingType="FIXED", fixedStart="2026-09-25T09:30:00",
+                id="old-2",
+                title="Conflicting fixed task",
+                durationMin=60,
+                schedulingType="FIXED",
+                fixedStart="2026-09-25T09:30:00",
                 fixedEnd="2026-09-25T10:30:00",
             ),
         ],
@@ -124,10 +149,17 @@ async def test_explicit_today_plan_replaces_conflicting_draft_and_pending_edit(m
         windows=[AvailabilityWindowDraft(start="19:00", end="21:00")],
         tasks=[TaskDraft(id="new-1", title="Review database systems", durationMin=60)],
     )
-    planner = AsyncMock(return_value=ChatResponse(
-        reply="Draft ready", intent="PLAN_DAY", draft=new_draft, preview=None,
-    ))
-    monkeypatch.setattr(assistant_service, "build_context", AsyncMock(return_value=object()))
+    planner = AsyncMock(
+        return_value=ChatResponse(
+            reply="Draft ready",
+            intent="PLAN_DAY",
+            draft=new_draft,
+            preview=None,
+        )
+    )
+    monkeypatch.setattr(
+        assistant_service, "build_context", AsyncMock(return_value=object())
+    )
     monkeypatch.setattr(assistant_service, "plan_day", planner)
 
     result = await assistant_service.chat(
@@ -157,7 +189,9 @@ async def test_explicit_today_plan_replaces_conflicting_draft_and_pending_edit(m
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("pending", [False, True])
-async def test_explicit_dated_goal_replaces_today_draft_and_ignores_pending_edit(pending):
+async def test_explicit_dated_goal_replaces_today_draft_and_ignores_pending_edit(
+    pending,
+):
     result = await assistant_service.chat(
         ChatRequest(
             message="I want to finish my AI course project by October 30, 2026.",
@@ -244,7 +278,9 @@ async def test_real_planning_request_still_creates_today_draft(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_parse_04_short_task_reaches_planner_and_keeps_estimate_provenance(monkeypatch):
+async def test_parse_04_short_task_reaches_planner_and_keeps_estimate_provenance(
+    monkeypatch,
+):
     draft = TodayDraft(
         planDate="2026-09-25",
         windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
@@ -263,16 +299,20 @@ async def test_parse_04_short_task_reaches_planner_and_keeps_estimate_provenance
             reply="Draft ready",
             intent="PLAN_DAY",
             draft=draft,
-            assumptions=[{
-                "id": "a-duration-d1",
-                "kind": "DURATION",
-                "task_id": "d1",
-                "text": "Estimated 45 minutes for Organize Zarkon materials",
-            }],
+            assumptions=[
+                {
+                    "id": "a-duration-d1",
+                    "kind": "DURATION",
+                    "task_id": "d1",
+                    "text": "Estimated 45 minutes for Organize Zarkon materials",
+                }
+            ],
         )
     )
     monkeypatch.setattr(assistant_service, "classify_low_confidence", classify)
-    monkeypatch.setattr(assistant_service, "build_context", AsyncMock(return_value=object()))
+    monkeypatch.setattr(
+        assistant_service, "build_context", AsyncMock(return_value=object())
+    )
     monkeypatch.setattr(assistant_service, "plan_day", planner)
 
     result = await assistant_service.chat(

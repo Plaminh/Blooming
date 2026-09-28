@@ -7,7 +7,9 @@ def safe_timezone(name: str):
     try:
         return ZoneInfo(name)
     except (ZoneInfoNotFoundError, ValueError, TypeError):
-        logging.getLogger(__name__).warning("invalid_timezone_fallback", extra={"fallback": "UTC"})
+        logging.getLogger(__name__).warning(
+            "invalid_timezone_fallback", extra={"fallback": "UTC"}
+        )
         return timezone.utc
 
 

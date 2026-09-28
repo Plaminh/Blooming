@@ -12,6 +12,7 @@ class MilestoneDraft(BaseModel):
     status: str | None = None
     completedAt: datetime | None = None
 
+
 class RoadmapDraft(BaseModel):
     type: Literal["roadmap"]
     goalId: str | None = None

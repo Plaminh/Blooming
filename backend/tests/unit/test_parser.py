@@ -1,6 +1,6 @@
 import pytest
 from app.ai.estimates import estimate
-from app.ai.parser import parse
+from app.ai.nlu.parser import parse
 
 
 @pytest.mark.parametrize(

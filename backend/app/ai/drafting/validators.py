@@ -1,6 +1,6 @@
 """Pre-scheduler checks for canonical drafts."""
 
-from app.ai.router import normalize
+from app.ai.nlu.router import normalize
 from app.schemas.drafts import TodayDraft
 
 

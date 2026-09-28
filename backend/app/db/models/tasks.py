@@ -207,7 +207,8 @@ class RecurringTask(Base):
             name="recurring_tasks_priority_valid",
         ),
         CheckConstraint(
-            "importance IN ('CORE', 'OPTIONAL')", name="recurring_tasks_importance_valid"
+            "importance IN ('CORE', 'OPTIONAL')",
+            name="recurring_tasks_importance_valid",
         ),
         CheckConstraint(
             "category IS NULL OR category IN ('Learning', 'Work', 'Personal')",

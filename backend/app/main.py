@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
-from app.ai.providers import llm_provider
+from app.ai.llm.providers import llm_provider
 from app.core.config import settings
 from app.db.session import engine
 from app.db.session import AsyncSessionLocal
@@ -16,7 +16,7 @@ from app.db.session import AsyncSessionLocal
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     llm_provider.init_client()
     try:
-        from app.ai.budget import cleanup_usage_logs
+        from app.ai.llm.budget import cleanup_usage_logs
 
         async with AsyncSessionLocal() as cleanup_session:
             await cleanup_usage_logs(cleanup_session)
@@ -68,6 +68,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal server error"},
         headers=_cors_headers_for(request),
     )
+
 
 app.add_middleware(
     CORSMiddleware,

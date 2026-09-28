@@ -6,7 +6,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.economy import WATER_PER_POMODORO
-from app.core.errors import ResourceNotFoundError, ValidationError, InvalidStatusTransitionError
+from app.core.errors import (
+    ResourceNotFoundError,
+    ValidationError,
+    InvalidStatusTransitionError,
+)
 from app.crud.crud_focus import focus_run as crud_focus
 from app.crud.crud_task import task as crud_task
 from app.db.models.focus import FocusRun, FocusRunEvent
@@ -22,7 +26,9 @@ logger = logging.getLogger(__name__)
 
 
 class FocusService:
-    async def get_active_session(self, db: AsyncSession, user_id: UUID) -> FocusRun | None:
+    async def get_active_session(
+        self, db: AsyncSession, user_id: UUID
+    ) -> FocusRun | None:
         return await crud_focus.get_active_session(db, user_id)
 
     async def start_session(
@@ -41,7 +47,15 @@ class FocusService:
 
         task_id = obj_in.task_id
         if obj_in.plan_block_id:
-            block = await db.scalar(select(PlanBlock).join(DailyPlan).where(PlanBlock.id == obj_in.plan_block_id, DailyPlan.user_id == user_id, DailyPlan.status.in_(("CONFIRMED", "ACTIVE"))))
+            block = await db.scalar(
+                select(PlanBlock)
+                .join(DailyPlan)
+                .where(
+                    PlanBlock.id == obj_in.plan_block_id,
+                    DailyPlan.user_id == user_id,
+                    DailyPlan.status.in_(("CONFIRMED", "ACTIVE")),
+                )
+            )
             if not block:
                 raise ResourceNotFoundError("Plan block not found")
             if block.status not in ("PLANNED", "ACTIVE"):
@@ -80,7 +94,9 @@ class FocusService:
         if not run:
             raise ResourceNotFoundError("No active focus session to pause")
         if run.status != "FOCUSING":
-            raise InvalidStatusTransitionError(f"Cannot pause session in {run.status} state")
+            raise InvalidStatusTransitionError(
+                f"Cannot pause session in {run.status} state"
+            )
 
         run.status = "PAUSED"
         run.paused_at = datetime.now(timezone.utc)
@@ -96,7 +112,9 @@ class FocusService:
         if not run:
             raise ResourceNotFoundError("No active focus session to resume")
         if run.status != "PAUSED":
-            raise InvalidStatusTransitionError(f"Cannot resume session in {run.status} state")
+            raise InvalidStatusTransitionError(
+                f"Cannot resume session in {run.status} state"
+            )
 
         now = datetime.now(timezone.utc)
         if run.paused_at:
@@ -117,7 +135,11 @@ class FocusService:
     ) -> FocusRun:
         await db.execute(select(User.id).where(User.id == user_id).with_for_update())
         if obj_in.run_id:
-            run = await db.scalar(select(FocusRun).where(FocusRun.id == obj_in.run_id, FocusRun.user_id == user_id).execution_options(populate_existing=True))
+            run = await db.scalar(
+                select(FocusRun)
+                .where(FocusRun.id == obj_in.run_id, FocusRun.user_id == user_id)
+                .execution_options(populate_existing=True)
+            )
         else:
             run = await crud_focus.get_active_session(db, user_id)
         if not run:
@@ -125,7 +147,12 @@ class FocusService:
             raise ResourceNotFoundError("No active focus session to finish")
         if run.status == "ENDED":
             logger.info("focus_completion_duplicate", extra={"run_id": str(run.id)})
-            event = await db.scalar(select(FocusRunEvent).where(FocusRunEvent.focus_run_id == run.id, FocusRunEvent.event_type == "ENDED"))
+            event = await db.scalar(
+                select(FocusRunEvent).where(
+                    FocusRunEvent.focus_run_id == run.id,
+                    FocusRunEvent.event_type == "ENDED",
+                )
+            )
             run.replan = (event.payload or {}).get("replan") if event else None
             return run
         if run.status not in ("FOCUSING", "PAUSED"):
@@ -148,9 +175,14 @@ class FocusService:
         run.actual_duration_seconds = max(0, total_elapsed - run.total_paused_seconds)
 
         if total_elapsed < 0 or run.actual_duration_seconds > 86400:
-            logger.warning("abnormal_server_focus_duration", extra={"run_id": str(run.id), "elapsed_seconds": total_elapsed})
+            logger.warning(
+                "abnormal_server_focus_duration",
+                extra={"run_id": str(run.id), "elapsed_seconds": total_elapsed},
+            )
         db.add(run)
-        ended_event = await crud_focus.add_event(db, run.id, "ENDED", {"outcome": obj_in.outcome})
+        ended_event = await crud_focus.add_event(
+            db, run.id, "ENDED", {"outcome": obj_in.outcome}
+        )
 
         if obj_in.outcome in ("DONE", "FINISHED_EARLY", "NEED_MORE_TIME"):
             await award_resources(
@@ -164,7 +196,10 @@ class FocusService:
             )
         if run.task_id and obj_in.outcome in ("DONE", "FINISHED_EARLY", "SKIP"):
             from typing import Literal
-            task_status: Literal["SKIPPED", "COMPLETED"] = "SKIPPED" if obj_in.outcome == "SKIP" else "COMPLETED"
+
+            task_status: Literal["SKIPPED", "COMPLETED"] = (
+                "SKIPPED" if obj_in.outcome == "SKIP" else "COMPLETED"
+            )
             await today_service.update_task_status_from_today(
                 db,
                 user_id,
@@ -177,13 +212,24 @@ class FocusService:
         replan = None
         if obj_in.should_replan:
             from fastapi.encoders import jsonable_encoder
+
             await db.flush()
             replan = await today_service.replan_today(db, user_id, commit=False)
-            ended_event.payload = {"outcome": obj_in.outcome, "replan": jsonable_encoder(replan)}
+            ended_event.payload = {
+                "outcome": obj_in.outcome,
+                "replan": jsonable_encoder(replan),
+            }
         await db.commit()
         await db.refresh(run)
         run.replan = replan
-        logger.info("focus_completed", extra={"run_id": str(run.id), "duration_seconds": run.actual_duration_seconds, "outcome": run.outcome})
+        logger.info(
+            "focus_completed",
+            extra={
+                "run_id": str(run.id),
+                "duration_seconds": run.actual_duration_seconds,
+                "outcome": run.outcome,
+            },
+        )
 
         return run
 

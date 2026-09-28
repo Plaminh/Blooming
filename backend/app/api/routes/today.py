@@ -22,12 +22,16 @@ router = APIRouter(prefix="/today", tags=["today"])
 
 
 @router.post("/preview", response_model=TodayPreviewResponse)
-async def preview_today_draft(*, db: SessionDep, current_user: CurrentUser, obj_in: TodayPreviewRequest):
+async def preview_today_draft(
+    *, db: SessionDep, current_user: CurrentUser, obj_in: TodayPreviewRequest
+):
     return await today_service.preview_today_draft(db, current_user.id, obj_in)
 
 
 @router.post("/save", response_model=TodayResponse)
-async def save_today_draft(*, db: SessionDep, current_user: CurrentUser, obj_in: TodaySaveRequest):
+async def save_today_draft(
+    *, db: SessionDep, current_user: CurrentUser, obj_in: TodaySaveRequest
+):
     return await today_service.save_today_draft(db, current_user.id, obj_in)
 
 
@@ -41,6 +45,7 @@ async def get_today_draft(
     return await today_service.get_today_draft(
         db=db, user_id=current_user.id, local_date=local_date
     )
+
 
 @router.get("", response_model=TodayResponse | TodayNoPlanResponse)
 async def get_today(
@@ -62,7 +67,9 @@ async def update_today_task(
     task_id: UUID,
     obj_in: TodayTaskEdit,
 ):
-    return await today_service.update_task_from_today(db=db, user_id=current_user.id, task_id=task_id, obj_in=obj_in)
+    return await today_service.update_task_from_today(
+        db=db, user_id=current_user.id, task_id=task_id, obj_in=obj_in
+    )
 
 
 @router.patch("/tasks/{task_id}/status", response_model=TaskResponse)
@@ -73,7 +80,9 @@ async def update_today_task_status(
     task_id: UUID,
     obj_in: TodayTaskStatusUpdate,
 ):
-    return await today_service.update_task_status_from_today(db=db, user_id=current_user.id, task_id=task_id, obj_in=obj_in)
+    return await today_service.update_task_status_from_today(
+        db=db, user_id=current_user.id, task_id=task_id, obj_in=obj_in
+    )
 
 
 @router.post("/replan", response_model=TodayResponse | TodayNoPlanResponse)
@@ -83,4 +92,6 @@ async def replan_today(
     current_user: CurrentUser,
     target_date: Annotated[date | None, Query(alias="target_date")] = None,
 ):
-    return await today_service.replan_today(db=db, user_id=current_user.id, local_date=target_date)
+    return await today_service.replan_today(
+        db=db, user_id=current_user.id, local_date=target_date
+    )

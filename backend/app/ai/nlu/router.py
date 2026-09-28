@@ -80,7 +80,9 @@ RECURRENCE_RE = (
     r"|weekly|every week|every (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)"
     r"|moi thu (?:[2-7]|hai|ba|tu|nam|sau|bay)|moi chu nhat)\b"
 )
-RECURRING_NOUN_RE = r"\b(viec lap lai|lich lap lai|lap lai|recurring|repeating|repeat)\b"
+RECURRING_NOUN_RE = (
+    r"\b(viec lap lai|lich lap lai|lap lai|recurring|repeating|repeat)\b"
+)
 DAY_TARGET_RE = (
     r"\b(today|tomorrow|hom nay|ngay mai|"
     r"monday|tuesday|wednesday|thursday|friday|saturday|sunday|"
@@ -118,9 +120,30 @@ def _looks_like_bare_task_statement(text: str) -> bool:
     if not 2 <= len(words) <= 12 or "?" in text:
         return False
     if words[0] in {
-        "i", "i'm", "im", "we", "we're", "were", "my", "our",
-        "what", "why", "when", "where", "who", "how", "is", "are",
-        "do", "does", "did", "can", "could", "would", "should", "will",
+        "i",
+        "i'm",
+        "im",
+        "we",
+        "we're",
+        "were",
+        "my",
+        "our",
+        "what",
+        "why",
+        "when",
+        "where",
+        "who",
+        "how",
+        "is",
+        "are",
+        "do",
+        "does",
+        "did",
+        "can",
+        "could",
+        "would",
+        "should",
+        "will",
     }:
         return False
     # Imperative conversation requests commonly address the assistant ("tell me",
@@ -143,7 +166,9 @@ def detect_lang(text: str) -> Literal["vi", "en"]:
 
 def is_self_contained_day_plan(message: str) -> bool:
     text = normalize(message)
-    return bool(re.search(DAY_TARGET_RE, text) and re.search(SCHEDULING_DETAIL_RE, text))
+    return bool(
+        re.search(DAY_TARGET_RE, text) and re.search(SCHEDULING_DETAIL_RE, text)
+    )
 
 
 def is_explicit_goal_request(message: str) -> bool:
@@ -193,7 +218,9 @@ def route(
             plain=r"\b(dung|ngung|huy|(?<!chay )bo|xoa|tat)\b",
             english=r"\b(stop|cancel|remove|delete|end)\b",
         )
-        if stop and not re.search(r"\b\d+\s*(?:p|phut|minutes?|mins?|h|gio|tieng)\b", text):
+        if stop and not re.search(
+            r"\b\d+\s*(?:p|phut|minutes?|mins?|h|gio|tieng)\b", text
+        ):
             return Route("STOP_RECURRING", 0.9, flags=frozenset(flags))
         if re.search(RECURRING_NOUN_RE, text) and re.search(
             r"\b(nao|gi|cua toi|dang co|list|show|my|what|which|xem|liet ke)\b", text
@@ -218,10 +245,14 @@ def route(
     )
     # "có" is deliberately not a question word here: "Tôi có hẹn uống nước"
     # is an appointment, not a garden balance question.
-    if garden_noun and re.search(
-        r"\b(bao nhieu|con|balance|how many|garden|the nao|status|my|cua toi)\b",
-        text,
-    ) and not re.search(r"\b(uong nuoc|drink)\b", text):
+    if (
+        garden_noun
+        and re.search(
+            r"\b(bao nhieu|con|balance|how many|garden|the nao|status|my|cua toi)\b",
+            text,
+        )
+        and not re.search(r"\b(uong nuoc|drink)\b", text)
+    ):
         return Route("STATUS_GARDEN", 0.91, flags=frozenset(flags))
     if not planning and re.search(
         r"\b(thong ke|statistics|stats|bao nhieu gio|how many hours|this week|tuan nay)\b",
@@ -287,15 +318,31 @@ def route(
 
 
 class IntentClassification(BaseModel):
-    intent: Literal["GREETING", "THANKS", "STATUS_TODAY", "STATUS_GARDEN", "STATUS_STATS", "STATUS_GOALS", "HELP_FEATURE", "PLAN_DAY", "CREATE_GOAL", "EDIT_DRAFT", "MOOD", "CHITCHAT", "STATUS_RECURRING"]
+    intent: Literal[
+        "GREETING",
+        "THANKS",
+        "STATUS_TODAY",
+        "STATUS_GARDEN",
+        "STATUS_STATS",
+        "STATUS_GOALS",
+        "HELP_FEATURE",
+        "PLAN_DAY",
+        "CREATE_GOAL",
+        "EDIT_DRAFT",
+        "MOOD",
+        "CHITCHAT",
+        "STATUS_RECURRING",
+    ]
 
 
-async def classify_low_confidence(message: str, fallback: Route, db, user_id, history: list[dict] | None = None) -> Route:
+async def classify_low_confidence(
+    message: str, fallback: Route, db, user_id, history: list[dict] | None = None
+) -> Route:
     """Use a small model only after deterministic routing is uncertain."""
     if fallback.confidence >= 0.7 or fallback.intent == "CRISIS":
         return fallback
-    from app.ai.budget import BudgetMode, available_routes, get_budget_mode
-    from app.ai.providers import LLMError, llm_provider
+    from app.ai.llm.budget import BudgetMode, available_routes, get_budget_mode
+    from app.ai.llm.providers import LLMError, llm_provider
     from app.core.config import settings
 
     if await get_budget_mode(db, user_id, "ROUTER") == BudgetMode.RULES_ONLY:
@@ -306,10 +353,17 @@ async def classify_low_confidence(message: str, fallback: Route, db, user_id, hi
     try:
         result = await llm_provider.call(
             routes,
-            [{"role": "system", "content": ROUTER_SYSTEM_PROMPT},
-             *(history or [])[-4:], {"role": "user", "content": message}],
-            require_json=True, json_schema=IntentClassification.model_json_schema(),
-            max_tokens=80, db=db, user_id=user_id, purpose="ROUTER",
+            [
+                {"role": "system", "content": ROUTER_SYSTEM_PROMPT},
+                *(history or [])[-4:],
+                {"role": "user", "content": message},
+            ],
+            require_json=True,
+            json_schema=IntentClassification.model_json_schema(),
+            max_tokens=80,
+            db=db,
+            user_id=user_id,
+            purpose="ROUTER",
         )
         intent = IntentClassification.model_validate(result).intent
         return Route(intent, 0.75, "llm", fallback.flags)

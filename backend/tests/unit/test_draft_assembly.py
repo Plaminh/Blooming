@@ -7,16 +7,15 @@ All tests call the real assemble_today() production function.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-import pytest
 
 from app.ai.context import ChatContext
-from app.ai.drafts import assemble_today
-from app.ai.parser import ParsedPlan, ParsedTask
+from app.ai.drafting.drafts import assemble_today
+from app.ai.nlu.parser import ParsedPlan, ParsedTask
 
 
 def _ctx(
@@ -269,7 +268,12 @@ def test_td_assumptions_are_user_readable():
     )
     _, assumptions = assemble_today(plan, ctx)
     import re
-    uuid_pattern = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
+
+    uuid_pattern = re.compile(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I
+    )
     for assumption in assumptions:
-        assert not uuid_pattern.search(assumption.text), f"UUID in assumption: {assumption.text}"
+        assert not uuid_pattern.search(assumption.text), (
+            f"UUID in assumption: {assumption.text}"
+        )
         assert "object at 0x" not in assumption.text  # No Python repr

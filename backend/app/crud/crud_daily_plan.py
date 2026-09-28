@@ -9,13 +9,23 @@ from app.db.models.daily_plans import DailyPlan, PlanBlock
 
 
 class CRUDDailyPlan:
-    async def create_draft(self, db: AsyncSession, *, user_id: UUID, plan_date: date, timezone_snapshot: str, reality_check: str) -> DailyPlan:
+    async def create_draft(
+        self,
+        db: AsyncSession,
+        *,
+        user_id: UUID,
+        plan_date: date,
+        timezone_snapshot: str,
+        reality_check: str,
+    ) -> DailyPlan:
         from app.core.errors import PlanAlreadyExistsError
 
         existing_plan = await self.get_by_date(db, user_id, plan_date)
         if existing_plan:
             if existing_plan.status in ("CONFIRMED", "ACTIVE"):
-                raise PlanAlreadyExistsError("An active plan already exists for this date.")
+                raise PlanAlreadyExistsError(
+                    "An active plan already exists for this date."
+                )
             if existing_plan.status == "DRAFT":
                 existing_plan.timezone_snapshot = timezone_snapshot
                 existing_plan.reality_check = reality_check
@@ -34,7 +44,7 @@ class CRUDDailyPlan:
             plan_date=plan_date,
             timezone_snapshot=timezone_snapshot,
             reality_check=reality_check,
-            status="DRAFT"
+            status="DRAFT",
         )
         db.add(db_obj)
         await db.flush()

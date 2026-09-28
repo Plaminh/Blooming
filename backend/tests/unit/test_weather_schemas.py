@@ -1,6 +1,5 @@
-import pytest
-from pydantic import ValidationError
 from app.schemas.weather import PlaceCandidate
+
 
 def test_place_candidate_rounds_coordinates():
     candidate = PlaceCandidate(name="London", lat=51.5074, lon=-0.1278)

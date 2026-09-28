@@ -169,19 +169,26 @@ async def test_missing_reminder(db_session, test_user):
             test_user.id,
         )
 
+
 from pydantic import ValidationError as PydanticValidationError
+
 
 async def test_invalid_action_rejected():
     with pytest.raises(PydanticValidationError):
         ReminderActionRequest(action_type="INVALID_ACTION")
 
+
 async def test_remind_later_missing_due_at(db_session, test_user, test_reminder, clock):
     with pytest.raises(PydanticValidationError):
         ReminderActionRequest(action_type="REMIND_LATER")
 
-async def test_move_milestone_missing_due_at(db_session, test_user, test_reminder, clock):
+
+async def test_move_milestone_missing_due_at(
+    db_session, test_user, test_reminder, clock
+):
     with pytest.raises(PydanticValidationError):
         ReminderActionRequest(action_type="MOVE_MILESTONE")
+
 
 async def test_remind_later_action(db_session, test_user, test_reminder, clock):
     new_due = clock.instant + timedelta(days=1)
@@ -203,21 +210,38 @@ async def test_remind_later_action(db_session, test_user, test_reminder, clock):
         test_user.id,
     )
     await db_session.commit()
-    actions = (await db_session.scalars(select(ReminderAction).where(ReminderAction.reminder_id == test_reminder.id))).all()
+    actions = (
+        await db_session.scalars(
+            select(ReminderAction).where(ReminderAction.reminder_id == test_reminder.id)
+        )
+    ).all()
     assert len(actions) == 1
 
+
 from app.db.models.garden import RewardEvent
+
 
 async def test_mark_completed_action(db_session, test_user, test_goal, clock):
     # Need a milestone reminder
     from app.db.models.goals import Milestone
+
     milestone = Milestone(
-        goal_id=test_goal.id, title="Test", position=0, due_at=clock.instant, status="PENDING"
+        goal_id=test_goal.id,
+        title="Test",
+        position=0,
+        due_at=clock.instant,
+        status="PENDING",
     )
     db_session.add(milestone)
     await db_session.flush()
     reminder = Reminder(
-        user_id=test_user.id, milestone_id=milestone.id, reminder_type="MILESTONE_DUE", message="M", due_at=clock.instant, original_due_at=clock.instant, status="DUE"
+        user_id=test_user.id,
+        milestone_id=milestone.id,
+        reminder_type="MILESTONE_DUE",
+        message="M",
+        due_at=clock.instant,
+        original_due_at=clock.instant,
+        status="DUE",
     )
     db_session.add(reminder)
     await db_session.commit()
@@ -231,12 +255,16 @@ async def test_mark_completed_action(db_session, test_user, test_goal, clock):
     await db_session.commit()
     await db_session.refresh(reminder)
     await db_session.refresh(milestone)
-    
+
     assert reminder.status == "COMPLETED"
     assert milestone.status == "COMPLETED"
     assert milestone.completed_at is not None
 
-    rewards = (await db_session.scalars(select(RewardEvent).where(RewardEvent.source_milestone_id == milestone.id))).all()
+    rewards = (
+        await db_session.scalars(
+            select(RewardEvent).where(RewardEvent.source_milestone_id == milestone.id)
+        )
+    ).all()
     assert len(rewards) == 1
     assert rewards[0].amount == 1
 
@@ -248,19 +276,34 @@ async def test_mark_completed_action(db_session, test_user, test_goal, clock):
         test_user.id,
     )
     await db_session.commit()
-    rewards_after = (await db_session.scalars(select(RewardEvent).where(RewardEvent.source_milestone_id == milestone.id))).all()
+    rewards_after = (
+        await db_session.scalars(
+            select(RewardEvent).where(RewardEvent.source_milestone_id == milestone.id)
+        )
+    ).all()
     assert len(rewards_after) == 1
 
 
 async def test_move_milestone_action(db_session, test_user, test_goal, clock):
     from app.db.models.goals import Milestone
+
     milestone = Milestone(
-        goal_id=test_goal.id, title="Test", position=0, due_at=clock.instant, status="PENDING"
+        goal_id=test_goal.id,
+        title="Test",
+        position=0,
+        due_at=clock.instant,
+        status="PENDING",
     )
     db_session.add(milestone)
     await db_session.flush()
     reminder = Reminder(
-        user_id=test_user.id, milestone_id=milestone.id, reminder_type="MILESTONE_DUE", message="M", due_at=clock.instant, original_due_at=clock.instant, status="DUE"
+        user_id=test_user.id,
+        milestone_id=milestone.id,
+        reminder_type="MILESTONE_DUE",
+        message="M",
+        due_at=clock.instant,
+        original_due_at=clock.instant,
+        status="DUE",
     )
     db_session.add(reminder)
     await db_session.commit()
@@ -275,10 +318,10 @@ async def test_move_milestone_action(db_session, test_user, test_goal, clock):
     await db_session.commit()
     await db_session.refresh(reminder)
     await db_session.refresh(milestone)
-    
+
     assert milestone.due_at == new_due
     assert reminder.due_at == new_due - timedelta(days=1)
-    
+
     # Repeated action
     await reminders_service.execute_action(
         db_session,
@@ -287,7 +330,11 @@ async def test_move_milestone_action(db_session, test_user, test_goal, clock):
         test_user.id,
     )
     await db_session.commit()
-    actions = (await db_session.scalars(select(ReminderAction).where(ReminderAction.reminder_id == reminder.id))).all()
+    actions = (
+        await db_session.scalars(
+            select(ReminderAction).where(ReminderAction.reminder_id == reminder.id)
+        )
+    ).all()
     assert len(actions) == 1
 
     # Stale reminder repair regression
@@ -303,7 +350,11 @@ async def test_move_milestone_action(db_session, test_user, test_goal, clock):
     )
     await db_session.commit()
     await db_session.refresh(reminder)
-    
+
     assert reminder.due_at == new_due - timedelta(days=1)
-    actions = (await db_session.scalars(select(ReminderAction).where(ReminderAction.reminder_id == reminder.id))).all()
+    actions = (
+        await db_session.scalars(
+            select(ReminderAction).where(ReminderAction.reminder_id == reminder.id)
+        )
+    ).all()
     assert len(actions) == 2

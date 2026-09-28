@@ -1,37 +1,39 @@
 import pytest
 from httpx import AsyncClient
 from unittest.mock import AsyncMock
-from app.ai.providers import llm_provider
+from app.ai.llm.providers import llm_provider
 from app.db.models.users import User
 from app.db.models.tasks import Task
 from app.db.models.daily_plans import DailyPlan
 from sqlalchemy import select
-from app.ai.parser import parse
+from app.ai.nlu.parser import parse
 from datetime import datetime
 
 
 # Helper to spy on LLM calls and return a valid generic plan
 @pytest.fixture
 def llm_spy(monkeypatch):
-    spy = AsyncMock(return_value={
-        "reply": "Here is your plan.",
-        "tasks": [
-            {
-                "title": "I need to read chapter 3",
-                "duration_min": 45,
-                "importance": "CORE",
-                "priority": "MEDIUM"
-            },
-            {
-                "title": "review flashcards",
-                "duration_min": 30,
-                "importance": "CORE",
-                "priority": "MEDIUM"
-            }
-        ],
-        "windows": [],
-        "assumptions": []
-    })
+    spy = AsyncMock(
+        return_value={
+            "reply": "Here is your plan.",
+            "tasks": [
+                {
+                    "title": "I need to read chapter 3",
+                    "duration_min": 45,
+                    "importance": "CORE",
+                    "priority": "MEDIUM",
+                },
+                {
+                    "title": "review flashcards",
+                    "duration_min": 30,
+                    "importance": "CORE",
+                    "priority": "MEDIUM",
+                },
+            ],
+            "windows": [],
+            "assumptions": [],
+        }
+    )
     monkeypatch.setattr(llm_provider, "call", spy)
     return spy
 

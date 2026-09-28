@@ -7,13 +7,13 @@ Test IDs: PS-011, PS-012, PS-013, PS-014, PS-016, PS-017, PS-018,
 from __future__ import annotations
 
 import pytest
-from datetime import date, datetime, timezone
+from datetime import datetime
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from app.ai.parser import parse, ParsedPlan, ParsedTask
-from app.ai.budget import BudgetMode
+from app.ai.nlu.parser import parse
+from app.ai.llm.budget import BudgetMode
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +125,7 @@ async def test_ps_016_high_confidence_uses_llm():
     """High-confidence fully-specified input must still call LLM provider as the primary extraction path."""
     from app.ai.handlers import planner
     from app.ai.context import ChatContext
-    from app.ai.budget import BudgetMode
+    from app.ai.llm.budget import BudgetMode
 
     ctx = ChatContext(
         db=AsyncMock(),
@@ -144,22 +144,28 @@ async def test_ps_016_high_confidence_uses_llm():
                 "title": "Read",
                 "duration_min": 45,
                 "importance": "CORE",
-                "priority": "MEDIUM"
+                "priority": "MEDIUM",
             },
             {
                 "title": "Code",
                 "duration_min": 60,
                 "importance": "CORE",
-                "priority": "MEDIUM"
-            }
-        ]
+                "priority": "MEDIUM",
+            },
+        ],
     }
 
     mock_llm = AsyncMock(return_value=llm_payload)
 
     with patch.object(planner.llm_provider, "call", mock_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
                 response = await planner.plan_day(
                     "Read 45 min and code 60 min",
                     ctx,
@@ -180,12 +186,21 @@ async def test_ps_017_low_confidence_calls_llm():
     from app.ai.handlers import planner
     from app.ai.context import ChatContext
 
-    llm_spy = AsyncMock(return_value={
-        "reply": "Here are your tasks",
-        "windows": [["09:00", "17:00"]],
-        "tasks": [{"title": "Organize tasks", "duration_min": 45, "importance": "CORE", "priority": "MEDIUM"}],
-        "assumptions": [],
-    })
+    llm_spy = AsyncMock(
+        return_value={
+            "reply": "Here are your tasks",
+            "windows": [["09:00", "17:00"]],
+            "tasks": [
+                {
+                    "title": "Organize tasks",
+                    "duration_min": 45,
+                    "importance": "CORE",
+                    "priority": "MEDIUM",
+                }
+            ],
+            "assumptions": [],
+        }
+    )
 
     ctx = ChatContext(
         db=AsyncMock(),
@@ -198,8 +213,14 @@ async def test_ps_017_low_confidence_calls_llm():
     )
 
     with patch.object(planner.llm_provider, "call", llm_spy):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq:llama")):
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq:llama"),
+            ):
                 # Low-confidence: unresolved tasks + question mark → confidence < 0.8
                 response = await planner.plan_day(
                     "I'm not sure what to do today, maybe organize something?",
@@ -236,8 +257,8 @@ def test_ps_018_llm_first_normalization():
         reply="Plan",
         tasks=[
             LLMTask(title="Task A", duration_min=30, importance="CORE"),
-            LLMTask(title="Task C", duration_min=15, importance="OPTIONAL")
-        ]
+            LLMTask(title="Task C", duration_min=15, importance="OPTIONAL"),
+        ],
     )
 
     result = _parsed_from_llm(llm_plan, ctx, "Task A 30m\nTask C 15m")
@@ -255,12 +276,15 @@ def test_ps_018_llm_first_normalization():
     assert task_c.importance == "OPTIONAL"
     assert task_c.duration_min == 15
 
+
 # ---------------------------------------------------------------------------
 # PS-019 — Deterministic repeat output (parser level)
 # ---------------------------------------------------------------------------
 def test_ps_019_deterministic_repeat_output():
     """Same input produces identical ParsedPlan on repeated calls."""
-    msg = "Read chapter 4 for 45 min and email for 15 min and meeting at 14:00 for 30 min"
+    msg = (
+        "Read chapter 4 for 45 min and email for 15 min and meeting at 14:00 for 30 min"
+    )
     r1 = parse(msg)
     r2 = parse(msg)
     assert r1 == r2
@@ -276,8 +300,8 @@ async def test_ps_020_llm_failure_falls_back_to_parser():
     """If LLM extraction fails (e.g., timeout or unparseable), it must fallback to the PARSER tier gracefully."""
     from app.ai.handlers import planner
     from app.ai.context import ChatContext
-    from app.ai.providers import LLMError
-    from app.ai.budget import BudgetMode
+    from app.ai.llm.providers import LLMError
+    from app.ai.llm.budget import BudgetMode
 
     # Simulate an LLM provider timeout/failure
     failing_llm = AsyncMock(side_effect=LLMError("Provider timeout"))
@@ -293,8 +317,14 @@ async def test_ps_020_llm_failure_falls_back_to_parser():
     )
 
     with patch.object(planner.llm_provider, "call", failing_llm):
-        with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-            with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq")):
+        with patch(
+            "app.ai.handlers.planner.get_budget_mode",
+            new=AsyncMock(return_value=BudgetMode.NORMAL),
+        ):
+            with patch(
+                "app.ai.handlers.planner.available_routes",
+                new=AsyncMock(return_value="groq"),
+            ):
                 result = await planner.plan_day(
                     "Study 60 min and exercise 30 min",
                     ctx,
@@ -326,8 +356,13 @@ async def test_ps_021_rules_only_45min_assumption():
     )
 
     # With RULES_ONLY mode the planner falls back to lenient=True parse
-    with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.RULES_ONLY)):
-        with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="")):
+    with patch(
+        "app.ai.handlers.planner.get_budget_mode",
+        new=AsyncMock(return_value=BudgetMode.RULES_ONLY),
+    ):
+        with patch(
+            "app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="")
+        ):
             result = await planner.plan_day(
                 "organize the attic",  # Unknown task → unresolved in strict mode
                 ctx,
@@ -343,4 +378,6 @@ async def test_ps_021_rules_only_45min_assumption():
 
     # An assumption must state the default
     assumption_texts = [a.text for a in result.assumptions]
-    assert any("45" in t for t in assumption_texts), f"Expected 45-min assumption, got: {assumption_texts}"
+    assert any("45" in t for t in assumption_texts), (
+        f"Expected 45-min assumption, got: {assumption_texts}"
+    )

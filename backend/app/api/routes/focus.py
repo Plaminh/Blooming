@@ -6,6 +6,7 @@ from app.core.errors import ResourceNotFoundError
 
 router = APIRouter(prefix="/focus", tags=["focus"])
 
+
 @router.post("/start", response_model=FocusRunResponse)
 async def start_session(
     *,
@@ -13,7 +14,10 @@ async def start_session(
     current_user: CurrentUser,
     obj_in: FocusSessionStart,
 ):
-    return await focus_service.start_session(db=db, user_id=current_user.id, obj_in=obj_in)
+    return await focus_service.start_session(
+        db=db, user_id=current_user.id, obj_in=obj_in
+    )
+
 
 @router.post("/pause", response_model=FocusRunResponse)
 async def pause_session(
@@ -23,6 +27,7 @@ async def pause_session(
 ):
     return await focus_service.pause_session(db=db, user_id=current_user.id)
 
+
 @router.post("/resume", response_model=FocusRunResponse)
 async def resume_session(
     *,
@@ -30,6 +35,7 @@ async def resume_session(
     current_user: CurrentUser,
 ):
     return await focus_service.resume_session(db=db, user_id=current_user.id)
+
 
 @router.get("/active", response_model=FocusRunResponse)
 async def get_active_session(
@@ -42,6 +48,7 @@ async def get_active_session(
         raise ResourceNotFoundError("No active focus session")
     return run
 
+
 @router.post("/finish", response_model=FocusRunResponse)
 async def finish_session(
     *,
@@ -49,4 +56,6 @@ async def finish_session(
     current_user: CurrentUser,
     obj_in: FocusSessionFinish,
 ):
-    return await focus_service.finish_session(db=db, user_id=current_user.id, obj_in=obj_in)
+    return await focus_service.finish_session(
+        db=db, user_id=current_user.id, obj_in=obj_in
+    )

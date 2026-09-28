@@ -8,7 +8,9 @@ from app.schemas.user_settings import UserSettingsUpdate
 
 
 async def get_user_settings(db: AsyncSession, user_id: UUID) -> UserSettings:
-    result = await db.execute(select(UserSettings).where(UserSettings.user_id == user_id))
+    result = await db.execute(
+        select(UserSettings).where(UserSettings.user_id == user_id)
+    )
     settings = result.scalars().first()
     if not settings:
         raise HTTPException(status_code=404, detail="Settings not found")

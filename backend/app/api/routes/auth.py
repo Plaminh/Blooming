@@ -4,14 +4,21 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.deps import SessionDep, EmailServiceDep
 from app.schemas.user import UserCreate
-from app.schemas.auth import RegisterResponse, VerifyEmailRequest, ResendVerificationRequest
+from app.schemas.auth import (
+    RegisterResponse,
+    VerifyEmailRequest,
+    ResendVerificationRequest,
+)
 from app.schemas.token import TokenResponse
 from app.services import auth_service
 from app.core.security import create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED
+)
 async def register(user_in: UserCreate, db: SessionDep, email_service: EmailServiceDep):
     """
     Register a new user, auto-provision default settings, and send verification email.
@@ -19,23 +26,29 @@ async def register(user_in: UserCreate, db: SessionDep, email_service: EmailServ
     user = await auth_service.register_user(db, user_in, email_service)
     return RegisterResponse(email=user.email, verification_required=True)
 
+
 @router.post("/verify-email", response_model=TokenResponse)
 async def verify_email(request: VerifyEmailRequest, db: SessionDep):
     user = await auth_service.verify_email(db, request.token)
     access_token = create_access_token(subject=user.id)
     return TokenResponse(access_token=access_token, token_type="bearer")
 
+
 @router.post("/resend-verification", status_code=status.HTTP_200_OK)
-async def resend_verification(request: ResendVerificationRequest, db: SessionDep, email_service: EmailServiceDep):
+async def resend_verification(
+    request: ResendVerificationRequest, db: SessionDep, email_service: EmailServiceDep
+):
     await auth_service.resend_verification(db, request.email, email_service)
     return {"message": "If the account exists, a verification email has been resent."}
 
+
 @router.post("/login", response_model=TokenResponse)
-async def login(db: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+async def login(
+    db: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+):
     """
     OAuth2 compatible token login, get an access token for future requests.
     """
     user = await auth_service.authenticate(db, form_data)
     access_token = create_access_token(subject=user.id)
     return TokenResponse(access_token=access_token, token_type="bearer")
-

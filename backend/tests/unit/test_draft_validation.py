@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from pydantic import ValidationError
 
-from app.ai.validators import check_today
+from app.ai.drafting.validators import check_today
 from app.schemas.drafts import (
     AvailabilityWindowDraft,
     TaskDraft,
@@ -262,10 +262,14 @@ def test_td_020_over_limit_not_silently_truncated():
 # ===========================================================================
 def test_cl_003_fixed_task_missing_start_flagged():
     """FIXED task with no fixedStart must be flagged as INVALID_FIXED_TIME."""
-    tasks = [TaskDraft(
-        id="d1", title="Meeting", durationMin=45,
-        schedulingType="FIXED",  # No fixedStart/fixedEnd
-    )]
+    tasks = [
+        TaskDraft(
+            id="d1",
+            title="Meeting",
+            durationMin=45,
+            schedulingType="FIXED",  # No fixedStart/fixedEnd
+        )
+    ]
     draft = _draft(tasks=tasks)
     issues = check_today(draft)
     assert "INVALID_FIXED_TIME" in issues
@@ -276,12 +280,16 @@ def test_cl_003_fixed_task_valid_interval_accepted():
     tz = ZoneInfo("UTC")
     start = datetime(2026, 9, 20, 14, 0, tzinfo=tz)
     end = datetime(2026, 9, 20, 14, 45, tzinfo=tz)
-    tasks = [TaskDraft(
-        id="d1", title="Meeting", durationMin=45,
-        schedulingType="FIXED",
-        fixedStart=start,
-        fixedEnd=end,
-    )]
+    tasks = [
+        TaskDraft(
+            id="d1",
+            title="Meeting",
+            durationMin=45,
+            schedulingType="FIXED",
+            fixedStart=start,
+            fixedEnd=end,
+        )
+    ]
     draft = _draft(tasks=tasks)
     issues = check_today(draft)
     assert "INVALID_FIXED_TIME" not in issues
@@ -292,12 +300,16 @@ def test_cl_003_fixed_task_end_before_start_flagged():
     tz = ZoneInfo("UTC")
     start = datetime(2026, 9, 20, 14, 0, tzinfo=tz)
     end = datetime(2026, 9, 20, 13, 0, tzinfo=tz)  # Before start
-    tasks = [TaskDraft(
-        id="d1", title="Meeting", durationMin=45,
-        schedulingType="FIXED",
-        fixedStart=start,
-        fixedEnd=end,
-    )]
+    tasks = [
+        TaskDraft(
+            id="d1",
+            title="Meeting",
+            durationMin=45,
+            schedulingType="FIXED",
+            fixedStart=start,
+            fixedEnd=end,
+        )
+    ]
     draft = _draft(tasks=tasks)
     issues = check_today(draft)
     assert "INVALID_FIXED_TIME" in issues
@@ -310,12 +322,12 @@ def test_cl_003_fixed_task_end_before_start_flagged():
 async def test_draft_response_no_premature_success_wording():
     """When only a draft exists, assistant reply must not claim saved/scheduled."""
     from unittest.mock import AsyncMock, patch
-    from datetime import datetime, timezone
+    from datetime import datetime
     from uuid import uuid4
     from zoneinfo import ZoneInfo
     from app.ai.handlers import planner
     from app.ai.context import ChatContext
-    from app.ai.budget import BudgetMode
+    from app.ai.llm.budget import BudgetMode
 
     ctx = ChatContext(
         db=AsyncMock(),
@@ -327,11 +339,19 @@ async def test_draft_response_no_premature_success_wording():
         default_date_offset=0,
     )
 
-    with patch("app.ai.handlers.planner.get_budget_mode", new=AsyncMock(return_value=BudgetMode.NORMAL)):
-        with patch("app.ai.handlers.planner.available_routes", new=AsyncMock(return_value="groq")):
+    with patch(
+        "app.ai.handlers.planner.get_budget_mode",
+        new=AsyncMock(return_value=BudgetMode.NORMAL),
+    ):
+        with patch(
+            "app.ai.handlers.planner.available_routes",
+            new=AsyncMock(return_value="groq"),
+        ):
             result = await planner.plan_day("Study 60 min", ctx, "en")
 
     reply_lower = result.reply.lower()
     forbidden = ["saved", "scheduled", "added to today", "successfully planned"]
     for word in forbidden:
-        assert word not in reply_lower, f"Premature success wording found: '{word}' in '{result.reply}'"
+        assert word not in reply_lower, (
+            f"Premature success wording found: '{word}' in '{result.reply}'"
+        )

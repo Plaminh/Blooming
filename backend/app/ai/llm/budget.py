@@ -72,9 +72,7 @@ async def model_budget_ratios(
     ratios = {}
     for model in models:
         capacity = settings.AI_TOKEN_BUDGET_24H[model]
-        ratios[model] = (
-            used_by_model.get(model, 0) / capacity if capacity > 0 else 1.0
-        )
+        ratios[model] = used_by_model.get(model, 0) / capacity if capacity > 0 else 1.0
     return ratios
 
 
@@ -176,7 +174,5 @@ async def cleanup_usage_logs(
         .order_by(AiUsageLog.created_at, AiUsageLog.id)
         .limit(max(1, min(limit, 10_000)))
     )
-    result = await db.execute(
-        delete(AiUsageLog).where(AiUsageLog.id.in_(expired_ids))
-    )
+    result = await db.execute(delete(AiUsageLog).where(AiUsageLog.id.in_(expired_ids)))
     return int(result.rowcount or 0)

@@ -15,16 +15,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 pytestmark = pytest.mark.asyncio
 
-async def get_preview_token(async_client: AsyncClient, auth_headers: dict[str, str], draft_json: dict) -> str:
+
+async def get_preview_token(
+    async_client: AsyncClient, auth_headers: dict[str, str], draft_json: dict
+) -> str:
     resp = await async_client.post(
-        "/api/v1/today/preview",
-        headers=auth_headers,
-        json={"draft": draft_json}
+        "/api/v1/today/preview", headers=auth_headers, json={"draft": draft_json}
     )
     assert resp.status_code == 200, resp.text
     return resp.json()["preview_token"]
 
-async def test_today_save_success_and_idempotency(async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict, db_session: AsyncSession):
+
+async def test_today_save_success_and_idempotency(
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    test_user: dict,
+    db_session: AsyncSession,
+):
     draft = TodayDraft(
         type="today",
         planDate=date.today().isoformat(),
@@ -32,26 +39,42 @@ async def test_today_save_success_and_idempotency(async_client: AsyncClient, aut
         windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
         tasks=[
             TaskDraft(id="t1", title="Task 1", durationMin=60, priority="HIGH"),
-            TaskDraft(id="t2", title="Task 2", durationMin=30, priority="MEDIUM", dependencies=["t1"])
-        ]
+            TaskDraft(
+                id="t2",
+                title="Task 2",
+                durationMin=30,
+                priority="MEDIUM",
+                dependencies=["t1"],
+            ),
+        ],
     )
     draft_dict = draft.model_dump(mode="json")
-    
+
     token1 = await get_preview_token(async_client, auth_headers, draft_dict)
-    
-    save_resp1 = await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": token1, "draft": draft_dict})
+
+    save_resp1 = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": token1, "draft": draft_dict},
+    )
     assert save_resp1.status_code == 200
-    
-    plan_res = await db_session.execute(select(DailyPlan).where(DailyPlan.user_id == test_user.id))
+
+    plan_res = await db_session.execute(
+        select(DailyPlan).where(DailyPlan.user_id == test_user.id)
+    )
     plan = plan_res.scalars().first()
     assert plan is not None
-    
+
     token2 = await get_preview_token(async_client, auth_headers, draft_dict)
     # Don't assert token1 == token2 since expiry makes them differ
-    
-    save_resp2 = await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": token2, "draft": draft_dict})
+
+    save_resp2 = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": token2, "draft": draft_dict},
+    )
     assert save_resp2.status_code == 200
-    
+
     tasks_res = await db_session.execute(select(Task).where(Task.title == "Task 1"))
     assert len(tasks_res.scalars().all()) == 1
 
@@ -114,7 +137,13 @@ async def test_preview_save_and_reload_preserve_planning_fields(
     assert restored_task["category"] == "Work"
     assert restored_task["preferred_break_duration_minutes"] == 10
 
-async def test_today_save_atomic_rollback(async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict, db_session: AsyncSession):
+
+async def test_today_save_atomic_rollback(
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    test_user: dict,
+    db_session: AsyncSession,
+):
     user_id = test_user.id
     draft = TodayDraft(
         type="today",
@@ -123,20 +152,28 @@ async def test_today_save_atomic_rollback(async_client: AsyncClient, auth_header
         windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
         tasks=[
             TaskDraft(id="t1", title="Valid Title", durationMin=60, priority="HIGH"),
-            TaskDraft(id="t2", title="Dependent Title", durationMin=30, dependencies=["t1"]),
-        ]
+            TaskDraft(
+                id="t2", title="Dependent Title", durationMin=30, dependencies=["t1"]
+            ),
+        ],
     )
     draft_dict = draft.model_dump(mode="json")
     token = await get_preview_token(async_client, auth_headers, draft_dict)
-    
+
     async def mock_commit(*args, **kwargs):
         raise ValueError("Injected DB failure after flushes, during commit")
-        
+
     with patch("sqlalchemy.ext.asyncio.AsyncSession.commit", new=mock_commit):
-        save_resp = await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": token, "draft": draft_dict})
+        save_resp = await async_client.post(
+            "/api/v1/today/save",
+            headers=auth_headers,
+            json={"preview_token": token, "draft": draft_dict},
+        )
         assert save_resp.status_code == 500
-        
-    plan_res = await db_session.execute(select(DailyPlan).where(DailyPlan.user_id == user_id))
+
+    plan_res = await db_session.execute(
+        select(DailyPlan).where(DailyPlan.user_id == user_id)
+    )
     assert plan_res.scalars().first() is None
     tasks_res = await db_session.execute(select(Task).where(Task.user_id == user_id))
     assert tasks_res.scalars().first() is None
@@ -147,28 +184,42 @@ async def test_today_save_atomic_rollback(async_client: AsyncClient, auth_header
     rev_res = await db_session.execute(select(PlanRevision))
     assert rev_res.scalars().first() is None
 
-async def test_deterministic_consistency(async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict, db_session: AsyncSession):
+
+async def test_deterministic_consistency(
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    test_user: dict,
+    db_session: AsyncSession,
+):
     draft = TodayDraft(
         type="today",
         planDate=date.today().isoformat(),
         timezone="UTC",
         windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
         tasks=[
-            TaskDraft(id="t1", title="Consistency Task", durationMin=60, priority="HIGH")
-        ]
+            TaskDraft(
+                id="t1", title="Consistency Task", durationMin=60, priority="HIGH"
+            )
+        ],
     )
     draft_dict = draft.model_dump(mode="json")
-    
-    preview_resp = await async_client.post("/api/v1/today/preview", headers=auth_headers, json={"draft": draft_dict})
+
+    preview_resp = await async_client.post(
+        "/api/v1/today/preview", headers=auth_headers, json={"draft": draft_dict}
+    )
     assert preview_resp.status_code == 200
     preview_data = preview_resp.json()
     preview_blocks = preview_data["blocks"]
-    
-    save_resp = await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": preview_data["preview_token"], "draft": draft_dict})
+
+    save_resp = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": preview_data["preview_token"], "draft": draft_dict},
+    )
     assert save_resp.status_code == 200
     save_data = save_resp.json()
     save_blocks = save_data["blocks"]
-    
+
     assert len(preview_blocks) == len(save_blocks)
     for p_block, s_block in zip(preview_blocks, save_blocks):
         assert p_block["block_type"] == s_block["block_type"]
@@ -184,87 +235,128 @@ async def test_deterministic_consistency(async_client: AsyncClient, auth_headers
         block["draft_task_id"] for block in preview_blocks
     ]
 
-async def test_invalid_token(async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict):
+
+async def test_invalid_token(
+    async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict
+):
     user_id = test_user.id
     draft = TodayDraft(
         type="today",
         planDate=date.today().isoformat(),
         timezone="UTC",
         windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
-        tasks=[TaskDraft(id="valid", title="Valid task", durationMin=30)]
+        tasks=[TaskDraft(id="valid", title="Valid task", durationMin=30)],
     )
     draft_dict = draft.model_dump(mode="json")
-    
-    save_resp = await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": "invalid_token", "draft": draft_dict})
+
+    save_resp = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": "invalid_token", "draft": draft_dict},
+    )
     assert save_resp.status_code == 409
-    
+
     import time
 
     draft_json = draft.model_dump_json()
     with patch("time.time", return_value=time.time() - 90000):
         expired_token = today_service._generate_hmac_token(user_id, draft_json)
-    
-    save_resp2 = await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": expired_token, "draft": draft_dict})
+
+    save_resp2 = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": expired_token, "draft": draft_dict},
+    )
     assert save_resp2.status_code == 409
-    
+
     cross_token = today_service._generate_hmac_token(uuid4(), draft_json)
-    
-    save_resp3 = await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": cross_token, "draft": draft_dict})
+
+    save_resp3 = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": cross_token, "draft": draft_dict},
+    )
     assert save_resp3.status_code == 409
 
     valid_token = await get_preview_token(async_client, auth_headers, draft_dict)
     tampered_token = valid_token[:-1] + ("A" if valid_token[-1] != "A" else "B")
     tampered = await async_client.post(
-        "/api/v1/today/save", headers=auth_headers,
+        "/api/v1/today/save",
+        headers=auth_headers,
         json={"preview_token": tampered_token, "draft": draft_dict},
     )
     assert tampered.status_code == 409
 
-    changed_date = {**draft_dict, "planDate": (date.today() + timedelta(days=1)).isoformat()}
+    changed_date = {
+        **draft_dict,
+        "planDate": (date.today() + timedelta(days=1)).isoformat(),
+    }
     wrong_date = await async_client.post(
-        "/api/v1/today/save", headers=auth_headers,
+        "/api/v1/today/save",
+        headers=auth_headers,
         json={"preview_token": valid_token, "draft": changed_date},
     )
     assert wrong_date.status_code == 409
 
-async def test_draft_modified_after_preview(async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict):
+
+async def test_draft_modified_after_preview(
+    async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict
+):
     draft = TodayDraft(
         type="today",
         planDate=date.today().isoformat(),
         timezone="UTC",
         windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
-        tasks=[TaskDraft(id="t1", title="Task 1", durationMin=60, priority="HIGH")]
+        tasks=[TaskDraft(id="t1", title="Task 1", durationMin=60, priority="HIGH")],
     )
     draft_dict = draft.model_dump(mode="json")
     token = await get_preview_token(async_client, auth_headers, draft_dict)
-    
+
     draft_dict["tasks"][0]["title"] = "Modified Task"
-    
-    save_resp = await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": token, "draft": draft_dict})
+
+    save_resp = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": token, "draft": draft_dict},
+    )
     assert save_resp.status_code == 409
 
-async def test_edited_draft_in_same_session(async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict, db_session: AsyncSession):
+
+async def test_edited_draft_in_same_session(
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    test_user: dict,
+    db_session: AsyncSession,
+):
     draft1 = TodayDraft(
         type="today",
         planDate=date.today().isoformat(),
         timezone="UTC",
         windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
-        tasks=[TaskDraft(id="t1", title="Task 1", durationMin=60, priority="HIGH")]
+        tasks=[TaskDraft(id="t1", title="Task 1", durationMin=60, priority="HIGH")],
     )
     draft_dict1 = draft1.model_dump(mode="json")
     token1 = await get_preview_token(async_client, auth_headers, draft_dict1)
-    await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": token1, "draft": draft_dict1})
-    
+    await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": token1, "draft": draft_dict1},
+    )
+
     draft2 = TodayDraft(
         type="today",
         planDate=date.today().isoformat(),
         timezone="UTC",
         windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
-        tasks=[TaskDraft(id="t2", title="Task 2", durationMin=30, priority="HIGH")]
+        tasks=[TaskDraft(id="t2", title="Task 2", durationMin=30, priority="HIGH")],
     )
     draft_dict2 = draft2.model_dump(mode="json")
     token2 = await get_preview_token(async_client, auth_headers, draft_dict2)
-    save_resp = await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": token2, "draft": draft_dict2})
+    save_resp = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": token2, "draft": draft_dict2},
+    )
     assert save_resp.status_code == 409
     save_resp = await async_client.post(
         "/api/v1/today/save",
@@ -272,8 +364,12 @@ async def test_edited_draft_in_same_session(async_client: AsyncClient, auth_head
         json={"preview_token": token2, "draft": draft_dict2, "replace_existing": True},
     )
     assert save_resp.status_code == 200
-    assert [block["title"] for block in save_resp.json()["blocks"] if block["block_type"] == "TASK"] == ["Task 2"]
-    
+    assert [
+        block["title"]
+        for block in save_resp.json()["blocks"]
+        if block["block_type"] == "TASK"
+    ] == ["Task 2"]
+
     tasks_res = await db_session.execute(select(Task).where(Task.title == "Task 1"))
     assert tasks_res.scalars().first() is None
     tasks_res2 = await db_session.execute(select(Task).where(Task.title == "Task 2"))
@@ -293,8 +389,15 @@ async def test_replace_existing_preserves_completed_history_and_replaces_future_
         timezone="UTC",
         windows=[AvailabilityWindowDraft(start="08:00", end="18:00")],
         tasks=[
-            TaskDraft(id="old-done", title="Completed history", durationMin=30, priority="HIGH"),
-            TaskDraft(id="old-future", title="Old unfinished future work", durationMin=60),
+            TaskDraft(
+                id="old-done",
+                title="Completed history",
+                durationMin=30,
+                priority="HIGH",
+            ),
+            TaskDraft(
+                id="old-future", title="Old unfinished future work", durationMin=60
+            ),
         ],
     ).model_dump(mode="json")
     original_token = await get_preview_token(async_client, auth_headers, original)
@@ -348,9 +451,11 @@ async def test_replace_existing_preserves_completed_history_and_replaces_future_
     unchanged = await async_client.get(
         f"/api/v1/today?date={target_date.isoformat()}", headers=auth_headers
     )
-    assert {block["title"] for block in unchanged.json()["blocks"] if block["block_type"] == "TASK"} == {
-        "Completed history", "Old unfinished future work"
-    }
+    assert {
+        block["title"]
+        for block in unchanged.json()["blocks"]
+        if block["block_type"] == "TASK"
+    } == {"Completed history", "Old unfinished future work"}
 
     payload = {
         "preview_token": replacement_token,
@@ -362,7 +467,11 @@ async def test_replace_existing_preserves_completed_history_and_replaces_future_
         "/api/v1/today/save", headers=auth_headers, json=payload
     )
     assert replaced.status_code == 200, replaced.text
-    titles = {block["title"] for block in replaced.json()["blocks"] if block["block_type"] == "TASK"}
+    titles = {
+        block["title"]
+        for block in replaced.json()["blocks"]
+        if block["block_type"] == "TASK"
+    }
     assert titles == {"Completed history", "New reviewed work"}
 
     retry = await async_client.post(
@@ -374,7 +483,9 @@ async def test_replace_existing_preserves_completed_history_and_replaces_future_
     )
     assert reloaded.status_code == 200
     reloaded_titles = [
-        block["title"] for block in reloaded.json()["blocks"] if block["block_type"] == "TASK"
+        block["title"]
+        for block in reloaded.json()["blocks"]
+        if block["block_type"] == "TASK"
     ]
     assert sorted(reloaded_titles) == ["Completed history", "New reviewed work"]
 
@@ -390,10 +501,15 @@ async def test_replace_existing_preserves_completed_history_and_replaces_future_
     assert len(active_plans) == 1
     assert active_plans[0].id == original_plan_id
 
-async def test_fixed_datetimes(async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict):
-    aware_dt = datetime.now(timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0)
+
+async def test_fixed_datetimes(
+    async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict
+):
+    aware_dt = datetime.now(timezone.utc).replace(
+        hour=10, minute=0, second=0, microsecond=0
+    )
     deadline_date = date.today()
-    
+
     draft = TodayDraft(
         type="today",
         planDate=datetime.now(timezone.utc).date().isoformat(),
@@ -401,27 +517,42 @@ async def test_fixed_datetimes(async_client: AsyncClient, auth_headers: dict[str
         windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
         tasks=[
             TaskDraft(
-                id="t1", 
-                title="Fixed 1", 
-                durationMin=60, 
-                schedulingType="FIXED", 
-                fixedStart=aware_dt.isoformat(), 
+                id="t1",
+                title="Fixed 1",
+                durationMin=60,
+                schedulingType="FIXED",
+                fixedStart=aware_dt.isoformat(),
                 fixedEnd=(aware_dt + timedelta(minutes=60)).isoformat(),
-                deadline=deadline_date.isoformat()
+                deadline=deadline_date.isoformat(),
             ),
-        ]
+        ],
     )
     draft_dict = draft.model_dump(mode="json")
-    preview = await async_client.post("/api/v1/today/preview", headers=auth_headers, json={"draft": draft_dict})
+    preview = await async_client.post(
+        "/api/v1/today/preview", headers=auth_headers, json={"draft": draft_dict}
+    )
     assert preview.status_code == 200
-    resp = await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": preview.json()["preview_token"], "draft": draft_dict})
+    resp = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": preview.json()["preview_token"], "draft": draft_dict},
+    )
     assert resp.status_code == 200
-    assert preview.json()["blocks"][0]["draft_task_id"] == resp.json()["blocks"][0]["draft_task_id"] == "t1"
+    assert (
+        preview.json()["blocks"][0]["draft_task_id"]
+        == resp.json()["blocks"][0]["draft_task_id"]
+        == "t1"
+    )
 
-async def test_overlapping_fixed_tasks(async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict):
+
+async def test_overlapping_fixed_tasks(
+    async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict
+):
     dt1 = datetime.now(timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0)
-    dt2 = datetime.now(timezone.utc).replace(hour=10, minute=30, second=0, microsecond=0)
-    
+    dt2 = datetime.now(timezone.utc).replace(
+        hour=10, minute=30, second=0, microsecond=0
+    )
+
     draft = {
         "type": "today",
         "planDate": datetime.now(timezone.utc).date().isoformat(),
@@ -429,48 +560,64 @@ async def test_overlapping_fixed_tasks(async_client: AsyncClient, auth_headers: 
         "windows": [{"start": "09:00", "end": "17:00"}],
         "tasks": [
             {
-                "id": "t1", 
-                "title": "Fixed 1", 
-                "durationMin": 60, 
-                "schedulingType": "FIXED", 
-                "fixedStart": dt1.isoformat(), 
+                "id": "t1",
+                "title": "Fixed 1",
+                "durationMin": 60,
+                "schedulingType": "FIXED",
+                "fixedStart": dt1.isoformat(),
                 "fixedEnd": (dt1 + timedelta(minutes=60)).isoformat(),
-                "dependencies": []
+                "dependencies": [],
             },
             {
-                "id": "t2", 
-                "title": "Fixed 2", 
-                "durationMin": 60, 
-                "schedulingType": "FIXED", 
-                "fixedStart": dt2.isoformat(), 
+                "id": "t2",
+                "title": "Fixed 2",
+                "durationMin": 60,
+                "schedulingType": "FIXED",
+                "fixedStart": dt2.isoformat(),
                 "fixedEnd": (dt2 + timedelta(minutes=60)).isoformat(),
-                "dependencies": []
-            }
-        ]
+                "dependencies": [],
+            },
+        ],
     }
-    resp = await async_client.post("/api/v1/today/preview", headers=auth_headers, json={"draft": draft})
+    resp = await async_client.post(
+        "/api/v1/today/preview", headers=auth_headers, json={"draft": draft}
+    )
     assert resp.status_code == 422
 
 
-async def test_transaction_not_already_begun(async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict, db_session: AsyncSession):
+async def test_transaction_not_already_begun(
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    test_user: dict,
+    db_session: AsyncSession,
+):
     # Proves that no "transaction already begun" is raised when save_today_draft executes
     draft = TodayDraft(
         type="today",
         planDate=date.today().isoformat(),
         timezone="UTC",
         windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
-        tasks=[TaskDraft(id="t_tx", title="TX Test", durationMin=15, priority="LOW")]
+        tasks=[TaskDraft(id="t_tx", title="TX Test", durationMin=15, priority="LOW")],
     )
     draft_dict = draft.model_dump(mode="json")
     token = await get_preview_token(async_client, auth_headers, draft_dict)
-    
+
     # Send the request; if transaction was already begun and db.begin() was improperly called, it would 500
-    save_resp = await async_client.post("/api/v1/today/save", headers=auth_headers, json={"preview_token": token, "draft": draft_dict})
+    save_resp = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": token, "draft": draft_dict},
+    )
     assert save_resp.status_code == 200
 
 
-
-async def test_overloaded_schedule_preview(async_client: AsyncClient, auth_headers: dict[str, str], test_user: dict, db_session: AsyncSession, monkeypatch):
+async def test_overloaded_schedule_preview(
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    test_user: dict,
+    db_session: AsyncSession,
+    monkeypatch,
+):
     actual_reasons = []
     original_schedule = DeterministicScheduler.schedule
 
@@ -484,37 +631,53 @@ async def test_overloaded_schedule_preview(async_client: AsyncClient, auth_heade
         type="today",
         planDate=date.today().isoformat(),
         timezone="UTC",
-        windows=[AvailabilityWindowDraft(start="09:00", end="10:00")], # Only 1 hour available
+        windows=[
+            AvailabilityWindowDraft(start="09:00", end="10:00")
+        ],  # Only 1 hour available
         tasks=[
-            TaskDraft(id="t_over1", title="Too Big Task", durationMin=120, priority="HIGH"),
-            TaskDraft(id="t_over2", title="Another Big Task", durationMin=120, priority="MEDIUM")
-        ]
+            TaskDraft(
+                id="t_over1", title="Too Big Task", durationMin=120, priority="HIGH"
+            ),
+            TaskDraft(
+                id="t_over2",
+                title="Another Big Task",
+                durationMin=120,
+                priority="MEDIUM",
+            ),
+        ],
     )
     draft_dict = draft.model_dump(mode="json")
-    
-    resp = await async_client.post("/api/v1/today/preview", headers=auth_headers, json={"draft": draft_dict})
+
+    resp = await async_client.post(
+        "/api/v1/today/preview", headers=auth_headers, json={"draft": draft_dict}
+    )
     assert resp.status_code == 200
     data = resp.json()
-    
+
     assert data["reality_check"] == "OVERLOADED"
-    
+
     unsched = data["unscheduled_tasks"]
     assert len(unsched) > 0
     assert {task["draft_task_id"] for task in unsched} == {"t_over1", "t_over2"}
     assert {task["reason"] for task in unsched} == {"INSUFFICIENT_TIME"}
-    
+
     reasons = data["reasons"]
     assert len(reasons) > 0
     assert reasons == actual_reasons
     assert {reason["code"] for reason in reasons} == {"INSUFFICIENT_TIME"}
-    
-    plan_res = await db_session.execute(select(DailyPlan).where(DailyPlan.user_id == test_user.id))
+
+    plan_res = await db_session.execute(
+        select(DailyPlan).where(DailyPlan.user_id == test_user.id)
+    )
     assert plan_res.scalars().first() is None
-    tasks_res = await db_session.execute(select(Task).where(Task.user_id == test_user.id))
+    tasks_res = await db_session.execute(
+        select(Task).where(Task.user_id == test_user.id)
+    )
     assert tasks_res.scalars().first() is None
 
     saved = await async_client.post(
-        "/api/v1/today/save", headers=auth_headers,
+        "/api/v1/today/save",
+        headers=auth_headers,
         json={"preview_token": data["preview_token"], "draft": draft_dict},
     )
     assert saved.status_code == 200, saved.text

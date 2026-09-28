@@ -14,7 +14,7 @@ from datetime import date, timedelta
 from typing import Literal
 
 from app.ai.estimates import estimate
-from app.ai.router import normalize
+from app.ai.nlu.router import normalize
 
 HOUR = r"(?:h|g|giờ|gio|tiếng|tieng|hours?|hrs?)"
 MINUTE = r"(?:p|m|phút|phut|mins?|minutes?)"
@@ -47,7 +47,9 @@ CLOCK_TOKEN_RE = re.compile(
     re.IGNORECASE,
 )
 CLOCK_MIN_BARE_HOUR = 6
-DURATION_CONTEXT_RE = re.compile(r"(?:trong|for|mất|mat|khoảng|khoang)\s*$", re.IGNORECASE)
+DURATION_CONTEXT_RE = re.compile(
+    r"(?:trong|for|mất|mat|khoảng|khoang)\s*$", re.IGNORECASE
+)
 HALF_HOUR_RE = re.compile(
     r"(?<!\w)(\d+)\s*(?:tiếng|tieng|giờ|gio|h)\s*(?:rưỡi|ruoi)(?!\w)", re.IGNORECASE
 )
@@ -104,11 +106,31 @@ def vi(pattern: str) -> re.Pattern[str]:
 
 
 WEEKDAY_TOKEN = r"(?:[2-7]|hai|ba|tu|nam|sau|bay)"
-_VI_WEEKDAYS = {"2": 0, "hai": 0, "3": 1, "ba": 1, "4": 2, "tu": 2,
-                "5": 3, "nam": 3, "6": 4, "sau": 4, "7": 5, "bay": 5,
-                "cn": 6, "chu nhat": 6}
-_EN_WEEKDAYS = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
-                "friday": 4, "saturday": 5, "sunday": 6}
+_VI_WEEKDAYS = {
+    "2": 0,
+    "hai": 0,
+    "3": 1,
+    "ba": 1,
+    "4": 2,
+    "tu": 2,
+    "5": 3,
+    "nam": 3,
+    "6": 4,
+    "sau": 4,
+    "7": 5,
+    "bay": 5,
+    "cn": 6,
+    "chu nhat": 6,
+}
+_EN_WEEKDAYS = {
+    "monday": 0,
+    "tuesday": 1,
+    "wednesday": 2,
+    "thursday": 3,
+    "friday": 4,
+    "saturday": 5,
+    "sunday": 6,
+}
 EN_WEEKDAY = r"(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)"
 
 # "thứ 2, 4 và 6" / "thứ 2 và thứ 4" -> "thứ 2/4/6" so "và" does not split them.
@@ -135,7 +157,9 @@ TOMORROW_RE = vi(
     r"\b(ngay mai|tomorrow|(?:sang|trua|chieu) mai|(?:minh|tui) mai|mai (?=(?:minh|tui)\s))"
     r"|^\s*mai\b(?!\s*(?:mot|sau)\b)"
 )
-TOMORROW_EVENING_RE = re.compile(r"\b(?:tối mai|tôi mai\b|mai (?=tôi\s))", re.IGNORECASE)
+TOMORROW_EVENING_RE = re.compile(
+    r"\b(?:tối mai|tôi mai\b|mai (?=tôi\s))", re.IGNORECASE
+)
 DAY_AFTER_RE = vi(r"\b(ngay kia|ngay mot|day after tomorrow)\b")
 DAILY_RE = vi(r"\b(moi ngay|hang ngay|ngay nao cung|every ?day|daily|each day)\b")
 WEEKDAYS_ONLY_RE = vi(r"\b(cac ngay trong tuan|ngay thuong|weekdays|every weekday)\b")
@@ -144,7 +168,9 @@ WEEKLY_RE = vi(r"\b(hang tuan|moi tuan|weekly|every week|each week)\b")
 EVERY_PREFIX_RE = vi(
     rf"\b(moi|every|each)\s+(?=(?:thu\s*{WEEKDAY_TOKEN}|chu nhat|{EN_WEEKDAY}))"
 )
-THIS_WEEK_RE = vi(r"\b(trong\s+)?(tuan nay|this week|ca tuan|suot tuan|all week|whole week)\b")
+THIS_WEEK_RE = vi(
+    r"\b(trong\s+)?(tuan nay|this week|ca tuan|suot tuan|all week|whole week)\b"
+)
 NEXT_WEEK_RE = vi(r"\b(trong\s+)?(tuan sau|tuan toi|next week)\b")
 # English fillers stay ASCII-only: through vi() "on" would also eat "ôn" (review).
 LEADING_FILLER_RE = re.compile(
@@ -156,7 +182,8 @@ LEADING_FILLER_RE = re.compile(
 # part of the task. Unaccented "toi" is skipped: it may be "tới" (go to).
 LEADING_PRONOUN_RE = re.compile(r"^\s*(?:mình|tôi|tui|tớ|minh)\s+(?=\S)", re.IGNORECASE)
 TRAILING_FILLER_RE = re.compile(
-    r"(?:\s*(?:[,:\-]|vào|vao|\bon|ngày|ngay|lúc|luc|trong|\bin|của))+\s*$", re.IGNORECASE
+    r"(?:\s*(?:[,:\-]|vào|vao|\bon|ngày|ngay|lúc|luc|trong|\bin|của))+\s*$",
+    re.IGNORECASE,
 )
 MIN_SPREAD_CHUNK = 30
 
@@ -468,7 +495,8 @@ def extract_day_ref(message: str) -> tuple[DayRef | None, int]:
     distinct_days = list(dict.fromkeys(named_days))
     message_day = (
         distinct_days[0]
-        if len(distinct_days) == 1 and (trailing_day is not None or first_has_day or len(segments) == 1)
+        if len(distinct_days) == 1
+        and (trailing_day is not None or first_has_day or len(segments) == 1)
         else (distinct_days[0] if len(distinct_days) == 1 else None)
     )
     offset = (
@@ -556,7 +584,7 @@ def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
             # A leading "from X to Y" after the day marker describes the
             # day's availability ("Today from 7 to 9, review ..."). An
             # interval following a task name remains a fixed task interval.
-            interval_is_global = not segment[:window_match.start()].strip()
+            interval_is_global = not segment[: window_match.start()].strip()
             interval_start = _clock(window_match.group(1), window_match.group(2))
             interval_end = _clock(window_match.group(3), window_match.group(4))
             segment = _cut(segment, window_match)
@@ -566,14 +594,14 @@ def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
         if fixed:
             segment = _cut(segment, fixed)
         deadline = DEADLINE_RE.search(segment)
-        deadline_time = _clock(deadline.group(1), deadline.group(2)) if deadline else None
+        deadline_time = (
+            _clock(deadline.group(1), deadline.group(2)) if deadline else None
+        )
         if deadline:
             segment = _cut(segment, deadline)
         if fixed_start is None:
             fixed_start, segment = _clock_token(segment)
-        segment = HALF_HOUR_RE.sub(
-            lambda m: f" {int(m.group(1)) * 60 + 30}p ", segment
-        )
+        segment = HALF_HOUR_RE.sub(lambda m: f" {int(m.group(1)) * 60 + 30}p ", segment)
         duration, segment = _duration(segment)
         plain = normalize(segment)
         optional = bool(
@@ -598,10 +626,22 @@ def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
         title = _clean_title(segment)
 
         is_avail = normalize(title) in {
-            "i am available", "im available", "my availability is", "toi ranh", "minh ranh", "available", "toi co the lam"
+            "i am available",
+            "im available",
+            "my availability is",
+            "toi ranh",
+            "minh ranh",
+            "available",
+            "toi co the lam",
         }
 
-        if len(title) < 2 or not any(c.isalnum() for c in title) or normalize(title) in {"hom nay", "today", "toi", "i", "can", "muon", "minh"} or is_avail:
+        if (
+            len(title) < 2
+            or not any(c.isalnum() for c in title)
+            or normalize(title)
+            in {"hom nay", "today", "toi", "i", "can", "muon", "minh"}
+            or is_avail
+        ):
             if interval_start and interval_end and interval_start < interval_end:
                 windows.append((interval_start, interval_end))
             continue
@@ -615,6 +655,7 @@ def parse(message: str, *, lenient: bool = False) -> ParsedPlan:
             fixed_end = interval_end
             if duration is None:
                 from datetime import datetime
+
                 t1 = datetime.strptime(interval_start, "%H:%M")
                 t2 = datetime.strptime(interval_end, "%H:%M")
                 duration = int((t2 - t1).total_seconds() / 60)

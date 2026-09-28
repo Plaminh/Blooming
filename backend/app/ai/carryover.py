@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.parser import ParsedTask
+from app.ai.nlu.parser import ParsedTask
 from app.db.models.daily_plans import PlanBlock
 from app.db.models.tasks import RecurringTask, Task
 
@@ -69,7 +69,9 @@ async def due_recurring_tasks(
                 RecurringTask.user_id == user_id,
                 RecurringTask.is_active.is_(True),
                 RecurringTask.start_date <= day,
-                or_(RecurringTask.until_date.is_(None), RecurringTask.until_date >= day),
+                or_(
+                    RecurringTask.until_date.is_(None), RecurringTask.until_date >= day
+                ),
             )
             .order_by(RecurringTask.created_at, RecurringTask.id)
         )
@@ -88,7 +90,9 @@ async def due_recurring_tasks(
             )
         ).all()
     )
-    return [item for item in templates if item.id not in created and item.occurs_on(day)]
+    return [
+        item for item in templates if item.id not in created and item.occurs_on(day)
+    ]
 
 
 async def carried_tasks(

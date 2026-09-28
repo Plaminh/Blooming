@@ -43,16 +43,19 @@ class CRUDTask:
 
     async def get(self, db: AsyncSession, id: UUID, user_id: UUID) -> Task | None:
         result = await db.execute(
-            select(Task).options(selectinload(Task.dependencies)).where(Task.id == id, Task.user_id == user_id)
+            select(Task)
+            .options(selectinload(Task.dependencies))
+            .where(Task.id == id, Task.user_id == user_id)
         )
         return result.scalars().first()
 
-    async def get_with_plan_blocks(self, db: AsyncSession, id: UUID, user_id: UUID) -> Task | None:
+    async def get_with_plan_blocks(
+        self, db: AsyncSession, id: UUID, user_id: UUID
+    ) -> Task | None:
         result = await db.execute(
-            select(Task).options(
-                selectinload(Task.dependencies),
-                selectinload(Task.plan_blocks)
-            ).where(Task.id == id, Task.user_id == user_id)
+            select(Task)
+            .options(selectinload(Task.dependencies), selectinload(Task.plan_blocks))
+            .where(Task.id == id, Task.user_id == user_id)
         )
         return result.scalars().first()
 
@@ -68,7 +71,9 @@ class CRUDTask:
         )
         return list(result.scalars().all())
 
-    async def update(self, db: AsyncSession, *, db_obj: Task, obj_in: TaskUpdate) -> Task:
+    async def update(
+        self, db: AsyncSession, *, db_obj: Task, obj_in: TaskUpdate
+    ) -> Task:
         update_data = obj_in.model_dump(exclude_unset=True)
         deps = update_data.pop("dependencies", None)
 

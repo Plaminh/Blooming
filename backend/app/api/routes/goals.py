@@ -41,7 +41,9 @@ async def update_goal_from_roadmap(
     current_user: CurrentUser,
 ):
     try:
-        goal = await goals_service.update_from_roadmap(db, goal_id, roadmap, current_user.id)
+        goal = await goals_service.update_from_roadmap(
+            db, goal_id, roadmap, current_user.id
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     await db.commit()
@@ -78,6 +80,7 @@ async def get_goal(
 
 from app.schemas.drafts import RoadmapDraft
 
+
 @router.get("/{goal_id}/draft", response_model=RoadmapDraft)
 async def get_goal_draft(
     goal_id: UUID,
@@ -85,6 +88,7 @@ async def get_goal_draft(
     current_user: CurrentUser,
 ):
     return await goals_service.get_goal_draft(db, goal_id, current_user.id)
+
 
 @router.put("/{goal_id}", response_model=GoalResponse)
 async def update_goal(

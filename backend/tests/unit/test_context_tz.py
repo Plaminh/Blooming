@@ -7,7 +7,7 @@ All tests use injected/frozen time.  No real clock or timezone dependency.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime, timezone
 from unittest.mock import AsyncMock
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -15,8 +15,8 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from app.ai.context import ChatContext
-from app.ai.drafts import assemble_today
-from app.ai.parser import ParsedPlan
+from app.ai.drafting.drafts import assemble_today
+from app.ai.nlu.parser import ParsedPlan
 
 
 # ---------------------------------------------------------------------------
@@ -47,12 +47,10 @@ def _ctx(
 # ---------------------------------------------------------------------------
 
 
-
 # ---------------------------------------------------------------------------
 # CTX-002 — Client-provided timezone cannot override authoritative context
 # (Production enforcement: preview_today_draft rejects mismatched timezone)
 # ---------------------------------------------------------------------------
-
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +184,9 @@ def test_ctx_009_expired_window_moves_to_tomorrow():
     # Should have shifted to tomorrow
     assert draft.planDate >= date(2026, 9, 21)
     assumption_texts = [a.text for a in assumptions]
-    assert any("tomorrow" in t.lower() or "window" in t.lower() for t in assumption_texts)
+    assert any(
+        "tomorrow" in t.lower() or "window" in t.lower() for t in assumption_texts
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -224,55 +224,72 @@ def test_ctx_012_weather_does_not_affect_planning():
     assert len(assumptions1) == len(assumptions2)
 
 
-
-import pytest
-from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
-from unittest.mock import AsyncMock, patch
-from uuid import uuid4
+from unittest.mock import patch
 from app.ai.context import build_context
+
 
 @pytest.mark.asyncio
 async def test_ctx_001_timezone_from_settings():
-    '''CTX-001: Timezone comes from persisted UserSettings, not client.'''
+    """CTX-001: Timezone comes from persisted UserSettings, not client."""
     from app.db.models.users import UserSettings
-    
+
     db = AsyncMock()
-    mock_settings = UserSettings(user_id=uuid4(), timezone="Asia/Tokyo", default_break_minutes=5)
+    mock_settings = UserSettings(
+        user_id=uuid4(), timezone="Asia/Tokyo", default_break_minutes=5
+    )
     db.scalar.return_value = mock_settings
-    
+
     user_id = mock_settings.user_id
     now_utc = datetime(2026, 9, 20, 1, 0, tzinfo=timezone.utc)
-    
+
     # Needs to patch calibration to avoid db query issues in build_context
-    with patch('app.ai.calibration.calibration_multipliers', new_callable=AsyncMock) as mock_cal:
+    with patch(
+        "app.ai.calibration.calibration_multipliers", new_callable=AsyncMock
+    ) as mock_cal:
         mock_cal.return_value = {}
         ctx = await build_context(db, user_id, now_utc)
-    
+
     assert str(ctx.timezone) == "Asia/Tokyo"
     assert ctx.now.tzinfo == ZoneInfo("Asia/Tokyo")
     assert ctx.now.hour == 10  # 01:00 UTC = 10:00 JST
 
+
 @pytest.mark.asyncio
 async def test_ctx_002_conflicting_timezone_rejected():
-    '''CTX-002: Client-provided timezone in drafts must match server settings.'''
+    """CTX-002: Client-provided timezone in drafts must match server settings."""
     from app.services.today_service import today_service
     from app.schemas.today import TodayPreviewRequest
     from app.schemas.drafts import TodayDraft
     from app.db.models.users import UserSettings
     from fastapi import HTTPException
-    
+
     db = AsyncMock()
     user_id = uuid4()
     mock_settings = UserSettings(user_id=user_id, timezone="Asia/Tokyo")
     db.scalar.return_value = mock_settings
-    
+
     # Client sends draft with a different timezone (America/New_York)
-    draft = TodayDraft(planDate="2026-09-20", timezone="America/New_York", windows=[{"start": "09:00", "end": "10:00"}], tasks=[{"id": "t1", "title": "t1", "durationMin": 30, "priority": "MEDIUM", "importance": "CORE", "estimateSource": "USER", "schedulingType": "FLEXIBLE", "dependencies": []}])
+    draft = TodayDraft(
+        planDate="2026-09-20",
+        timezone="America/New_York",
+        windows=[{"start": "09:00", "end": "10:00"}],
+        tasks=[
+            {
+                "id": "t1",
+                "title": "t1",
+                "durationMin": 30,
+                "priority": "MEDIUM",
+                "importance": "CORE",
+                "estimateSource": "USER",
+                "schedulingType": "FLEXIBLE",
+                "dependencies": [],
+            }
+        ],
+    )
     request = TodayPreviewRequest(draft=draft)
-    
+
     with pytest.raises(HTTPException) as excinfo:
         await today_service.preview_today_draft(db, user_id, request)
-        
+
     assert excinfo.value.status_code == 422
     assert "timezone" in excinfo.value.detail.lower()

@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.ai.validators import check_today
+from app.ai.drafting.validators import check_today
 from app.schemas.drafts import AvailabilityWindowDraft, TaskDraft, TodayDraft
 
 

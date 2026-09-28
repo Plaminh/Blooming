@@ -4,7 +4,7 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
-from app.ai.budget import BudgetMode
+from app.ai.llm.budget import BudgetMode
 from app.ai.context import ChatContext
 from app.ai.handlers import planner
 

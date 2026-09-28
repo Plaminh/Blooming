@@ -48,9 +48,13 @@ class BrevoEmailService(EmailService):
                 response.raise_for_status()
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 401:
-                raise EmailConfigurationError("Brevo API key was rejected (HTTP 401).") from e
+                raise EmailConfigurationError(
+                    "Brevo API key was rejected (HTTP 401)."
+                ) from e
             raise EmailDeliveryError(
                 f"Brevo API returned HTTP {e.response.status_code}."
             ) from e
         except httpx.HTTPError as e:
-            raise EmailDeliveryError(f"Brevo connection failed: {type(e).__name__}.") from e
+            raise EmailDeliveryError(
+                f"Brevo connection failed: {type(e).__name__}."
+            ) from e

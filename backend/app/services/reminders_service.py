@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import (
     ResourceNotFoundError,
     UnauthorizedOwnershipError,
-    ValidationError,
 )
 from app.core.time_utils import is_in_quiet_hours, safe_timezone
 from app.db.models.reminders import Reminder, ReminderAction
@@ -16,10 +15,14 @@ from app.schemas.reminders import ReminderActionRequest
 
 
 class RemindersService:
-    async def _calculate_reminder_due_at(self, db: AsyncSession, user_id: UUID, target_date: datetime | None) -> datetime | None:
+    async def _calculate_reminder_due_at(
+        self, db: AsyncSession, user_id: UUID, target_date: datetime | None
+    ) -> datetime | None:
         if not target_date:
             return None
-        settings = await db.scalar(select(UserSettings).where(UserSettings.user_id == user_id))
+        settings = await db.scalar(
+            select(UserSettings).where(UserSettings.user_id == user_id)
+        )
         lead = settings.milestone_reminder_lead_time_minutes if settings else 1440
         return target_date - timedelta(minutes=lead)
 
@@ -56,7 +59,9 @@ class RemindersService:
                 active_reminder.status = (
                     "COMPLETED" if milestone_status == "COMPLETED" else "CANCELLED"
                 )
-                active_reminder.completed_at = now if milestone_status == "COMPLETED" else None
+                active_reminder.completed_at = (
+                    now if milestone_status == "COMPLETED" else None
+                )
             await db.flush()
             return
         assert new_due_at is not None
@@ -127,7 +132,11 @@ class RemindersService:
         user_id: UUID,
     ) -> Reminder:
         await db.execute(select(User.id).where(User.id == user_id).with_for_update())
-        result = await db.execute(select(Reminder).where(Reminder.id == reminder_id, Reminder.user_id == user_id))
+        result = await db.execute(
+            select(Reminder).where(
+                Reminder.id == reminder_id, Reminder.user_id == user_id
+            )
+        )
         reminder = result.scalars().first()
 
         if not reminder:
@@ -145,6 +154,7 @@ class RemindersService:
 
         if action_type in ("REMIND_LATER", "MOVE_MILESTONE") and not obj_in.new_due_at:
             from app.core.errors import ValidationError
+
             raise ValidationError(f"{action_type} requires new_due_at")
 
         # Deduplicate identical semantic operations
@@ -152,10 +162,15 @@ class RemindersService:
             return reminder
         if action_type == "MOVE_MILESTONE" and reminder.milestone_id:
             from app.db.models.goals import Milestone
-            ms_result = await db.execute(select(Milestone).where(Milestone.id == reminder.milestone_id))
+
+            ms_result = await db.execute(
+                select(Milestone).where(Milestone.id == reminder.milestone_id)
+            )
             ms = ms_result.scalars().first()
             if ms and ms.due_at == obj_in.new_due_at:
-                expected_due_at = await self._calculate_reminder_due_at(db, user_id, obj_in.new_due_at)
+                expected_due_at = await self._calculate_reminder_due_at(
+                    db, user_id, obj_in.new_due_at
+                )
                 if reminder.due_at == expected_due_at:
                     return reminder
 
@@ -198,7 +213,6 @@ class RemindersService:
                     )
 
         elif action_type == "MOVE_MILESTONE" or action_type == "REMIND_LATER":
-
             if action_type == "MOVE_MILESTONE" and reminder.milestone_id:
                 from app.db.models.goals import Milestone
 
@@ -262,7 +276,6 @@ class RemindersService:
                     status="PLANNED",
                 )
                 db.add(block)
-
 
         db.add(reminder)
         await db.flush()

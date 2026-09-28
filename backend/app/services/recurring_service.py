@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.router import normalize
+from app.ai.nlu.router import normalize
 from app.core.errors import ResourceNotFoundError
 from app.db.models.tasks import WEEKDAY_COUNT, RecurringTask
 from app.schemas.drafts import TaskDraft
@@ -35,7 +35,9 @@ def to_response(template: RecurringTask) -> RecurringTaskResponse:
         importance=template.importance,
         category=template.category,
         frequency=template.frequency,  # type: ignore[arg-type]
-        weekdays=weekdays_of(template.weekday_mask) if template.frequency == "WEEKLY" else [],
+        weekdays=weekdays_of(template.weekday_mask)
+        if template.frequency == "WEEKLY"
+        else [],
         fixed_start_time=template.fixed_start_time,
         start_date=template.start_date,
         until_date=template.until_date,
@@ -49,7 +51,9 @@ async def list_active(db: AsyncSession, user_id: UUID) -> list[RecurringTask]:
         (
             await db.scalars(
                 select(RecurringTask)
-                .where(RecurringTask.user_id == user_id, RecurringTask.is_active.is_(True))
+                .where(
+                    RecurringTask.user_id == user_id, RecurringTask.is_active.is_(True)
+                )
                 .order_by(RecurringTask.created_at, RecurringTask.id)
             )
         ).all()

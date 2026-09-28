@@ -13,7 +13,7 @@ from app.ai.handlers.mood import tired_response
 from app.ai.handlers.planner import plan_day
 from app.ai.handlers.roadmap import roadmap
 from app.ai.handlers.rules import handle as handle_rule
-from app.ai.router import (
+from app.ai.nlu.router import (
     Intent,
     Route,
     classify_low_confidence,
@@ -22,10 +22,10 @@ from app.ai.router import (
     is_self_contained_day_plan,
     route,
 )
-from app.ai.router import normalize
+from app.ai.nlu.router import normalize
 from typing import cast
 from app.db.models.tasks import Task
-from app.ai.parser import ParsedPlan, ParsedTask
+from app.ai.nlu.parser import ParsedPlan, ParsedTask
 from sqlalchemy import or_, select
 from app.services.today_service import today_service
 from app.schemas.assistant import ChatRequest, ChatResponse
@@ -67,25 +67,38 @@ async def chat(
         tz = ZoneInfo("UTC")
     now = datetime.now(tz)
     if pending_intent and normalize(request.message) in {
-        "cancel", "cancel that", "never mind", "nevermind", "huy", "thoi"
+        "cancel",
+        "cancel that",
+        "never mind",
+        "nevermind",
+        "huy",
+        "thoi",
     }:
         return ChatResponse(
-            reply="Đã hủy câu hỏi đang chờ." if detect_lang(request.message) == "vi"
+            reply="Đã hủy câu hỏi đang chờ."
+            if detect_lang(request.message) == "vi"
             else "Okay, I cancelled that clarification.",
             intent=cast(Intent, pending_intent),
             tier="RULES",
         )
-    selected = route(request.message, has_draft=request.current_draft is not None,
-                     awaiting_answer=bool(pending_intent))
-    if pending_intent in {"PLAN_DAY", "CREATE_GOAL", "EDIT_DRAFT"} and selected.confidence < 0.7:
+    selected = route(
+        request.message,
+        has_draft=request.current_draft is not None,
+        awaiting_answer=bool(pending_intent),
+    )
+    if (
+        pending_intent in {"PLAN_DAY", "CREATE_GOAL", "EDIT_DRAFT"}
+        and selected.confidence < 0.7
+    ):
         selected = route(request.message, has_draft=request.current_draft is not None)
         selected = Route(cast(Intent, pending_intent), 0.8, "rules", selected.flags)
     elif db is not None and user_id is not None:
-        selected = await classify_low_confidence(request.message, selected, db, user_id, history)
-    fresh_intent = (
-        _starts_fresh_day_plan(request.message, selected)
-        or _starts_fresh_goal(request.message, selected)
-    )
+        selected = await classify_low_confidence(
+            request.message, selected, db, user_id, history
+        )
+    fresh_intent = _starts_fresh_day_plan(
+        request.message, selected
+    ) or _starts_fresh_goal(request.message, selected)
     effective_message = request.message
     effective_history = history
     if (
@@ -103,10 +116,20 @@ async def chat(
             raise ValueError("Authenticated database context required")
         context = await build_context(db, user_id, now)
         if selected.intent == "PLAN_DAY":
-            return await plan_day(effective_message, context, lang, history=effective_history,
-                                  light="tired" in selected.flags)
+            return await plan_day(
+                effective_message,
+                context,
+                lang,
+                history=effective_history,
+                light="tired" in selected.flags,
+            )
         if isinstance(request.current_draft, TodayDraft):
-            return await edit(effective_message, request.current_draft, context, history=effective_history)
+            return await edit(
+                effective_message,
+                request.current_draft,
+                context,
+                history=effective_history,
+            )
     if selected.intent == "CREATE_GOAL":
         return roadmap(effective_message, lang, today=now.date())
     if selected.intent == "MOOD":
@@ -115,22 +138,36 @@ async def chat(
         today = await today_service.get_today(db, user_id, now.date())
         if today["status"] != "NO_PLAN":
             return tired_response(lang, has_plan=True)
-        pending = (await db.scalars(
-            select(Task).where(
-                Task.user_id == user_id,
-                Task.status.in_({"PENDING", "DRAFT"}),
-                # Work saved for a later day is not today's to lighten.
-                or_(Task.planned_date.is_(None), Task.planned_date <= now.date()),
+        pending = (
+            await db.scalars(
+                select(Task)
+                .where(
+                    Task.user_id == user_id,
+                    Task.status.in_({"PENDING", "DRAFT"}),
+                    # Work saved for a later day is not today's to lighten.
+                    or_(Task.planned_date.is_(None), Task.planned_date <= now.date()),
+                )
+                .order_by(Task.created_at.desc())
+                .limit(2)
             )
-            .order_by(Task.created_at.desc()).limit(2)
-        )).all()
+        ).all()
         if pending:
             from app.ai.handlers.planner import _preview
+
             context = replace(await build_context(db, user_id, now), calibration={})
-            light = ParsedPlan(tasks=tuple(ParsedTask(
-                title=item.title, duration_min=min(25, item.estimated_duration_minutes),
-                source="RULE", importance="OPTIONAL", category=item.category,
-            ) for item in pending), confidence=1.0)
+            light = ParsedPlan(
+                tasks=tuple(
+                    ParsedTask(
+                        title=item.title,
+                        duration_min=min(25, item.estimated_duration_minutes),
+                        source="RULE",
+                        importance="OPTIONAL",
+                        category=item.category,
+                    )
+                    for item in pending
+                ),
+                confidence=1.0,
+            )
             result = await _preview(
                 light, context, lang, tier="RULES", include_carried=False
             )

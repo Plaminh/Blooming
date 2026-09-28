@@ -3,6 +3,7 @@ from typing import List
 from pydantic import BaseModel
 from uuid import UUID
 
+
 class SummaryMetrics(BaseModel):
     study_time_hours: int
     study_time_minutes: int
@@ -10,10 +11,12 @@ class SummaryMetrics(BaseModel):
     completed_plan_count: int
     unfinished_plan_count: int
 
+
 class DailyStudyEntry(BaseModel):
     day_label: str
     hours: float
     date: date
+
 
 class PlanHistoryItem(BaseModel):
     id: UUID
@@ -22,6 +25,7 @@ class PlanHistoryItem(BaseModel):
     completed_tasks: int
     total_tasks: int
     status: str
+
 
 class PlanHistoryResponse(BaseModel):
     items: List[PlanHistoryItem]

@@ -17,7 +17,11 @@ def roadmap(message: str, lang: str, *, today: date) -> ChatResponse:
         date_text = match.group(0)
     else:
         match = re.search(r"\b(\d{1,2})/(\d{1,2})/(20\d{2})\b", message)
-        target = date(int(match.group(3)), int(match.group(2)), int(match.group(1))) if match else None
+        target = (
+            date(int(match.group(3)), int(match.group(2)), int(match.group(1)))
+            if match
+            else None
+        )
         date_text = match.group(0) if match else None
     if target is None:
         match = re.search(
@@ -34,8 +38,14 @@ def roadmap(message: str, lang: str, *, today: date) -> ChatResponse:
     if target is None or target < today:
         return missing_goal_target_date(lang)
     title = message.replace(date_text, "") if date_text else message
-    title = re.sub(r"(?i)\b(i want to|create|goal|roadmap|target|by|mục tiêu|tạo|đến ngày)\b", " ", title)
-    title = re.sub(r"\s+", " ", title).strip(" .,:-") or ("Mục tiêu mới" if lang == "vi" else "New goal")
+    title = re.sub(
+        r"(?i)\b(i want to|create|goal|roadmap|target|by|mục tiêu|tạo|đến ngày)\b",
+        " ",
+        title,
+    )
+    title = re.sub(r"\s+", " ", title).strip(" .,:-") or (
+        "Mục tiêu mới" if lang == "vi" else "New goal"
+    )
     total_days = max(0, (target - today).days)
     milestone_count = 3
     labels = ["Define scope", "Build momentum", "Complete"]
@@ -60,12 +70,16 @@ def roadmap(message: str, lang: str, *, today: date) -> ChatResponse:
     )
     return ChatResponse(
         reply="I created a roadmap draft. Review it before saving.",
-        intent="CREATE_GOAL", tier="RULES", draft=draft,
+        intent="CREATE_GOAL",
+        tier="RULES",
+        draft=draft,
         degraded="RULES_ONLY",
-        assumptions=[Assumption(
-            id="roadmap-default-framework",
-            kind="FRAMEWORK",
-            text="Generated using Blooming's default 3-step roadmap framework.",
-        )],
+        assumptions=[
+            Assumption(
+                id="roadmap-default-framework",
+                kind="FRAMEWORK",
+                text="Generated using Blooming's default 3-step roadmap framework.",
+            )
+        ],
         suggestions=[QuickReply(label="Save to goals", action="SAVE_ROADMAP")],
     )

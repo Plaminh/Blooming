@@ -23,7 +23,9 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     session_id: str | None = None
     history: list[ChatTurn] = Field(default_factory=list, max_length=20)
-    current_draft: Annotated[RoadmapDraft | TodayDraft, Field(discriminator="type")] | None = None
+    current_draft: (
+        Annotated[RoadmapDraft | TodayDraft, Field(discriminator="type")] | None
+    ) = None
     garden: GardenContext | None = None
     tz: str = "UTC"
 
@@ -52,7 +54,12 @@ class QuickReply(BaseModel):
 
     @model_validator(mode="after")
     def one_command(self) -> "QuickReply":
-        if sum(value is not None for value in (self.action, self.send_text, self.patch)) != 1:
+        if (
+            sum(
+                value is not None for value in (self.action, self.send_text, self.patch)
+            )
+            != 1
+        ):
             raise ValueError("Quick reply needs exactly one command")
         return self
 
@@ -70,7 +77,9 @@ class ChatResponse(BaseModel):
     intent: str | None = None
     tier: str = "PARSER"
     degraded: str | None = None
-    draft: Annotated[RoadmapDraft | TodayDraft, Field(discriminator="type")] | None = None
+    draft: Annotated[RoadmapDraft | TodayDraft, Field(discriminator="type")] | None = (
+        None
+    )
     preview: TodayPreviewResponse | None = None
     goal_created: dict | None = None
     suggestions: list[QuickReply] = Field(default_factory=list, max_length=4)

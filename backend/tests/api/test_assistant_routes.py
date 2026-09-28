@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 
 import pytest
-from app.ai.providers import LLMError, llm_provider
+from app.ai.llm.providers import LLMError, llm_provider
 from app.core.config import settings
 from app.db.models.goals import Goal, Milestone
 from app.db.models.planning import PlanningSession
@@ -35,14 +35,20 @@ async def test_authenticated_chat_degrades_when_quota_is_unavailable(
 
 @pytest.mark.asyncio
 async def test_rules_only_budget_never_calls_provider(
-    async_client: AsyncClient, auth_headers: dict[str, str], monkeypatch,
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
 ):
-    monkeypatch.setattr(settings, "AI_TOKEN_BUDGET_24H",
-        {model: 0 for model in settings.AI_TOKEN_BUDGET_24H})
+    monkeypatch.setattr(
+        settings,
+        "AI_TOKEN_BUDGET_24H",
+        {model: 0 for model in settings.AI_TOKEN_BUDGET_24H},
+    )
     provider_call = AsyncMock()
     monkeypatch.setattr(llm_provider, "call", provider_call)
-    response = await async_client.post("/api/v1/assistant/chat", headers=auth_headers,
-        json={"message": "Plan my day"})
+    response = await async_client.post(
+        "/api/v1/assistant/chat", headers=auth_headers, json={"message": "Plan my day"}
+    )
     assert response.status_code == 200, response.text
     assert response.json()["degraded"] in ("RULES_ONLY", "LLM_FAILED")
     provider_call.assert_not_awaited()
@@ -118,15 +124,27 @@ async def test_explicit_day_plan_uses_llm(
     auth_headers: dict[str, str],
     monkeypatch,
 ):
-    provider_call = AsyncMock(return_value={
-        "reply": "Here is your plan.",
-        "tasks": [
-            {"title": "study", "duration_min": 60, "priority": "MEDIUM", "importance": "CORE"},
-            {"title": "write report", "duration_min": 30, "priority": "MEDIUM", "importance": "CORE"}
-        ],
-        "windows": [],
-        "assumptions": []
-    })
+    provider_call = AsyncMock(
+        return_value={
+            "reply": "Here is your plan.",
+            "tasks": [
+                {
+                    "title": "study",
+                    "duration_min": 60,
+                    "priority": "MEDIUM",
+                    "importance": "CORE",
+                },
+                {
+                    "title": "write report",
+                    "duration_min": 30,
+                    "priority": "MEDIUM",
+                    "importance": "CORE",
+                },
+            ],
+            "windows": [],
+            "assumptions": [],
+        }
+    )
     monkeypatch.setattr(llm_provider, "call", provider_call)
     response = await async_client.post(
         "/api/v1/assistant/chat",
@@ -137,11 +155,9 @@ async def test_explicit_day_plan_uses_llm(
     data = response.json()
     assert data["tier"] == "LLM"
     assert data["draft"]["tasks"][0]["title"] == "study"
-    
+
     preview_response = await async_client.post(
-        "/api/v1/today/preview",
-        headers=auth_headers,
-        json={"draft": data["draft"]}
+        "/api/v1/today/preview", headers=auth_headers, json={"draft": data["draft"]}
     )
     preview_data = preview_response.json()
     assert preview_data["preview_token"]
@@ -156,15 +172,27 @@ async def test_overloaded_plan_uses_llm_and_scheduler(
     auth_headers: dict[str, str],
     monkeypatch,
 ):
-    provider_call = AsyncMock(return_value={
-        "reply": "Here is your plan.",
-        "tasks": [
-            {"title": "học", "duration_min": 60, "priority": "MEDIUM", "importance": "CORE"},
-            {"title": "viết báo cáo", "duration_min": 60, "priority": "MEDIUM", "importance": "CORE"}
-        ],
-        "windows": [["09:00", "10:00"]],
-        "assumptions": []
-    })
+    provider_call = AsyncMock(
+        return_value={
+            "reply": "Here is your plan.",
+            "tasks": [
+                {
+                    "title": "học",
+                    "duration_min": 60,
+                    "priority": "MEDIUM",
+                    "importance": "CORE",
+                },
+                {
+                    "title": "viết báo cáo",
+                    "duration_min": 60,
+                    "priority": "MEDIUM",
+                    "importance": "CORE",
+                },
+            ],
+            "windows": [["09:00", "10:00"]],
+            "assumptions": [],
+        }
+    )
     monkeypatch.setattr(llm_provider, "call", provider_call)
     response = await async_client.post(
         "/api/v1/assistant/chat",
@@ -174,11 +202,9 @@ async def test_overloaded_plan_uses_llm_and_scheduler(
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["tier"] == "LLM"
-    
+
     preview_response = await async_client.post(
-        "/api/v1/today/preview",
-        headers=auth_headers,
-        json={"draft": data["draft"]}
+        "/api/v1/today/preview", headers=auth_headers, json={"draft": data["draft"]}
     )
     preview_data = preview_response.json()
     assert preview_data["reality_check"] == "OVERLOADED"
@@ -215,20 +241,32 @@ async def test_session_reload_is_owned_and_contains_persisted_messages(
 
 @pytest.mark.asyncio
 async def test_idle_session_is_closed_and_new_session_is_started(
-    async_client: AsyncClient, auth_headers: dict[str, str], db_session, monkeypatch,
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    db_session,
+    monkeypatch,
 ):
-    first = await async_client.post("/api/v1/assistant/chat", headers=auth_headers,
-                                    json={"message": "Hello"})
+    first = await async_client.post(
+        "/api/v1/assistant/chat", headers=auth_headers, json={"message": "Hello"}
+    )
     old_id = UUID(first.json()["session_id"])
-    from app.api.routes import assistant as assistant_routes
+
     class FutureDatetime(datetime):
         @classmethod
         def now(cls, tz=None):
             future = datetime.now(timezone.utc) + timedelta(hours=13)
             return future.astimezone(tz) if tz else future.replace(tzinfo=None)
-    monkeypatch.setattr(assistant_routes, "datetime", FutureDatetime)
-    second = await async_client.post("/api/v1/assistant/chat", headers=auth_headers,
-        json={"message": "Hello", "session_id": str(old_id)})
+
+    import app.repositories.assistant
+    import app.services.assistant_orchestrator
+
+    monkeypatch.setattr(app.repositories.assistant, "datetime", FutureDatetime)
+    monkeypatch.setattr(app.services.assistant_orchestrator, "datetime", FutureDatetime)
+    second = await async_client.post(
+        "/api/v1/assistant/chat",
+        headers=auth_headers,
+        json={"message": "Hello", "session_id": str(old_id)},
+    )
     assert second.status_code == 200
     assert second.json()["session_id"] != str(old_id)
     await db_session.refresh(await db_session.get(PlanningSession, old_id))
@@ -237,18 +275,26 @@ async def test_idle_session_is_closed_and_new_session_is_started(
 
 @pytest.mark.asyncio
 async def test_pending_goal_intent_uses_persisted_history(
-    async_client: AsyncClient, auth_headers: dict[str, str], db_session,
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    db_session,
 ):
-    first = await async_client.post("/api/v1/assistant/chat", headers=auth_headers,
-        json={"message": "Create a goal to learn guitar"})
+    first = await async_client.post(
+        "/api/v1/assistant/chat",
+        headers=auth_headers,
+        json={"message": "Create a goal to learn guitar"},
+    )
     assert first.json()["question"]
     session_id = UUID(first.json()["session_id"])
     state = await db_session.get(PlanningSession, session_id)
     await db_session.refresh(state)
     assert state.session_type == "ROADMAP"
     assert state.pending_intent == "CREATE_GOAL"
-    second = await async_client.post("/api/v1/assistant/chat", headers=auth_headers,
-        json={"message": "2030-01-01", "session_id": str(session_id)})
+    second = await async_client.post(
+        "/api/v1/assistant/chat",
+        headers=auth_headers,
+        json={"message": "2030-01-01", "session_id": str(session_id)},
+    )
     assert second.status_code == 200, second.text
     assert second.json()["draft"]["goalTitle"].lower().find("guitar") >= 0
     await db_session.refresh(state)
@@ -257,19 +303,33 @@ async def test_pending_goal_intent_uses_persisted_history(
 
 @pytest.mark.asyncio
 async def test_tired_user_without_plan_gets_light_draft_from_pending_work(
-    async_client: AsyncClient, auth_headers: dict[str, str], test_user, db_session,
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    test_user,
+    db_session,
 ):
-    db_session.add(Task(user_id=test_user.id, title="Prepare report",
-        estimated_duration_minutes=90, category="Work", source="AI", status="PENDING"))
+    db_session.add(
+        Task(
+            user_id=test_user.id,
+            title="Prepare report",
+            estimated_duration_minutes=90,
+            category="Work",
+            source="AI",
+            status="PENDING",
+        )
+    )
     await db_session.commit()
-    response = await async_client.post("/api/v1/assistant/chat", headers=auth_headers,
-        json={"message": "I'm tired"})
+    response = await async_client.post(
+        "/api/v1/assistant/chat", headers=auth_headers, json={"message": "I'm tired"}
+    )
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["intent"] == "MOOD"
     assert body["draft"]["tasks"][0]["importance"] == "OPTIONAL"
     assert body["draft"]["tasks"][0]["durationMin"] <= 25
-    assert all(item.get("action") != "SKIP_OPTIONAL_TODAY" for item in body["suggestions"])
+    assert all(
+        item.get("action") != "SKIP_OPTIONAL_TODAY" for item in body["suggestions"]
+    )
 
 
 @pytest.mark.asyncio
@@ -309,7 +369,9 @@ async def test_edit_04_session_clarification_resolves_duplicate_by_ordinal(
     durations: list[int],
 ):
     draft = {
-        "type": "today", "planDate": date.today().isoformat(), "timezone": "UTC",
+        "type": "today",
+        "planDate": date.today().isoformat(),
+        "timezone": "UTC",
         "windows": [{"start": "09:00", "end": "17:00"}],
         "tasks": [
             {"id": "review-1", "title": "Review notes", "durationMin": 30},
@@ -317,7 +379,8 @@ async def test_edit_04_session_clarification_resolves_duplicate_by_ordinal(
         ],
     }
     first = await async_client.post(
-        "/api/v1/assistant/chat", headers=auth_headers,
+        "/api/v1/assistant/chat",
+        headers=auth_headers,
         json={"message": "Change Review notes to 20 minutes.", "current_draft": draft},
     )
     assert first.status_code == 200, first.text
@@ -326,7 +389,8 @@ async def test_edit_04_session_clarification_resolves_duplicate_by_ordinal(
     assert [task["durationMin"] for task in first_body["draft"]["tasks"]] == [30, 25]
 
     second = await async_client.post(
-        "/api/v1/assistant/chat", headers=auth_headers,
+        "/api/v1/assistant/chat",
+        headers=auth_headers,
         json={
             "message": answer,
             "session_id": first_body["session_id"],
@@ -349,23 +413,32 @@ async def test_new_explicit_today_plan_clears_stale_edit_clarification(
 ):
     plan_date = date.today().isoformat()
     conflicting_draft = {
-        "type": "today", "planDate": plan_date, "timezone": "UTC",
+        "type": "today",
+        "planDate": plan_date,
+        "timezone": "UTC",
         "windows": [{"start": "09:00", "end": "12:00"}],
         "tasks": [
             {
-                "id": "old-1", "title": "Review notes", "durationMin": 60,
-                "schedulingType": "FIXED", "fixedStart": f"{plan_date}T09:00:00",
+                "id": "old-1",
+                "title": "Review notes",
+                "durationMin": 60,
+                "schedulingType": "FIXED",
+                "fixedStart": f"{plan_date}T09:00:00",
                 "fixedEnd": f"{plan_date}T10:00:00",
             },
             {
-                "id": "old-2", "title": "Review notes", "durationMin": 60,
-                "schedulingType": "FIXED", "fixedStart": f"{plan_date}T09:30:00",
+                "id": "old-2",
+                "title": "Review notes",
+                "durationMin": 60,
+                "schedulingType": "FIXED",
+                "fixedStart": f"{plan_date}T09:30:00",
                 "fixedEnd": f"{plan_date}T10:30:00",
             },
         ],
     }
     first = await async_client.post(
-        "/api/v1/assistant/chat", headers=auth_headers,
+        "/api/v1/assistant/chat",
+        headers=auth_headers,
         json={
             "message": "Change Review notes to 20 minutes.",
             "current_draft": conflicting_draft,
@@ -376,7 +449,8 @@ async def test_new_explicit_today_plan_clears_stale_edit_clarification(
     assert first_body["question"] == "Which task did you mean?"
 
     second = await async_client.post(
-        "/api/v1/assistant/chat", headers=auth_headers,
+        "/api/v1/assistant/chat",
+        headers=auth_headers,
         json={
             "message": "Today from 7 PM to 9 PM, review database systems for 1 hour.",
             "session_id": first_body["session_id"],
@@ -388,9 +462,9 @@ async def test_new_explicit_today_plan_clears_stale_edit_clarification(
     assert body["intent"] == "PLAN_DAY"
     assert body["question"] is None
     assert body["preview"] is None
-    assert [(task["title"], task["durationMin"]) for task in body["draft"]["tasks"]] == [
-        ("Review database systems", 60)
-    ]
+    assert [
+        (task["title"], task["durationMin"]) for task in body["draft"]["tasks"]
+    ] == [("Review database systems", 60)]
     assert body["draft"]["windows"] == [{"start": "19:00", "end": "21:00"}]
 
     state = await db_session.get(PlanningSession, UUID(body["session_id"]))
@@ -407,7 +481,9 @@ async def test_explicit_goal_clears_today_edit_state_without_persisting_goal(
 ):
     plan_date = date.today().isoformat()
     today_draft = {
-        "type": "today", "planDate": plan_date, "timezone": "UTC",
+        "type": "today",
+        "planDate": plan_date,
+        "timezone": "UTC",
         "windows": [{"start": "09:00", "end": "17:00"}],
         "tasks": [
             {"id": "old-1", "title": "Review notes", "durationMin": 30},
@@ -415,7 +491,8 @@ async def test_explicit_goal_clears_today_edit_state_without_persisting_goal(
         ],
     }
     clarification = await async_client.post(
-        "/api/v1/assistant/chat", headers=auth_headers,
+        "/api/v1/assistant/chat",
+        headers=auth_headers,
         json={
             "message": "Change Review notes to 20 minutes.",
             "current_draft": today_draft,
@@ -426,7 +503,8 @@ async def test_explicit_goal_clears_today_edit_state_without_persisting_goal(
     goals_before = await db_session.scalar(select(func.count(Goal.id)))
 
     response = await async_client.post(
-        "/api/v1/assistant/chat", headers=auth_headers,
+        "/api/v1/assistant/chat",
+        headers=auth_headers,
         json={
             "message": "I want to finish my AI course project by October 30, 2026.",
             "session_id": clarification_body["session_id"],
@@ -461,14 +539,12 @@ async def test_successful_today_save_completes_planning_session(
         json={"message": "Plan my day: study 60 min"},
     )
     body = chat_response.json()
-    
+
     preview_response = await async_client.post(
-        "/api/v1/today/preview",
-        headers=auth_headers,
-        json={"draft": body["draft"]}
+        "/api/v1/today/preview", headers=auth_headers, json={"draft": body["draft"]}
     )
     preview_data = preview_response.json()
-    
+
     saved = await async_client.post(
         "/api/v1/today/save",
         headers=auth_headers,

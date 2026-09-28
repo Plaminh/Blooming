@@ -16,6 +16,7 @@ from app.services.planning_service import planning_service
 
 router = APIRouter(prefix="/planning", tags=["planning"])
 
+
 @router.post("/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(
     *,
@@ -23,7 +24,10 @@ async def create_task(
     current_user: CurrentUser,
     task_in: TaskCreate,
 ):
-    return await planning_service.create_task(db=db, obj_in=task_in, user_id=current_user.id)
+    return await planning_service.create_task(
+        db=db, obj_in=task_in, user_id=current_user.id
+    )
+
 
 @router.patch("/tasks/{task_id}", response_model=TaskResponse)
 async def update_task(
@@ -33,7 +37,10 @@ async def update_task(
     task_id: UUID,
     task_in: TaskUpdate,
 ):
-    return await planning_service.update_task(db=db, task_id=task_id, obj_in=task_in, user_id=current_user.id)
+    return await planning_service.update_task(
+        db=db, task_id=task_id, obj_in=task_in, user_id=current_user.id
+    )
+
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(
@@ -42,7 +49,10 @@ async def get_task(
     current_user: CurrentUser,
     task_id: UUID,
 ):
-    return await planning_service.get_task(db=db, task_id=task_id, user_id=current_user.id)
+    return await planning_service.get_task(
+        db=db, task_id=task_id, user_id=current_user.id
+    )
+
 
 @router.get("/tasks", response_model=list[TaskResponse])
 async def list_tasks(
@@ -52,7 +62,10 @@ async def list_tasks(
     skip: int = 0,
     limit: int = 100,
 ):
-    return await planning_service.list_tasks(db=db, user_id=current_user.id, skip=skip, limit=limit)
+    return await planning_service.list_tasks(
+        db=db, user_id=current_user.id, skip=skip, limit=limit
+    )
+
 
 @router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task(
@@ -63,6 +76,7 @@ async def delete_task(
 ):
     await planning_service.delete_task(db=db, task_id=task_id, user_id=current_user.id)
 
+
 @router.post("/timeline/generate", response_model=TimelineDraftResponse)
 async def generate_timeline(
     *,
@@ -70,7 +84,10 @@ async def generate_timeline(
     current_user: CurrentUser,
     request: TimelineGenerateRequest,
 ):
-    return await planning_service.generate_timeline(db=db, request=request, user_id=current_user.id)
+    return await planning_service.generate_timeline(
+        db=db, request=request, user_id=current_user.id
+    )
+
 
 @router.post("/daily-plans", response_model=DailyPlanResponse)
 async def save_daily_plan(
@@ -79,7 +96,9 @@ async def save_daily_plan(
     current_user: CurrentUser,
     request: SaveDailyPlanRequest,
 ):
-    plan = await planning_service.save_daily_plan(db=db, request=request, user_id=current_user.id)
+    plan = await planning_service.save_daily_plan(
+        db=db, request=request, user_id=current_user.id
+    )
     # The return object from service is a DB DailyPlan model
     blocks = [
         {
@@ -89,7 +108,7 @@ async def save_daily_plan(
             "planned_start_at": b.planned_start_at,
             "planned_end_at": b.planned_end_at,
             "position": b.position,
-            "status": b.status
+            "status": b.status,
         }
         for b in plan.plan_blocks
     ]
@@ -100,5 +119,5 @@ async def save_daily_plan(
         "status": plan.status,
         "reality_check": plan.reality_check,
         "timezone_snapshot": plan.timezone_snapshot,
-        "blocks": blocks
+        "blocks": blocks,
     }

@@ -9,6 +9,7 @@ import warnings
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 _REPO_ROOT = _BACKEND_DIR.parent
 
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=(_REPO_ROOT / ".env", _BACKEND_DIR / ".env"),
@@ -89,16 +90,26 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_environment_and_secrets(self) -> "Settings":
         secret_val = self.SECRET_KEY.get_secret_value()
-        if len(secret_val) < 32 or secret_val == "your-super-secret-key-that-is-at-least-32-bytes-long":
-            raise ValueError("SECRET_KEY must be at least 32 characters long and not a weak default")
-        
+        if (
+            len(secret_val) < 32
+            or secret_val == "your-super-secret-key-that-is-at-least-32-bytes-long"
+        ):
+            raise ValueError(
+                "SECRET_KEY must be at least 32 characters long and not a weak default"
+            )
+
         if self.ENVIRONMENT in ("production", "staging"):
             if not self.BREVO_API_KEY or not self.BREVO_SENDER_EMAIL:
-                raise ValueError("BREVO_API_KEY and BREVO_SENDER_EMAIL are required in production/staging")
+                raise ValueError(
+                    "BREVO_API_KEY and BREVO_SENDER_EMAIL are required in production/staging"
+                )
         else:
             if not self.BREVO_API_KEY or not self.BREVO_SENDER_EMAIL:
-                warnings.warn("Starting in development without BREVO_API_KEY or BREVO_SENDER_EMAIL. Email features will return safe errors.")
+                warnings.warn(
+                    "Starting in development without BREVO_API_KEY or BREVO_SENDER_EMAIL. Email features will return safe errors."
+                )
 
         return self
+
 
 settings = Settings()  # type: ignore[call-arg]  # Required fields come from the environment.

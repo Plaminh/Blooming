@@ -1,6 +1,6 @@
 """Conservative duration estimates for explicit but untimed tasks."""
 
-from app.ai.router import normalize
+from app.ai.nlu.router import normalize
 
 ESTIMATES: tuple[tuple[tuple[str, ...], int, str], ...] = (
     (("bai tap", "homework", "lap trinh", "coding", "code", "lab"), 90, "Learning"),

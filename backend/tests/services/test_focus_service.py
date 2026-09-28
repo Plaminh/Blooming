@@ -217,29 +217,35 @@ async def test_semantic_missing_session_errors(db_session, test_user):
             db_session, test_user.id, FocusSessionFinish(run_id=uuid4(), outcome="DONE")
         )
 
-async def test_focus_outcome_completes_daily_plan(db_session, test_user, test_task, test_daily_plan, test_plan_block, clock):
-    from sqlalchemy import select
-    from app.db.models.daily_plans import DailyPlan
+
+async def test_focus_outcome_completes_daily_plan(
+    db_session, test_user, test_task, test_daily_plan, test_plan_block, clock
+):
+
     run = await start(db_session, test_user, test_task)
     clock.advance(600)
     await focus_service.finish_session(
         db_session,
         test_user.id,
-        FocusSessionFinish(run_id=run.id, outcome="DONE", should_replan=False)
+        FocusSessionFinish(run_id=run.id, outcome="DONE", should_replan=False),
     )
     await db_session.refresh(test_daily_plan)
     assert test_daily_plan.status == "COMPLETED"
     assert test_daily_plan.completed_at is not None
 
-async def test_focus_outcome_need_more_time_keeps_plan_active(db_session, test_user, test_task, test_daily_plan, test_plan_block, clock):
-    from sqlalchemy import select
-    from app.db.models.daily_plans import DailyPlan
+
+async def test_focus_outcome_need_more_time_keeps_plan_active(
+    db_session, test_user, test_task, test_daily_plan, test_plan_block, clock
+):
+
     run = await start(db_session, test_user, test_task)
     clock.advance(600)
     await focus_service.finish_session(
         db_session,
         test_user.id,
-        FocusSessionFinish(run_id=run.id, outcome="NEED_MORE_TIME", should_replan=False)
+        FocusSessionFinish(
+            run_id=run.id, outcome="NEED_MORE_TIME", should_replan=False
+        ),
     )
     await db_session.refresh(test_daily_plan)
     assert test_daily_plan.status == "ACTIVE"

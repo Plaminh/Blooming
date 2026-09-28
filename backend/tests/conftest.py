@@ -51,10 +51,15 @@ def clock(monkeypatch):
         "reminders_service",
         "garden_service",
         "today_service",
+        "plans.today_query",
+        "plans.draft_preview",
+        "plans.draft_save",
+        "plans.replan",
+        "plans.task_status",
     ):
-        monkeypatch.setattr(
-            importlib.import_module(f"app.services.{name}"), "datetime", Clock
-        )
+        module = importlib.import_module(f"app.services.{name}")
+        if hasattr(module, "datetime"):
+            monkeypatch.setattr(module, "datetime", Clock)
     monkeypatch.setattr(importlib.import_module("app.core.economy"), "datetime", Clock)
     return Clock
 
@@ -115,7 +120,7 @@ async def engine_and_template():
     Creates a unique template database and initializes the schema on it.
     """
     if not DATABASE_DIR.exists() or not any((DATABASE_DIR / "tables").iterdir()):
-        raise RuntimeError(f"Database tables directory is missing or empty.")
+        raise RuntimeError("Database tables directory is missing or empty.")
 
     test_db_url = os.getenv("TEST_DATABASE_URL")
     container = None
@@ -165,15 +170,17 @@ async def engine_and_template():
             async with template_engine.begin() as conn:
                 # Read install.sql to get the exact order of tables
                 install_sql_path = DATABASE_DIR / "install.sql"
-                install_lines = install_sql_path.read_text(encoding="utf-8").splitlines()
-                
+                install_lines = install_sql_path.read_text(
+                    encoding="utf-8"
+                ).splitlines()
+
                 for line in install_lines:
                     line = line.strip()
-                    if line.startswith(r'\ir '):
-                        rel_path = line.split(' ')[1]
+                    if line.startswith(r"\ir "):
+                        rel_path = line.split(" ")[1]
                         sql_path = DATABASE_DIR / rel_path
                         sql = sql_path.read_text(encoding="utf-8")
-                        
+
                         raw_conn = await conn.get_raw_connection()
                         await raw_conn.driver_connection.execute(sql)
         finally:

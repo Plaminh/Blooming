@@ -154,9 +154,7 @@ class AvailabilityWindow(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    daily_plan: Mapped[DailyPlan] = relationship(
-        back_populates="availability_windows"
-    )
+    daily_plan: Mapped[DailyPlan] = relationship(back_populates="availability_windows")
 
 
 class PlanBlock(Base):
@@ -259,9 +257,7 @@ class PlanRevision(Base):
     __tablename__ = "plan_revisions"
     __table_args__ = (
         CheckConstraint("revision_number >= 1", name="plan_revisions_number_valid"),
-        CheckConstraint(
-            "BTRIM(reason) <> ''", name="plan_revisions_reason_not_blank"
-        ),
+        CheckConstraint("BTRIM(reason) <> ''", name="plan_revisions_reason_not_blank"),
         CheckConstraint(
             "trigger_type IN ('MANUAL_EDIT', 'DELAY', 'NEED_MORE_TIME', 'SKIP',"
             " 'CONFLICT', 'RECOVERY')",

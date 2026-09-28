@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.ai.budget import (
+from app.ai.llm.budget import (
     BudgetMode,
     available_routes,
     get_budget_mode,
@@ -40,9 +40,7 @@ async def test_budget_thresholds_are_evaluated_per_model():
 @pytest.mark.asyncio
 async def test_exhausted_model_is_removed_without_blocking_other_models():
     exhausted = "llama-3.1-8b-instant"
-    db = _db_with_usage(
-        [(exhausted, settings.AI_TOKEN_BUDGET_24H[exhausted] * 0.90)]
-    )
+    db = _db_with_usage([(exhausted, settings.AI_TOKEN_BUDGET_24H[exhausted] * 0.90)])
     routes = await available_routes(
         db,
         "groq:llama-3.1-8b-instant,groq:openai/gpt-oss-20b",

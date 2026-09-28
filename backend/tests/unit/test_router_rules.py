@@ -2,10 +2,10 @@ import pytest
 from unittest.mock import AsyncMock
 from uuid import uuid4
 from app.ai.handlers.chitchat import reply as chitchat_reply
-from app.ai.router import detect_lang, normalize, route
-from app.ai.router import classify_low_confidence
-from app.ai import budget
-from app.ai.providers import llm_provider
+from app.ai.nlu.router import detect_lang, normalize, route
+from app.ai.nlu.router import classify_low_confidence
+from app.ai.llm import budget
+from app.ai.llm.providers import llm_provider
 
 
 @pytest.mark.parametrize(
@@ -129,13 +129,16 @@ def test_chitchat_templates_return_to_planning_without_model():
     assert "plan" in chitchat_reply("Tell me more", "en", streak=3)
 
 
-@pytest.mark.parametrize("message", [
-    "Plan 30 minutes of reading today",
-    "Schedule study for one hour at 14:00",
-    "I have two hours for a report and email",
-    "Plan a calm afternoon",
-    "Help me split a long study session",
-])
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Plan 30 minutes of reading today",
+        "Schedule study for one hour at 14:00",
+        "I have two hours for a report and email",
+        "Plan a calm afternoon",
+        "Help me split a long study session",
+    ],
+)
 def test_explicit_planning_language_routes_without_classifier(message):
     selected = route(message)
     assert selected.intent == "PLAN_DAY"
@@ -175,22 +178,37 @@ def test_task_candidate_fallback_preserves_conversation_routes(message, intent):
 
 @pytest.mark.asyncio
 async def test_low_confidence_uses_budgeted_classifier_and_db_history(monkeypatch):
-    monkeypatch.setattr(budget, "get_budget_mode", AsyncMock(return_value=budget.BudgetMode.NORMAL))
-    monkeypatch.setattr(budget, "available_routes", AsyncMock(return_value="ollama:small"))
+    monkeypatch.setattr(
+        budget, "get_budget_mode", AsyncMock(return_value=budget.BudgetMode.NORMAL)
+    )
+    monkeypatch.setattr(
+        budget, "available_routes", AsyncMock(return_value="ollama:small")
+    )
     provider_call = AsyncMock(return_value={"intent": "CREATE_GOAL"})
     monkeypatch.setattr(llm_provider, "call", provider_call)
-    selected = await classify_low_confidence("Help with a project", route("Help with a project"),
-        AsyncMock(), uuid4(), [{"role": "user", "content": "I want a long term outcome"}])
+    selected = await classify_low_confidence(
+        "Help with a project",
+        route("Help with a project"),
+        AsyncMock(),
+        uuid4(),
+        [{"role": "user", "content": "I want a long term outcome"}],
+    )
     assert selected.intent == "CREATE_GOAL"
     assert selected.source == "llm"
     assert provider_call.await_args.kwargs["purpose"] == "ROUTER"
-    assert provider_call.await_args.args[1][1]["content"] == "I want a long term outcome"
+    assert (
+        provider_call.await_args.args[1][1]["content"] == "I want a long term outcome"
+    )
 
 
 @pytest.mark.asyncio
 async def test_task_candidate_gets_semantic_classifier_opportunity(monkeypatch):
-    monkeypatch.setattr(budget, "get_budget_mode", AsyncMock(return_value=budget.BudgetMode.NORMAL))
-    monkeypatch.setattr(budget, "available_routes", AsyncMock(return_value="ollama:small"))
+    monkeypatch.setattr(
+        budget, "get_budget_mode", AsyncMock(return_value=budget.BudgetMode.NORMAL)
+    )
+    monkeypatch.setattr(
+        budget, "available_routes", AsyncMock(return_value="ollama:small")
+    )
     provider_call = AsyncMock(return_value={"intent": "PLAN_DAY"})
     monkeypatch.setattr(llm_provider, "call", provider_call)
 

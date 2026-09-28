@@ -1,10 +1,10 @@
 import pytest
-from datetime import date, timedelta
+from datetime import date
 from uuid import uuid4
 
 from app.schemas.drafts import TaskDraft, TodayDraft
 from app.schemas.patches import PatchOp
-from app.ai.patches import apply_patch
+from app.ai.drafting.patches import apply_patch
 from pydantic import TypeAdapter
 
 
@@ -138,18 +138,14 @@ def test_ED_005_unique_article_difference_combines_duration_and_importance():
 
 def test_ED_006_article_near_match_requires_unique_candidate():
     draft = create_test_draft()
-    draft.tasks.append(
-        TaskDraft(id="d4", title="Read Project Book", durationMin=40)
-    )
+    draft.tasks.append(TaskDraft(id="d4", title="Read Project Book", durationMin=40))
     with pytest.raises(ValueError, match="Which task did you mean"):
         parse_edit("Change Read a book to 20 minutes and mark it optional.", draft)
 
 
 def test_ED_007_exact_title_still_wins_over_near_candidate():
     draft = create_test_draft()
-    draft.tasks.append(
-        TaskDraft(id="d4", title="Read Project Book", durationMin=40)
-    )
+    draft.tasks.append(TaskDraft(id="d4", title="Read Project Book", durationMin=40))
     ops = parse_edit("Change Read Book to 20 minutes", draft)
     assert ops is not None
     assert ops[0].task_id == "d1"
@@ -162,9 +158,9 @@ async def test_ED_deterministic_edit_makes_zero_llm_calls(monkeypatch):
     from unittest.mock import AsyncMock
     from zoneinfo import ZoneInfo
 
-    from app.ai.budget import BudgetMode
+    from app.ai.llm.budget import BudgetMode
     from app.ai.handlers.editor import edit
-    from app.ai.providers import llm_provider
+    from app.ai.llm.providers import llm_provider
 
     provider_call = AsyncMock()
     monkeypatch.setattr(llm_provider, "call", provider_call)

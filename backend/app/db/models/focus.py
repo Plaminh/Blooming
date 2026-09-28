@@ -68,8 +68,7 @@ class FocusRun(Base):
             name="focus_runs_expected_end_valid",
         ),
         CheckConstraint(
-            "ended_at IS NULL"
-            " OR (started_at IS NOT NULL AND ended_at >= started_at)",
+            "ended_at IS NULL OR (started_at IS NOT NULL AND ended_at >= started_at)",
             name="focus_runs_end_valid",
         ),
         CheckConstraint(

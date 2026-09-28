@@ -31,7 +31,12 @@ class NudgeGate:
         if key in self._seen_events:
             return None
         self._seen_events.add(key)
-        if event_name not in {"NEED_MORE_TIME", "SKIP", "BEHIND_SCHEDULE", "MORNING_NO_PLAN"}:
+        if event_name not in {
+            "NEED_MORE_TIME",
+            "SKIP",
+            "BEHIND_SCHEDULE",
+            "MORNING_NO_PLAN",
+        }:
             return None
         if event_name in {"NEED_MORE_TIME", "SKIP"}:
             if consecutive_count is None:
@@ -61,9 +66,14 @@ class NudgeGate:
         self._last_by_user[user_id] = local_now
         return {
             "id": event_id,
-            "message": ("Would you like to make a plan for today?" if event_name == "MORNING_NO_PLAN"
-                        else "Your schedule changed. Would you like to replan the rest of today?"),
-            "action": "PLAN_TODAY" if event_name == "MORNING_NO_PLAN" else "REPLAN_TODAY",
+            "message": (
+                "Would you like to make a plan for today?"
+                if event_name == "MORNING_NO_PLAN"
+                else "Your schedule changed. Would you like to replan the rest of today?"
+            ),
+            "action": "PLAN_TODAY"
+            if event_name == "MORNING_NO_PLAN"
+            else "REPLAN_TODAY",
         }
 
 

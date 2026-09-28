@@ -4,10 +4,10 @@ from sqlalchemy import select
 from app.db.models.users import User
 from app.schemas.user import UserUpdate
 
+
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
     result = await db.execute(select(User).where(User.email == email))
     return result.scalars().first()
-
 
 
 async def update_user(db: AsyncSession, user: User, user_in: UserUpdate) -> User:

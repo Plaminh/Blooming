@@ -20,9 +20,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from unittest.mock import AsyncMock, create_autospec
 
 from app.ai.context import ChatContext
-from app.ai.budget import BudgetMode
+from app.ai.llm.budget import BudgetMode
 from app.ai.handlers import planner
-from app.ai.validators import check_today
+from app.ai.drafting.validators import check_today
 
 
 @pytest.mark.skipif(
@@ -36,13 +36,21 @@ from app.ai.validators import check_today
             "Today I need to study algorithms for 1 hour, write the report for 45 minutes, "
             "and optionally read a book for 30 minutes. I am available from 1 PM to 5 PM.",
             ("13:00", "17:00"),
-            [("algorithm", 60, "CORE"), ("report", 45, "CORE"), ("book", 30, "OPTIONAL")],
+            [
+                ("algorithm", 60, "CORE"),
+                ("report", 45, "CORE"),
+                ("book", 30, "OPTIONAL"),
+            ],
         ),
         (
             "My afternoon is open between 2 PM and 6 PM. Practice data structures for 90 minutes, "
             "finish my assignment for an hour, and if time allows read documentation for 20 minutes.",
             ("14:00", "18:00"),
-            [("data structure", 90, "CORE"), ("assignment", 60, "CORE"), ("documentation", 20, "OPTIONAL")],
+            [
+                ("data structure", 90, "CORE"),
+                ("assignment", 60, "CORE"),
+                ("documentation", 20, "OPTIONAL"),
+            ],
         ),
         (
             "I'm free 9 AM through noon today. Spend 50 minutes on database exercises and maybe "
@@ -57,8 +65,14 @@ async def test_live_today_semantic_pipeline(monkeypatch, phrase, window, tasks):
     """Real provider semantics survive the complete planner-to-draft pipeline."""
     mock_db = create_autospec(AsyncSession, instance=True)
     mock_db.commit = AsyncMock()
-    monkeypatch.setattr(planner, "get_budget_mode", AsyncMock(return_value=BudgetMode.NORMAL))
-    monkeypatch.setattr(planner, "available_routes", AsyncMock(return_value=planner.settings.AI_ROUTE_PLANNER_LITE))
+    monkeypatch.setattr(
+        planner, "get_budget_mode", AsyncMock(return_value=BudgetMode.NORMAL)
+    )
+    monkeypatch.setattr(
+        planner,
+        "available_routes",
+        AsyncMock(return_value=planner.settings.AI_ROUTE_PLANNER_LITE),
+    )
     monkeypatch.setattr(planner, "carried_tasks", AsyncMock(return_value=[]))
     ctx = ChatContext(
         db=mock_db,
@@ -80,7 +94,9 @@ async def test_live_today_semantic_pipeline(monkeypatch, phrase, window, tasks):
     assert [(item.start, item.end) for item in response.draft.windows] == [window]
     assert response.assumptions == []
     assert len(response.draft.tasks) == len(tasks)
-    for task, (title_fragment, duration, importance) in zip(response.draft.tasks, tasks, strict=True):
+    for task, (title_fragment, duration, importance) in zip(
+        response.draft.tasks, tasks, strict=True
+    ):
         assert title_fragment in task.title.lower()
         assert task.durationMin == duration
         assert task.importance == importance
@@ -172,8 +188,16 @@ async def test_live_llm_unseen_phrase_2():
     assert any("database" in t or "exercise" in t or "sql" in t for t in titles_lower)
     assert any("note" in t or "review" in t for t in titles_lower)
 
-    db_task = next(t for t in response.draft.tasks if "database" in t.title.lower() or "exercise" in t.title.lower())
-    notes_task = next(t for t in response.draft.tasks if "note" in t.title.lower() or "review" in t.title.lower())
+    db_task = next(
+        t
+        for t in response.draft.tasks
+        if "database" in t.title.lower() or "exercise" in t.title.lower()
+    )
+    notes_task = next(
+        t
+        for t in response.draft.tasks
+        if "note" in t.title.lower() or "review" in t.title.lower()
+    )
 
     assert 40 <= db_task.durationMin <= 60
     assert 25 <= notes_task.durationMin <= 40
@@ -225,6 +249,8 @@ async def test_live_llm_unseen_phrase_3():
 
     # Availability window 9 to 12
     if response.draft.windows:
-        assert any(w.start >= "09:00" and w.end <= "13:00" for w in response.draft.windows)
+        assert any(
+            w.start >= "09:00" and w.end <= "13:00" for w in response.draft.windows
+        )
 
     assert check_today(response.draft) == []

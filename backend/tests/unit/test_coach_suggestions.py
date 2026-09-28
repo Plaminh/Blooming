@@ -2,7 +2,7 @@
 
 Test IDs: PV-007, PV-008, PV-009, PV-010, PV-011
 
-All suggestions are generated deterministically by app.ai.coach from the
+All suggestions are generated deterministically by app.ai.coach.coach from the
 validated draft + real scheduler result.  LLM output must never invent
 executable repair operations.
 """
@@ -14,9 +14,8 @@ from unittest.mock import AsyncMock
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-import pytest
 
-from app.ai.coach import (
+from app.ai.coach.coach import (
     suggest_remove_optional,
     suggest_move_to_tomorrow,
     suggest_extend_availability,
@@ -84,10 +83,12 @@ def _task(
 # ===========================================================================
 def test_pv_007_remove_optional_suggestion_targets_optional():
     """suggest_remove_optional targets only OPTIONAL tasks, never CORE."""
-    draft = _draft(tasks=[
-        _task("d1", "Must code", 60, importance="CORE"),
-        _task("d2", "Read book", 45, importance="OPTIONAL", priority="LOW"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task("d1", "Must code", 60, importance="CORE"),
+            _task("d2", "Read book", 45, importance="OPTIONAL", priority="LOW"),
+        ]
+    )
     suggestions = suggest_remove_optional(draft)
     assert len(suggestions) == 1
     patch_ops = suggestions[0]["patch"]
@@ -96,19 +97,23 @@ def test_pv_007_remove_optional_suggestion_targets_optional():
 
 def test_pv_007_never_targets_core():
     """No OPTIONAL tasks → no remove suggestion."""
-    draft = _draft(tasks=[
-        _task("d1", "Must code", 60, importance="CORE"),
-        _task("d2", "Must review", 30, importance="CORE"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task("d1", "Must code", 60, importance="CORE"),
+            _task("d2", "Must review", 30, importance="CORE"),
+        ]
+    )
     suggestions = suggest_remove_optional(draft)
     assert suggestions == []
 
 
 def test_pv_007_uses_stable_task_id():
     """Suggestion uses the stable task ID from the draft."""
-    draft = _draft(tasks=[
-        _task("stable-id-123", "Optional reading", 30, importance="OPTIONAL"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task("stable-id-123", "Optional reading", 30, importance="OPTIONAL"),
+        ]
+    )
     suggestions = suggest_remove_optional(draft)
     patch_ops = suggestions[0]["patch"]
     assert patch_ops[0]["task_id"] == "stable-id-123"
@@ -116,9 +121,11 @@ def test_pv_007_uses_stable_task_id():
 
 def test_pv_007_suggestion_is_patch_not_immediate_mutation():
     """Suggestion contains a patch op — render does not mutate."""
-    draft = _draft(tasks=[
-        _task("d1", "Optional task", 60, importance="OPTIONAL"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task("d1", "Optional task", 60, importance="OPTIONAL"),
+        ]
+    )
     original_task_count = len(draft.tasks)
     suggestions = suggest_remove_optional(draft)
     # Draft is unchanged after generating suggestions
@@ -133,9 +140,17 @@ def test_pv_008_move_to_tomorrow_suggestion():
     """suggest_move_to_tomorrow returns a move_task_to_date patch op."""
     now_utc = datetime(2026, 9, 20, 8, 0, tzinfo=timezone.utc)
     ctx = _ctx(now_utc)
-    draft = _draft(tasks=[
-        _task("d1", "Optional reading", 45, importance="OPTIONAL", scheduling_type="FLEXIBLE"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task(
+                "d1",
+                "Optional reading",
+                45,
+                importance="OPTIONAL",
+                scheduling_type="FLEXIBLE",
+            ),
+        ]
+    )
     suggestions = suggest_move_to_tomorrow(draft, ctx)
     assert len(suggestions) == 1
     patch_ops = suggestions[0]["patch"]
@@ -149,9 +164,17 @@ def test_pv_008_does_not_move_fixed_tasks():
     """Fixed tasks must not be moved to tomorrow."""
     now_utc = datetime(2026, 9, 20, 8, 0, tzinfo=timezone.utc)
     ctx = _ctx(now_utc)
-    draft = _draft(tasks=[
-        _task("d1", "Fixed meeting", 60, importance="OPTIONAL", scheduling_type="FIXED"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task(
+                "d1",
+                "Fixed meeting",
+                60,
+                importance="OPTIONAL",
+                scheduling_type="FIXED",
+            ),
+        ]
+    )
     suggestions = suggest_move_to_tomorrow(draft, ctx)
     # Fixed optional task must not be moved
     assert not any(
@@ -166,9 +189,11 @@ def test_pv_008_uses_server_owned_date():
     """The target_date is derived from server context, not client input."""
     now_utc = datetime(2026, 9, 20, 8, 0, tzinfo=timezone.utc)
     ctx = _ctx(now_utc)
-    draft = _draft(tasks=[
-        _task("d1", "Optional", 30, importance="OPTIONAL"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task("d1", "Optional", 30, importance="OPTIONAL"),
+        ]
+    )
     suggestions = suggest_move_to_tomorrow(draft, ctx)
     if suggestions:
         # Tomorrow computed from server context: 2026-09-20 + 1 = 2026-09-21
@@ -179,9 +204,11 @@ def test_pv_008_no_mutation_before_click():
     """Draft remains unchanged after generating move-to-tomorrow suggestion."""
     now_utc = datetime(2026, 9, 20, 8, 0, tzinfo=timezone.utc)
     ctx = _ctx(now_utc)
-    draft = _draft(tasks=[
-        _task("d1", "Optional task", 45, importance="OPTIONAL"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task("d1", "Optional task", 45, importance="OPTIONAL"),
+        ]
+    )
     original_count = len(draft.tasks)
     _ = suggest_move_to_tomorrow(draft, ctx)
     assert len(draft.tasks) == original_count
@@ -241,10 +268,18 @@ def test_pv_009_no_reversed_window_generated():
 # ===========================================================================
 def test_pv_010_reduce_duration_suggestion():
     """suggest_reduce_duration suggests halving RULE/AI estimates."""
-    draft = _draft(tasks=[
-        _task("d1", "Optional task", 120, importance="OPTIONAL",
-              priority="LOW", estimate_source="RULE"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task(
+                "d1",
+                "Optional task",
+                120,
+                importance="OPTIONAL",
+                priority="LOW",
+                estimate_source="RULE",
+            ),
+        ]
+    )
     suggestions = suggest_reduce_duration(draft)
     assert len(suggestions) == 1
     patch_ops = suggestions[0]["patch"]
@@ -255,10 +290,17 @@ def test_pv_010_reduce_duration_suggestion():
 
 def test_pv_010_respects_minimum_duration():
     """Reduced duration must never fall below 5 minutes."""
-    draft = _draft(tasks=[
-        _task("d1", "Optional small", 61, importance="OPTIONAL",
-              estimate_source="RULE"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task(
+                "d1",
+                "Optional small",
+                61,
+                importance="OPTIONAL",
+                estimate_source="RULE",
+            ),
+        ]
+    )
     suggestions = suggest_reduce_duration(draft)
     if suggestions:
         new_duration = suggestions[0]["patch"][0]["duration_min"]
@@ -267,20 +309,34 @@ def test_pv_010_respects_minimum_duration():
 
 def test_pv_010_does_not_reduce_user_estimates():
     """USER estimates must not be targeted for reduction."""
-    draft = _draft(tasks=[
-        _task("d1", "My specific task", 120, importance="OPTIONAL",
-              estimate_source="USER"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task(
+                "d1",
+                "My specific task",
+                120,
+                importance="OPTIONAL",
+                estimate_source="USER",
+            ),
+        ]
+    )
     suggestions = suggest_reduce_duration(draft)
     assert suggestions == []
 
 
 def test_pv_010_preserves_stable_task_id():
     """Reduce suggestion uses the stable task ID."""
-    draft = _draft(tasks=[
-        _task("stable-xyz", "Optional long", 90, importance="OPTIONAL",
-              estimate_source="AI"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task(
+                "stable-xyz",
+                "Optional long",
+                90,
+                importance="OPTIONAL",
+                estimate_source="AI",
+            ),
+        ]
+    )
     suggestions = suggest_reduce_duration(draft)
     if suggestions:
         assert suggestions[0]["patch"][0]["task_id"] == "stable-xyz"
@@ -291,10 +347,17 @@ def test_pv_010_preserves_stable_task_id():
 # ===========================================================================
 def test_pv_011_split_long_task_suggestion():
     """suggest_split_long_task suggests making a long flexible task splittable."""
-    draft = _draft(tasks=[
-        _task("d1", "Long study session", 120, importance="CORE",
-              scheduling_type="FLEXIBLE"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task(
+                "d1",
+                "Long study session",
+                120,
+                importance="CORE",
+                scheduling_type="FLEXIBLE",
+            ),
+        ]
+    )
     suggestions = suggest_split_long_task(draft)
     assert len(suggestions) == 1
     patch_ops = suggestions[0]["patch"]
@@ -305,22 +368,24 @@ def test_pv_011_split_long_task_suggestion():
 
 def test_pv_011_does_not_split_fixed_tasks():
     """Fixed tasks must not be suggested for split (violates their constraint)."""
-    draft = _draft(tasks=[
-        _task("d1", "Fixed long meeting", 120, scheduling_type="FIXED"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task("d1", "Fixed long meeting", 120, scheduling_type="FIXED"),
+        ]
+    )
     suggestions = suggest_split_long_task(draft)
     assert not any(
-        op.get("task_id") == "d1"
-        for s in suggestions
-        for op in s.get("patch", [])
+        op.get("task_id") == "d1" for s in suggestions for op in s.get("patch", [])
     )
 
 
 def test_pv_011_short_tasks_not_suggested():
     """Tasks ≤ split threshold (90 min) are not suggested for split."""
-    draft = _draft(tasks=[
-        _task("d1", "Short task", 60, scheduling_type="FLEXIBLE"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task("d1", "Short task", 60, scheduling_type="FLEXIBLE"),
+        ]
+    )
     suggestions = suggest_split_long_task(draft)
     assert suggestions == []
 
@@ -332,11 +397,18 @@ def test_generate_overloaded_suggestions_deterministic():
     """Calling generate_overloaded_suggestions twice returns the same result."""
     now_utc = datetime(2026, 9, 20, 8, 0, tzinfo=timezone.utc)
     ctx = _ctx(now_utc)
-    draft = _draft(tasks=[
-        _task("d1", "Core task", 60, importance="CORE"),
-        _task("d2", "Optional reading", 45, importance="OPTIONAL",
-              estimate_source="RULE"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task("d1", "Core task", 60, importance="CORE"),
+            _task(
+                "d2",
+                "Optional reading",
+                45,
+                importance="OPTIONAL",
+                estimate_source="RULE",
+            ),
+        ]
+    )
     s1 = generate_overloaded_suggestions(draft, ctx)
     s2 = generate_overloaded_suggestions(draft, ctx)
     assert len(s1) == len(s2)
@@ -349,9 +421,11 @@ def test_generate_overloaded_suggestions_no_mutation():
     """Generating suggestions does not mutate the draft."""
     now_utc = datetime(2026, 9, 20, 8, 0, tzinfo=timezone.utc)
     ctx = _ctx(now_utc)
-    draft = _draft(tasks=[
-        _task("d1", "Optional task", 60, importance="OPTIONAL"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task("d1", "Optional task", 60, importance="OPTIONAL"),
+        ]
+    )
     original_tasks = list(draft.tasks)
     _ = generate_overloaded_suggestions(draft, ctx)
     assert draft.tasks == original_tasks
@@ -361,12 +435,16 @@ def test_generate_overloaded_llm_cannot_invent_suggestions():
     """All suggestions come from application code — LLM is never called."""
     now_utc = datetime(2026, 9, 20, 8, 0, tzinfo=timezone.utc)
     ctx = _ctx(now_utc)
-    draft = _draft(tasks=[
-        _task("d1", "Optional", 60, importance="OPTIONAL"),
-    ])
+    draft = _draft(
+        tasks=[
+            _task("d1", "Optional", 60, importance="OPTIONAL"),
+        ]
+    )
     # coach module has no LLM import — suggestions are always deterministic
-    import app.ai.coach as coach_module
-    assert not hasattr(coach_module, "llm_provider"), \
+    import app.ai.coach.coach as coach_module
+
+    assert not hasattr(coach_module, "llm_provider"), (
         "coach.py must not import llm_provider"
+    )
     suggestions = generate_overloaded_suggestions(draft, ctx)
     assert isinstance(suggestions, list)

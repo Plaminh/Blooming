@@ -25,7 +25,9 @@ def _optional_tasks(draft: "TodayDraft") -> list["TaskDraft"]:
     return [t for t in draft.tasks if t.importance == "OPTIONAL"]
 
 
-def suggest_remove_optional(draft: "TodayDraft", unscheduled_ids: list[str] = None) -> list[dict]:
+def suggest_remove_optional(
+    draft: "TodayDraft", unscheduled_ids: list[str] = None
+) -> list[dict]:
     """PV-007: Suggest removing an OPTIONAL task.
 
     Returns at most one suggestion per OPTIONAL task, targeting the lowest-priority
@@ -70,7 +72,13 @@ def suggest_move_to_tomorrow(
     ]
     if unscheduled_ids:
         candidates = [c for c in candidates if c.id in unscheduled_ids] or candidates
-    candidates.sort(key=lambda t: ({"HIGH": 0, "MEDIUM": 1, "LOW": 2}.get(t.priority, 1), t.durationMin), reverse=True)
+    candidates.sort(
+        key=lambda t: (
+            {"HIGH": 0, "MEDIUM": 1, "LOW": 2}.get(t.priority, 1),
+            t.durationMin,
+        ),
+        reverse=True,
+    )
     suggestions = []
     for task in candidates[:1]:
         suggestions.append(
@@ -115,7 +123,9 @@ def suggest_extend_availability(
     # New end capped at day_end
     from datetime import datetime as _dt
 
-    new_end_dt = _dt.combine(_dt.today(), current_end) + timedelta(minutes=extra_minutes)
+    new_end_dt = _dt.combine(_dt.today(), current_end) + timedelta(
+        minutes=extra_minutes
+    )
     new_end = min(new_end_dt.time(), day_end)
     new_end_str = new_end.strftime("%H:%M")
     if new_end_str <= last_window.end:
@@ -134,7 +144,9 @@ def suggest_extend_availability(
     ]
 
 
-def suggest_reduce_duration(draft: "TodayDraft", unscheduled_ids: list[str] = None) -> list[dict]:
+def suggest_reduce_duration(
+    draft: "TodayDraft", unscheduled_ids: list[str] = None
+) -> list[dict]:
     """PV-010: Suggest reducing duration for RULE or AI estimated tasks.
 
     Respects minimum duration (5 min).  Does not reduce USER estimates.

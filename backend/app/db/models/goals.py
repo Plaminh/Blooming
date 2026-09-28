@@ -100,9 +100,7 @@ class Milestone(Base):
             " OR (status <> 'COMPLETED')",
             name="milestones_completion_valid",
         ),
-        UniqueConstraint(
-            "goal_id", "position", name="milestones_goal_position_unique"
-        ),
+        UniqueConstraint("goal_id", "position", name="milestones_goal_position_unique"),
         Index("milestones_goal_due_idx", "goal_id", "due_at"),
     )
 

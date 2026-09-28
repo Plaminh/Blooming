@@ -81,9 +81,7 @@ class PlantOwnership(Base):
 class RewardEvent(Base):
     __tablename__ = "reward_events"
     __table_args__ = (
-        UniqueConstraint(
-            "idempotency_key", name="reward_events_idempotency_key_key"
-        ),
+        UniqueConstraint("idempotency_key", name="reward_events_idempotency_key_key"),
         CheckConstraint(
             "event_type IN ('FOCUS_COMPLETED', 'TASK_COMPLETED',"
             " 'CORE_OBJECTIVE_COMPLETED', 'MILESTONE_COMPLETED',"
@@ -92,7 +90,7 @@ class RewardEvent(Base):
         ),
         CheckConstraint(
             "resource_type IN ('WATER', 'LEAVES')",
-            name="reward_events_resource_type_valid"
+            name="reward_events_resource_type_valid",
         ),
         CheckConstraint(
             "BTRIM(idempotency_key) <> ''",
@@ -144,7 +142,7 @@ class RewardEvent(Base):
     resource_type: Mapped[str] = mapped_column(String(20), nullable=False)
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     idempotency_key: Mapped[str] = mapped_column(Text, nullable=False)
-    
+
     source_focus_run_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("focus_runs.id", ondelete="CASCADE"),

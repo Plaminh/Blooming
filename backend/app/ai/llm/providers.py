@@ -60,8 +60,18 @@ def strictify_schema(schema: dict) -> dict:
             return
         if not isinstance(node, dict):
             return
-        for key in ("title", "default", "examples", "minLength", "maxLength",
-                    "pattern", "minimum", "maximum", "minItems", "maxItems"):
+        for key in (
+            "title",
+            "default",
+            "examples",
+            "minLength",
+            "maxLength",
+            "pattern",
+            "minimum",
+            "maximum",
+            "minItems",
+            "maxItems",
+        ):
             node.pop(key, None)
         if "prefixItems" in node:
             # Fixed tuples are validated by Pydantic after the response arrives.
@@ -349,7 +359,9 @@ class LLMProvider:
             remaining = remaining_budget()
             if remaining is not None and remaining < MIN_CALL_SECONDS:
                 # Nothing was sent, so there is no usage to record.
-                logger.warning("AI request budget exhausted before %s/%s", provider, model)
+                logger.warning(
+                    "AI request budget exhausted before %s/%s", provider, model
+                )
                 last_error = LLMError("timeout", status_code=504)
                 break
             try:
@@ -377,7 +389,7 @@ class LLMProvider:
                 else:
                     response_value = result
                 if db is not None:
-                    from app.ai.budget import record_usage
+                    from app.ai.llm.budget import record_usage
 
                     usage = result.get("usage") if isinstance(result, dict) else {}
                     usage = usage if isinstance(usage, dict) else {}
@@ -392,12 +404,14 @@ class LLMProvider:
                         latency_ms=int((time.monotonic() - started) * 1000),
                         outcome="OK",
                     )
-                self.last_usage = result.get("usage", {}) if isinstance(result, dict) else {}
+                self.last_usage = (
+                    result.get("usage", {}) if isinstance(result, dict) else {}
+                )
                 self.last_latency_ms = int((time.monotonic() - started) * 1000)
                 return response_value
             except LLMError as e:
                 if db is not None:
-                    from app.ai.budget import record_usage
+                    from app.ai.llm.budget import record_usage
 
                     await record_usage(
                         db,

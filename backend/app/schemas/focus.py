@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from app.schemas.today import TodayResponse
 
+
 class FocusSessionStart(BaseModel):
     task_id: UUID | None = None
     plan_block_id: UUID | None = None
@@ -11,11 +12,13 @@ class FocusSessionStart(BaseModel):
     planned_focus_seconds: int = Field(ge=1, le=86400)
     planned_break_seconds: int = Field(default=0, ge=0, le=21600)
 
+
 class FocusSessionFinish(BaseModel):
     run_id: UUID | None = None
-    outcome: Literal['DONE', 'NEED_MORE_TIME', 'SKIP', 'FINISHED_EARLY']
+    outcome: Literal["DONE", "NEED_MORE_TIME", "SKIP", "FINISHED_EARLY"]
     actual_duration_seconds: int | None = Field(default=None, ge=0)
     should_replan: bool = False
+
 
 class FocusRunResponse(BaseModel):
     replan: TodayResponse | None = None
