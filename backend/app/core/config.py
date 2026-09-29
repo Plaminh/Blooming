@@ -22,8 +22,11 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     SECRET_KEY: SecretStr
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
-    FRONTEND_URLS: list[str] = ["http://localhost:1420", "http://127.0.0.1:1420"]
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    FRONTEND_URLS: list[str] = [
+        "http://localhost:1420",
+        "http://127.0.0.1:1420",
+    ]
 
     # Credentials come from the repository .env shared with docker-compose.
     POSTGRES_DB: str
