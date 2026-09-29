@@ -1,0 +1,17 @@
+{
+  "workflow": "speckit",
+  "specName": "Staging Architecture Decisions",
+  "branch": "feature/staging-readiness",
+  "currentStep": "specify",
+  "status": "specified",
+  "history": [
+    {
+      "step": "specify",
+      "substep": null,
+      "kind": "start",
+      "by": "extension",
+      "at": "2026-09-29T02:17:21.626Z"
+    }
+  ],
+  "telemetryInstanceId": "f860c38b-b7a1-4f7d-b5f9-49198cf22c67"
+}
