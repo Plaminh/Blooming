@@ -1,8 +1,11 @@
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
-from app.db.models.focus import FocusRun
+from app.db.models.focus import FocusRun, FocusRunEvent
+from app.db.models.garden import GardenState, RewardEvent
+from app.db.models.daily_plans import PlanRevision
+from app.core.economy import WATER_PER_POMODORO
 from app.services.focus_service import focus_service
 from sqlalchemy import select
 
@@ -42,6 +45,34 @@ async def test_focus_routes_lifecycle_and_db_override(
     assert (result.json()["status"], result.json()["outcome"]) == ("ENDED", "DONE")
     await db_session.refresh(run)
     assert run.status == "ENDED"
+
+
+async def test_duplicate_finish_http_flow_rewards_and_ends_once(
+    async_client, db_session, auth_headers, test_task, test_plan_block,
+    test_availability_window,
+):
+    started = await async_client.post(
+        f"{PREFIX}/start",
+        json={"task_id": str(test_task.id), "planned_focus_seconds": 1500},
+        headers=auth_headers,
+    )
+    payload = {
+        "run_id": started.json()["id"],
+        "outcome": "DONE",
+        "should_replan": True,
+    }
+    first = await async_client.post(f"{PREFIX}/finish", json=payload, headers=auth_headers)
+    second = await async_client.post(f"{PREFIX}/finish", json=payload, headers=auth_headers)
+    assert first.status_code == second.status_code == 200
+    assert len((await db_session.scalars(select(RewardEvent))).all()) == 1
+    assert len((await db_session.scalars(
+        select(FocusRunEvent).where(FocusRunEvent.event_type == "ENDED")
+    )).all()) == 1
+    run = await db_session.get(FocusRun, UUID(started.json()["id"]))
+    assert run is not None and run.status == "ENDED"
+    assert len((await db_session.scalars(select(PlanRevision))).all()) <= 1
+    garden = await db_session.get(GardenState, test_task.user_id)
+    assert garden is not None and garden.water_balance == WATER_PER_POMODORO
 
 
 @pytest.mark.parametrize(

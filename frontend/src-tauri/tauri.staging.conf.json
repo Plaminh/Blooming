@@ -1,5 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Blooming (Staging)",
-  "identifier": "com.plaminh.blooming.staging"
+  "identifier": "com.plaminh.blooming.staging",
+  "app": {
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' http://127.0.0.1:8000"
+    }
+  }
 }

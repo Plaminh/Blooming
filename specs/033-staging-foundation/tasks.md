@@ -11,4 +11,5 @@
 - [x] T09: Initialize single instance plugin in `src/lib.rs`.
 - [x] T10: Audit `.gitignore`.
 - [x] T11: Generate Env Audit table.
-- [ ] T12: Run Tauri staging build (NOT VERIFIED).
+- [x] T12a: Frontend staging build (PASS).
+- [ ] T12b: Run native Tauri staging build (NOT VERIFIED: Cargo unavailable).

@@ -18,5 +18,17 @@
 | `GROQ_API_KEY` | Backend AI | All | ACTIVE | KEEP |
 | `GROQ_BASE_URL` | Backend AI | All | ACTIVE | KEEP |
 | `OLLAMA_BASE_URL` | Backend AI | Dev | ACTIVE | KEEP |
+| `ENVIRONMENT` | Backend config validation | All | ACTIVE / STAGING_REQUIRED | KEEP, DOCUMENT |
+| `LOG_LEVEL` | Backend JSON logging | All | ACTIVE | KEEP |
+| `GIT_SHA` | Readiness/build identity | Staging/Prod | STAGING_REQUIRED | KEEP |
+| `LATEST_SCHEMA_MIGRATION` | Readiness migration gate | All | ACTIVE | KEEP |
+| `DB_ECHO` | SQLAlchemy diagnostics | Development | DEVELOPMENT_ONLY | KEEP |
+| `DB_POOL_SIZE` | SQLAlchemy engine | Staging/Prod | ACTIVE | KEEP |
+| `DB_MAX_OVERFLOW` | SQLAlchemy engine | Staging/Prod | ACTIVE | KEEP |
+| `DB_CONNECT_TIMEOUT` | SQLAlchemy engine | All | ACTIVE | KEEP |
+| `AI_ROUTE_*` | LLM route configuration | All | ACTIVE | KEEP |
+| `AI_*BUDGET*`, `AI_*RATE_LIMIT*`, `AI_TIMEOUT_SECONDS` | AI safeguards | All | ACTIVE | KEEP |
+| `BACKEND_PORT` | Compose host binding | Local rehearsal | DEVELOPMENT_ONLY | KEEP |
+| `MIGRATION_DATABASE_URL` | Release job | Staging/Prod | STAGING_REQUIRED | DOCUMENT; never expose to app/frontend |
 
-*Note: No dead keys were found that can be safely removed at this time.*
+No keys were proven dead by repository search. No uncertain key was removed. Frontend receives only `PUBLIC_API_BASE_URL`; all credentials remain backend/release-job only.

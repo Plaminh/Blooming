@@ -1,6 +1,14 @@
+mod lifecycle;
+mod logging;
+mod windows;
+
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager};
+
+use lifecycle::{handle_resume, is_autostart_launch};
+use logging::native_log;
+use windows::{open_main, show_widget};
 
 #[tauri::command]
 fn set_tray_icon(app: AppHandle, alert: bool) -> Result<(), String> {
@@ -18,29 +26,35 @@ fn set_tray_icon(app: AppHandle, alert: bool) -> Result<(), String> {
     tray.set_icon(Some(icon)).map_err(|e| e.to_string())
 }
 
-fn open_main(app: &AppHandle) -> Result<(), String> {
-    let window = app
-        .get_webview_window("main")
-        .ok_or("Main window is unavailable")?;
-    window.show().map_err(|e| e.to_string())?;
-    window.unminimize().map_err(|e| e.to_string())?;
-    window.set_focus().map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Err(error) = open_main(app) {
-                eprintln!("Unable to open Blooming: {error}");
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            let result = if is_autostart_launch(args.iter()) {
+                show_widget(app)
+            } else {
+                open_main(app)
+            };
+            if let Err(error) = result {
+                native_log("ERROR", &format!("unable to open Blooming: {error}"));
             }
         }))
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            None,
+            Some(vec!["--autostart"]),
         ))
         .setup(|app| {
+            if let Ok(log_dir) = app.path().app_log_dir() {
+                logging::initialize(log_dir.join("blooming.log"))?;
+            }
+            if is_autostart_launch(std::env::args()) {
+                if let Some(main) = app.get_webview_window("main") {
+                    main.hide()?;
+                }
+                if let Err(error) = show_widget(app.handle()) {
+                    native_log("ERROR", &format!("autostart widget launch failed: {error}"));
+                }
+            }
             let path = app
                 .path()
                 .resolve("icons/32x32.png", tauri::path::BaseDirectory::Resource)?;
@@ -57,7 +71,7 @@ pub fn run() {
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "open" => {
                         if let Err(error) = open_main(app) {
-                            eprintln!("Unable to open Blooming: {error}");
+                            native_log("ERROR", &format!("unable to open Blooming: {error}"));
                         }
                     }
                     "widget" => {
@@ -67,7 +81,7 @@ pub fn run() {
                                 .and_then(|()| window.unminimize())
                                 .and_then(|()| window.set_focus())
                             {
-                                eprintln!("Unable to show companion: {error}");
+                                native_log("ERROR", &format!("unable to show companion: {error}"));
                             }
                         }
                     }
@@ -82,7 +96,7 @@ pub fn run() {
                     } = event
                     {
                         if let Err(error) = open_main(tray.app_handle()) {
-                            eprintln!("Unable to open Blooming: {error}");
+                            native_log("ERROR", &format!("unable to open Blooming: {error}"));
                         }
                     }
                 })
@@ -97,11 +111,16 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 if let Err(error) = window.hide() {
-                    eprintln!("Unable to hide window: {error}");
+                    native_log("ERROR", &format!("unable to hide window: {error}"));
                 }
             }
         })
         .invoke_handler(tauri::generate_handler![set_tray_icon])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Resumed = event {
+                handle_resume(app);
+            }
+        });
 }

@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.main import api_router
 from app.ai.llm.providers import llm_provider
 from app.core.config import settings
+from app.core.logging import configure_logging
+from app.core.request_middleware import request_logging
 from app.db.session import engine
 from app.db.session import AsyncSessionLocal
 
@@ -35,12 +37,16 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await engine.dispose()
 
 
+configure_logging(settings.LOG_LEVEL)
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
+
+
+app.middleware("http")(request_logging)
 
 
 def _cors_headers_for(request: Request) -> dict[str, str]:
@@ -62,7 +68,7 @@ def _cors_headers_for(request: Request) -> dict[str, str]:
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.exception("transaction_failure")
+    logger.exception("unhandled_request_error")
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"},
@@ -76,6 +82,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Date", "X-Request-ID"],
 )
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)

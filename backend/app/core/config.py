@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Blooming API"
     API_V1_PREFIX: str = "/api/v1"
     ENVIRONMENT: str = "development"
+    LOG_LEVEL: str = "INFO"
+    GIT_SHA: str = "development"
+    LATEST_SCHEMA_MIGRATION: str = "001"
 
     SECRET_KEY: SecretStr
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
@@ -106,6 +109,11 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "BREVO_API_KEY and BREVO_SENDER_EMAIL are required in production/staging"
                 )
+            if self.ENVIRONMENT == "staging":
+                if self.ACCESS_TOKEN_EXPIRE_MINUTES != 1440:
+                    raise ValueError("Staging ACCESS_TOKEN_EXPIRE_MINUTES must be 1440")
+                if not self.EMAIL_VERIFICATION_FRONTEND_URL.startswith("https://"):
+                    raise ValueError("Staging email verification URL must use HTTPS")
         else:
             if not self.BREVO_API_KEY or not self.BREVO_SENDER_EMAIL:
                 warnings.warn(

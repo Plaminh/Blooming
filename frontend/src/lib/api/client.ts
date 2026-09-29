@@ -1,5 +1,8 @@
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import { browser } from '$app/environment';
+import { isRetryableTransportFailure } from '$lib/shared/networkFailures';
+import { recordServerDate } from '$lib/shared/serverClock';
+export { serverNow } from '$lib/shared/serverClock';
 
 export class APIError extends Error {
   public status: number;
@@ -36,6 +39,33 @@ interface RequestOptions extends RequestInit {
   formUrlEncoded?: boolean;
   /** Abort the request after this many milliseconds (0 disables the limit). */
   timeoutMs?: number;
+}
+
+const GET_RETRY_ATTEMPTS = 4;
+const GET_RETRY_BASE_DELAY_MS = 500;
+const GET_RETRY_MAX_DELAY_MS = 30_000;
+
+function waitForRetry(delayMs: number, signal?: AbortSignal | null): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
+    const timer = setTimeout(done, delayMs);
+    const online = () => done();
+    const abort = () => {
+      cleanup();
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    function cleanup() {
+      clearTimeout(timer);
+      if (typeof window !== 'undefined') window.removeEventListener('online', online);
+      signal?.removeEventListener('abort', abort);
+    }
+    function done() {
+      cleanup();
+      resolve();
+    }
+    if (typeof window !== 'undefined') window.addEventListener('online', online, { once: true });
+    signal?.addEventListener('abort', abort, { once: true });
+  });
 }
 
 /** A request that never answers must not leave the UI waiting forever. */
@@ -122,6 +152,7 @@ export const api = {
         headers,
         signal: controller.signal
       });
+      recordServerDate(response.headers?.get?.('Date') ?? null);
     } catch (error) {
       if (timedOut) {
         throw new APIError(REQUEST_TIMEOUT_STATUS, 'The server took too long to respond. Please try again.');
@@ -161,8 +192,17 @@ export const api = {
     return responseData;
   },
 
-  get(endpoint: string, options?: Omit<RequestOptions, 'method' | 'data' | 'formUrlEncoded'>) {
-    return this.fetch(endpoint, { ...options, method: 'GET' });
+  async get(endpoint: string, options?: Omit<RequestOptions, 'method' | 'data' | 'formUrlEncoded'>) {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await this.fetch(endpoint, { ...options, method: 'GET' });
+      } catch (error) {
+        if (attempt >= GET_RETRY_ATTEMPTS - 1 || !isRetryableTransportFailure(error)) throw error;
+        const exponential = Math.min(GET_RETRY_MAX_DELAY_MS, GET_RETRY_BASE_DELAY_MS * 2 ** attempt);
+        const jittered = Math.round(exponential * (0.75 + Math.random() * 0.5));
+        await waitForRetry(jittered, options?.signal);
+      }
+    }
   },
 
   post(endpoint: string, data?: any, options?: Omit<RequestOptions, 'method' | 'data'>) {

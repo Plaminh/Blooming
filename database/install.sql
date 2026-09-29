@@ -3,6 +3,7 @@
 BEGIN;
 
 \ir 00_init.sql
+\ir tables/00_schema_migrations.sql
 \ir tables/01_plants.sql
 \ir tables/02_users.sql
 \ir tables/03_ai_usage_log.sql
@@ -28,6 +29,8 @@ BEGIN;
 \ir tables/22_reminder_actions.sql
 \ir tables/23_reward_events.sql
 \ir 99_seed.sql
+
+INSERT INTO schema_migrations (version) VALUES ('000') ON CONFLICT DO NOTHING;
 
 COMMIT;
 

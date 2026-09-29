@@ -17,7 +17,8 @@ vi.mock('$lib/api', () => ({
       super(message);
       this.status = status;
     }
-  }
+  },
+  serverNow: () => new Date(),
 }));
 
 vi.mock('$lib/platform/desktopWindow', () => ({
@@ -309,7 +310,7 @@ describe('Widget Page Integration', () => {
       return null;
     });
     render(WidgetPage);
-    await waitFor(() => screen.queryByText('MARK COMPLETED'));
+    await waitFor(() => expect(screen.queryByText('MARK COMPLETED')).toBeTruthy());
     vi.mocked(api.post).mockResolvedValue({});
     await fireEvent.click(screen.getByText('MARK COMPLETED'));
     expect(api.post).toHaveBeenCalledWith('/reminders/r1/actions', { action_type: 'MARK_COMPLETED' });
@@ -324,7 +325,7 @@ describe('Widget Page Integration', () => {
       return null;
     });
     render(WidgetPage);
-    await waitFor(() => screen.queryByText('MOVE MILESTONE'));
+    await waitFor(() => expect(screen.queryByText('MOVE MILESTONE')).toBeTruthy());
     
     vi.spyOn(window, 'prompt').mockReturnValue('2026-10-01');
     vi.mocked(api.post).mockResolvedValue({});
@@ -342,7 +343,7 @@ describe('Widget Page Integration', () => {
       return null;
     });
     render(WidgetPage);
-    await waitFor(() => screen.queryByText('REMIND LATER'));
+    await waitFor(() => expect(screen.queryByText('REMIND LATER')).toBeTruthy());
     
     vi.spyOn(window, 'prompt').mockReturnValue('2026-10-02');
     vi.mocked(api.post).mockResolvedValue({});
@@ -360,7 +361,7 @@ describe('Widget Page Integration', () => {
       return null;
     });
     render(WidgetPage);
-    await waitFor(() => screen.queryByText('CREATE PLAN'));
+    await waitFor(() => expect(screen.queryByText('CREATE PLAN')).toBeTruthy());
     vi.mocked(api.post).mockResolvedValue({});
     await fireEvent.click(screen.getByText('CREATE PLAN'));
     

@@ -3,10 +3,48 @@ import {
   createDesktopWindowService,
   desktop,
   desktopWindowService,
+  persistWidgetPosition,
+  readDeviceSettings,
   reconcileNativeSettings,
+  writeDeviceSettings,
   type DesktopWindowHandle,
   type DesktopWindowResolver,
 } from './desktopWindow';
+
+describe('device-local settings', () => {
+  it('persists widget position independently from server settings', () => {
+    localStorage.clear();
+    writeDeviceSettings(localStorage, { widget_x: 123, widget_y: 456 });
+    expect(readDeviceSettings(localStorage)).toEqual({ widget_x: 123, widget_y: 456 });
+    writeDeviceSettings(localStorage, { widget_x: 789 });
+    expect(readDeviceSettings(localStorage)).toEqual({ widget_x: 789, widget_y: 456 });
+  });
+
+  it('persists every reliable native move event', () => {
+    localStorage.clear();
+    persistWidgetPosition(localStorage, 321, 654);
+    expect(readDeviceSettings(localStorage)).toEqual({ widget_x: 321, widget_y: 654 });
+  });
+
+  it('does not register a development executable for autostart', async () => {
+    const autostart = {
+      isEnabled: vi.fn(async () => false),
+      enable: vi.fn(async () => undefined),
+      disable: vi.fn(async () => undefined),
+    };
+    const widget = {
+      isAlwaysOnTop: vi.fn(async () => true),
+      setAlwaysOnTop: vi.fn(async () => undefined),
+    };
+    await reconcileNativeSettings(
+      { launch_on_startup: true, widget_always_on_top: true },
+      autostart,
+      widget,
+      false,
+    );
+    expect(autostart.enable).not.toHaveBeenCalled();
+  });
+});
 import { emitTo, listen } from '@tauri-apps/api/event';
 
 vi.mock('@tauri-apps/api/event', () => ({

@@ -5,13 +5,22 @@
     ActivePlantPresentation
   } from '$lib/features/companion-widget/types/presentation';
   import { onMount } from "svelte";
+  import { get } from 'svelte/store';
   import { environmentStore } from "$lib/shared/stores/environmentStore";
   import { authStore } from "$lib/shared/stores/authStore";
-  import { api, APIError } from "$lib/api";
+  import { api, APIError, serverNow } from "$lib/api";
   import type { GardenState, TodayResponse } from "$lib/api/types";
   import { selectedPlantPresentation } from '$lib/shared/sprites/spriteMapper';
   import { desktop } from "$lib/platform/desktopWindow";
   import type { Weather } from "$lib/features/companion-widget/model/environment";
+  import {
+    createResync,
+    enqueueFocusFinish,
+    flushFocusFinishQueue,
+    isRetryableFocusFinishFailure,
+    startReliabilityListeners,
+    synchronizeAuthenticatedStartup
+  } from '$lib/platform/reliability';
 
 
   interface FocusSession {
@@ -25,7 +34,7 @@
   }
 
   let activeSession: FocusSession | null = $state(null);
-  let now = $state(new Date());
+  let now = $state(serverNow());
   let isPending = $state(false);
   let isEndingLocal = $state(false);
   let activePlant = $state<ActivePlantPresentation | null>(null);
@@ -88,35 +97,49 @@
     }
   }
 
+  const synchronization = createResync({ fetchSession, fetchReminders, refreshPlant });
+  const syncFreshness = synchronization.freshness;
+  const resync = () => get(authStore).isAuthenticated
+    ? synchronization.resync().catch(() => undefined)
+    : Promise.resolve();
+
+  async function flushQueuedFinishes() {
+    await flushFocusFinishQueue(localStorage, item => api.post('/focus/finish', {
+      run_id: item.run_id,
+      outcome: item.outcome,
+      should_replan: item.should_replan
+    }), item => {
+      console.warn('Queued focus finish was rejected permanently.', { run_id: item.run_id });
+      finishError = 'A saved offline focus result could not be accepted by the server.';
+    });
+  }
+
   onMount(() => {
     let disposed = false;
     let releaseEnvironment = () => {};
-    void authStore.initialize().then(() => {
-      if (!disposed && $authStore.isAuthenticated) releaseEnvironment = environmentStore.init();
+    let stopPositionPersistence = () => {};
+    void Promise.resolve(desktop.restoreWidgetPosition?.()).then(() => desktop.startWidgetPositionPersistence?.()).then(stop => {
+      if (disposed) stop?.(); else if (stop) stopPositionPersistence = stop;
     });
-    void fetchSession();
-    void refreshPlant();
-    void fetchReminders();
+    void authStore.initialize().then(async () => {
+      if (disposed) return;
+      const authenticated = get(authStore).isAuthenticated;
+      if (authenticated) releaseEnvironment = environmentStore.init();
+      await synchronizeAuthenticatedStartup(authenticated, flushQueuedFinishes, resync);
+    });
     const clock = setInterval(() => {
-      now = new Date();
+      now = serverNow();
     }, 1000);
-    const refresh = setInterval(() => {
-      void fetchSession();
-      void refreshPlant();
-      void fetchReminders();
-    }, 60000);
     let unlisten = () => {};
-    const refreshVisiblePlant = () => {
-      if (!document.hidden) void refreshPlant();
+    let unlistenNative = () => {};
+    const recoverOnline = () => {
+      if (!get(authStore).isAuthenticated) return;
+      void flushQueuedFinishes().then(resync);
     };
-    window.addEventListener("storage", refreshPlant);
-    window.addEventListener("focus", refreshPlant);
-    document.addEventListener("visibilitychange", refreshVisiblePlant);
+    const stopReliabilityListeners = startReliabilityListeners(resync, recoverOnline);
     desktop
       .onScheduleUpdated(() => {
-        void fetchSession();
-        void refreshPlant();
-        void fetchReminders();
+        void resync();
       })
       .then((off) => {
         if (disposed) off();
@@ -128,14 +151,16 @@
             ? error.message
             : "Widget synchronization unavailable.";
       });
+    desktop.onResyncRequested?.(resync)?.then(off => {
+      if (disposed) off(); else unlistenNative = off;
+    }).catch(() => undefined);
     return () => {
       disposed = true;
       unlisten();
-      window.removeEventListener("storage", refreshPlant);
-      window.removeEventListener("focus", refreshPlant);
-      document.removeEventListener("visibilitychange", refreshVisiblePlant);
+      unlistenNative();
+      stopPositionPersistence();
       clearInterval(clock);
-      clearInterval(refresh);
+      stopReliabilityListeners();
       releaseEnvironment();
     };
   });
@@ -242,6 +267,18 @@
       }
       await fetchSession();
     } catch (err: unknown) {
+      if (isRetryableFocusFinishFailure(err)) {
+        enqueueFocusFinish(localStorage, {
+          run_id: session.id,
+          outcome,
+          should_replan: true
+        });
+        completedSessionId = session.id;
+        activeSession = null;
+        isEndingLocal = false;
+        finishWarning = 'Focus saved offline and will sync when the connection returns.';
+        return;
+      }
       isEndingLocal = previousEndingLocal;
       finishError =
         err instanceof Error ? err.message : "Failed to complete session.";
@@ -363,3 +400,19 @@
   timezone={$environmentStore.effectiveTimezone}
   rainEnabled={$environmentStore.animationEnabled}
 />
+<small class="sync-freshness" aria-live="polite">
+  {$syncFreshness.lastSyncedAt
+    ? `Last synced: ${new Date($syncFreshness.lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : 'Not yet synced'}
+</small>
+
+<style>
+  .sync-freshness {
+    position: fixed;
+    right: 8px;
+    bottom: 4px;
+    z-index: 20;
+    color: #526a78;
+    font-size: 10px;
+  }
+</style>

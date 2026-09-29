@@ -19,7 +19,8 @@
         "height": 289,
         "decorations": false,
         "transparent": false,
-        "resizable": true
+        "resizable": false,
+        "alwaysOnTop": true
       },
       {
         "label": "main",

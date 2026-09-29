@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { api, APIError, setAuthErrorHandler } from './api';
+import { api, APIError, serverNow, setAuthErrorHandler } from './api';
+import { recordServerDate } from './shared/serverClock';
 
 // Mock env variables
 vi.mock('$env/static/public', () => ({
@@ -124,13 +125,46 @@ describe('api client', () => {
       mockFetch.mockImplementationOnce((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
         init.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
       }));
-      const pending = api.get('/slow', { timeoutMs: 1000 });
+      const pending = api.post('/slow', undefined, { timeoutMs: 1000 });
       const assertion = expect(pending).rejects.toMatchObject({ status: 408 });
       await vi.advanceTimersByTimeAsync(1000);
       await assertion;
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('retries safe GET network failures with backoff and jitter', async () => {
+    vi.useFakeTimers();
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    try {
+      mockFetch
+        .mockRejectedValueOnce(new TypeError('offline'))
+        .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ recovered: true }) });
+      const pending = api.get('/recover');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(500);
+      await expect(pending).resolves.toEqual({ recovered: true });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    } finally {
+      random.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not retry mutations or log out for network failures', async () => {
+    const handler = vi.fn();
+    setAuthErrorHandler(handler);
+    mockFetch.mockRejectedValueOnce(new TypeError('DNS failure'));
+    await expect(api.post('/focus/finish', {})).rejects.toThrow('DNS failure');
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('uses the authoritative HTTP Date to compensate client clock skew', () => {
+    recordServerDate('Tue, 29 Sep 2026 12:00:00 GMT', Date.parse('Tue, 29 Sep 2026 12:05:00 GMT'));
+    expect(serverNow(Date.parse('Tue, 29 Sep 2026 12:06:00 GMT')).toISOString())
+      .toBe('2026-09-29T12:01:00.000Z');
   });
 });
 

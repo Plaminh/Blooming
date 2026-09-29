@@ -129,6 +129,32 @@ export interface NativeSettings {
   widget_always_on_top: boolean;
 }
 
+export const DEVICE_SETTINGS_KEY = 'blooming_device_settings_v1';
+
+export interface DeviceSettings extends NativeSettings {
+  widget_x?: number;
+  widget_y?: number;
+}
+
+export function readDeviceSettings(storage: Storage): Partial<DeviceSettings> {
+  try {
+    const parsed = JSON.parse(storage.getItem(DEVICE_SETTINGS_KEY) ?? '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function writeDeviceSettings(storage: Storage, value: Partial<DeviceSettings>) {
+  storage.setItem(DEVICE_SETTINGS_KEY, JSON.stringify({ ...readDeviceSettings(storage), ...value }));
+}
+
+export function persistWidgetPosition(storage: Storage, x: number, y: number) {
+  if (Number.isFinite(x) && Number.isFinite(y)) {
+    writeDeviceSettings(storage, { widget_x: x, widget_y: y });
+  }
+}
+
 export interface NativeAutostartAdapter {
   isEnabled(): Promise<boolean>;
   enable(): Promise<void>;
@@ -144,9 +170,11 @@ export async function reconcileNativeSettings(
   settings: NativeSettings,
   autostart: NativeAutostartAdapter,
   widget: NativeWidgetSettingsAdapter,
+  allowAutostartRegistration = true,
 ): Promise<void> {
   const results = await Promise.allSettled([
     (async () => {
+      if (!allowAutostartRegistration) return;
       if ((await autostart.isEnabled()) !== settings.launch_on_startup) {
         if (settings.launch_on_startup) await autostart.enable();
         else await autostart.disable();
@@ -179,13 +207,28 @@ export const desktop = {
       widget_always_on_top: await widget.isAlwaysOnTop(),
     };
   },
+  async restoreWidgetPosition(storage: Storage = localStorage) {
+    if (!isTauriRuntime()) return;
+    const saved = readDeviceSettings(storage);
+    if (!Number.isFinite(saved.widget_x) || !Number.isFinite(saved.widget_y)) return;
+    const module = await loadTauriWindowModule();
+    const widget = await module?.Window.getByLabel('companion-widget');
+    if (widget && module) await widget.setPosition(new module.PhysicalPosition(saved.widget_x!, saved.widget_y!));
+  },
+  async startWidgetPositionPersistence(storage: Storage = localStorage): Promise<() => void> {
+    if (!isTauriRuntime()) return () => {};
+    const module = await loadTauriWindowModule();
+    const widget = await module?.Window.getByLabel('companion-widget');
+    if (!widget) return () => {};
+    return widget.onMoved(event => persistWidgetPosition(storage, event.payload.x, event.payload.y));
+  },
   async reconcileSettings(settings: NativeSettings) {
     if (!isTauriRuntime()) return;
     const autostart = await import("@tauri-apps/plugin-autostart");
     const module = await loadTauriWindowModule();
     const widget = await module?.Window.getByLabel("companion-widget");
     if (!widget) throw new Error("Companion window is unavailable.");
-    await reconcileNativeSettings(settings, autostart, widget);
+    await reconcileNativeSettings(settings, autostart, widget, !import.meta.env.DEV);
   },
   async showWidget() {
     if (!isTauriRuntime()) return;
@@ -210,6 +253,11 @@ export const desktop = {
     if (!isTauriRuntime()) return () => {};
     const { listen } = await import("@tauri-apps/api/event");
     return listen<null>("blooming:schedule-updated", callback);
+  },
+  async onResyncRequested(callback: () => void): Promise<() => void> {
+    if (!isTauriRuntime()) return () => {};
+    const { listen } = await import('@tauri-apps/api/event');
+    return listen<null>('blooming:resync-requested', callback);
   },
   async proactiveNudge(nudge: { id: string; message: string; action: string }) {
     if (!isTauriRuntime()) return;
