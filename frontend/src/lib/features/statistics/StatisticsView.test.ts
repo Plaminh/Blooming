@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/svelte';
 import StatisticsPage from '../../../routes/(app)/statistics/+page.svelte';
-import { api } from '$lib/api';
+import { api } from '$lib/api/client';
 
 vi.mock('$lib/platform/desktopWindow', () => ({
   desktopWindowService: {
@@ -14,7 +14,8 @@ vi.mock('$lib/platform/desktopWindow', () => ({
   }
 }));
 
-vi.mock('$lib/api', () => ({
+
+vi.mock('$lib/api/client', () => ({
   api: {
     get: vi.fn()
   }
