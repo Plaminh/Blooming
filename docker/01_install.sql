@@ -1,1 +1,1 @@
-\ir database/install.sql
+\ir /opt/database/install.sql

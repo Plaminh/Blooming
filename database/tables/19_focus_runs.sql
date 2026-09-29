@@ -36,6 +36,7 @@ CREATE INDEX focus_runs_plan_block_idx ON focus_runs (plan_block_id) WHERE plan_
 CREATE INDEX focus_runs_task_idx ON focus_runs (task_id) WHERE task_id IS NOT NULL;
 CREATE INDEX focus_runs_user_recent_idx ON focus_runs (user_id, created_at DESC);
 CREATE INDEX focus_runs_user_active_idx ON focus_runs (user_id, status) WHERE status IN ('READY', 'FOCUSING', 'PAUSED');
+CREATE INDEX idx_focus_runs_user_status ON focus_runs (user_id, status);
 DROP TRIGGER IF EXISTS focus_runs_set_updated_at ON focus_runs;
 CREATE TRIGGER focus_runs_set_updated_at
     BEFORE UPDATE ON focus_runs

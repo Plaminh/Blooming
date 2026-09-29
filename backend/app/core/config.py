@@ -22,7 +22,6 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
     GIT_SHA: str = "development"
-    LATEST_SCHEMA_MIGRATION: str = "001"
 
     SECRET_KEY: SecretStr
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

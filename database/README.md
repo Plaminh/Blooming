@@ -7,10 +7,8 @@ This directory intentionally separates the schema by table. Run `install.sql` wi
 ## Scope and file order
 
 - `00_init.sql`: Extensions and common functions.
-- `tables/*.sql`: one file per table, including migration metadata, with numeric prefixes defining installation order.
+- `tables/*.sql`: one file per table, with numeric prefixes defining installation order.
 - `99_seed.sql`: Static seed data (e.g. plant catalog) inserted after the tables are created.
-
-The installer records baseline version `000`; `scripts/migrate.sh` then applies ordered files from `migrations/` transactionally.
 
 ## Install / Recreate Database
 

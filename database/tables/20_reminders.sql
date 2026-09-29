@@ -29,6 +29,7 @@ CREATE INDEX reminders_plan_block_idx ON reminders (plan_block_id) WHERE plan_bl
 CREATE INDEX reminders_user_unread_due_idx ON reminders (user_id, due_at) WHERE status = 'DUE' AND viewed_at IS NULL;
 CREATE INDEX reminders_milestone_idx ON reminders (milestone_id) WHERE milestone_id IS NOT NULL;
 CREATE INDEX reminders_user_sync_idx ON reminders (user_id, due_at) WHERE status IN ('SCHEDULED', 'DUE');
+CREATE INDEX idx_reminders_user_status_due ON reminders (user_id, status, due_at);
 DROP TRIGGER IF EXISTS reminders_set_updated_at ON reminders;
 CREATE TRIGGER reminders_set_updated_at
     BEFORE UPDATE ON reminders
