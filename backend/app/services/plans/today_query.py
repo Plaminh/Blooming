@@ -79,10 +79,19 @@ async def get_today_draft(
         ).all()
         tasks = {t.id: t for t in tasks_list}
 
+    # Only open work is re-planned: a finished task stays in today's history,
+    # and putting it back in the draft would schedule it again on save.
+    open_tasks = {
+        task_id: task
+        for task_id, task in tasks.items()
+        if task.status not in ("COMPLETED", "SKIPPED", "CANCELLED")
+    }
     draft_tasks = []
+    seen: set = set()
     for b in sorted(plan.plan_blocks, key=lambda x: x.position):
-        if b.block_type == "TASK" and b.task_id and b.task_id in tasks:
-            t = tasks[b.task_id]
+        if b.block_type == "TASK" and b.task_id in open_tasks and b.task_id not in seen:
+            seen.add(b.task_id)  # A split task has several blocks.
+            t = open_tasks[b.task_id]
             draft_tasks.append(
                 TaskDraft(
                     id=str(t.id),
@@ -97,7 +106,11 @@ async def get_today_draft(
                     schedulingType=t.scheduling_type,
                     fixedStart=t.fixed_start_at,
                     fixedEnd=t.fixed_end_at,
-                    dependencies=[str(d.depends_on_task_id) for d in t.dependencies],
+                    dependencies=[
+                        str(d.depends_on_task_id)
+                        for d in t.dependencies
+                        if d.depends_on_task_id in open_tasks
+                    ],
                     splittable=t.is_splittable,
                     sourceTaskId=str(t.id),
                     recurringTaskId=str(t.recurring_task_id)
@@ -106,12 +119,14 @@ async def get_today_draft(
                 )
             )
 
+    # Windows are wall-clock times in the draft's own timezone.
+    plan_tz = safe_timezone(plan.timezone_snapshot)
     windows = []
     for w in plan.availability_windows:
         windows.append(
             AvailabilityWindowDraft(
-                start=w.available_start_at.astimezone(tz).strftime("%H:%M"),
-                end=w.available_end_at.astimezone(tz).strftime("%H:%M"),
+                start=w.available_start_at.astimezone(plan_tz).strftime("%H:%M"),
+                end=w.available_end_at.astimezone(plan_tz).strftime("%H:%M"),
             )
         )
 

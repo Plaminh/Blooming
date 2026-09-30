@@ -62,6 +62,17 @@ async def register_user(
 ) -> User:
     email = user_in.email.strip().casefold()
     existing_user = await get_user_by_email(db, email)
+    if existing_user and existing_user.email_verified_at is None:
+        # A retry after a lost or failed verification email must lead the
+        # user to "resend", not to a dead end. The password is not changed:
+        # only whoever controls the mailbox can finish the original account.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "EMAIL_NOT_VERIFIED",
+                "message": "This email is registered but not verified yet. Check your inbox or resend the verification email.",
+            },
+        )
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered."

@@ -21,8 +21,5 @@ export function isValidTimezone(value: string): boolean {
 }
 
 export function supportedTimezones(): string[] {
-  const intl = Intl as typeof Intl & { supportedValuesOf?: (key: 'timeZone') => string[] };
-  const values = intl.supportedValuesOf?.('timeZone') ?? timeZonesNames;
-  return [...new Set(['UTC', ...values.map(normalizeTimezone)])].sort();
+  return [...new Set(['UTC', ...Intl.supportedValuesOf('timeZone').map(normalizeTimezone)])].sort();
 }
-import { timeZonesNames } from '@vvo/tzdb';

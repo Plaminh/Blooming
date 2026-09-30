@@ -1,8 +1,19 @@
+import json
 from pathlib import Path
-from pydantic import SecretStr, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Annotated
+
+from pydantic import SecretStr, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from sqlalchemy import URL
 import warnings
+
+# Webview origins of the packaged Tauri 2 desktop app (Windows, macOS/Linux,
+# and Windows with useHttpsScheme).
+DESKTOP_APP_ORIGINS = (
+    "http://tauri.localhost",
+    "tauri://localhost",
+    "https://tauri.localhost",
+)
 
 # Resolve .env locations from this file so settings load identically no matter
 # which working directory uvicorn or pytest is started from.
@@ -25,7 +36,11 @@ class Settings(BaseSettings):
 
     SECRET_KEY: SecretStr
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    FRONTEND_URLS: list[str] = [
+    # Web origins allowed by CORS (dev server, hosted verification page).
+    # Accepts a JSON list or a comma-separated string, since many platform
+    # secret stores cannot hold JSON. The packaged desktop app's own origins
+    # are always allowed; see ``cors_origins``.
+    FRONTEND_URLS: Annotated[list[str], NoDecode] = [
         "http://localhost:1420",
         "http://127.0.0.1:1420",
     ]
@@ -79,6 +94,34 @@ class Settings(BaseSettings):
     AI_BUDGET_LEAN_THRESHOLD: float = 0.70
     AI_BUDGET_RULES_ONLY_THRESHOLD: float = 0.85
     AI_NUDGE_COOLDOWN_MINUTES: int = 30
+
+    @field_validator("FRONTEND_URLS", mode="before")
+    @classmethod
+    def parse_frontend_urls(cls, value: object) -> object:
+        if isinstance(value, str):
+            text = value.strip()
+            if text.startswith("["):
+                return json.loads(text)
+            return [item.strip() for item in text.split(",") if item.strip()]
+        return value
+
+    @property
+    def cors_origins(self) -> list[str]:
+        """Configured web origins plus the packaged desktop app's origins.
+
+        A packaged Tauri 2 app does not run on the dev server's
+        ``http://localhost:1420``: its webview origin is
+        ``http://tauri.localhost`` on Windows and ``tauri://localhost`` on
+        macOS/Linux. Without them every request from an installed app,
+        starting with registration, fails the CORS preflight and the user only
+        sees a network error. These origins belong to the app itself, not to
+        any website, so allowing them does not widen access.
+        """
+        origins = [origin.rstrip("/") for origin in self.FRONTEND_URLS]
+        for origin in DESKTOP_APP_ORIGINS:
+            if origin not in origins:
+                origins.append(origin)
+        return origins
 
     @property
     def database_url(self) -> URL:

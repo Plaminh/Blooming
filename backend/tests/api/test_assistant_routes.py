@@ -464,7 +464,7 @@ async def test_new_explicit_today_plan_clears_stale_edit_clarification(
     assert body["preview"] is None
     assert [
         (task["title"], task["durationMin"]) for task in body["draft"]["tasks"]
-    ] == [("Review database systems", 60)]
+    ] == [("review database systems", 60)]  # parser fallback keeps the user's casing
     assert body["draft"]["windows"] == [{"start": "19:00", "end": "21:00"}]
 
     state = await db_session.get(PlanningSession, UUID(body["session_id"]))
@@ -633,6 +633,7 @@ async def test_roadmap_milestone_due_at_is_local_end_of_day(
     )
     assert response.status_code == 201, response.text
     milestone = await db_session.scalar(select(Milestone))
-    assert milestone.due_at.hour == 16
-    assert milestone.due_at.minute == 59
-    assert milestone.due_at.date() == target
+    # End of the user's local day (23:59 in UTC+7, i.e. 16:59 UTC).
+    due_utc = milestone.due_at.astimezone(timezone.utc)
+    assert (due_utc.hour, due_utc.minute) == (16, 59)
+    assert due_utc.date() == target

@@ -471,3 +471,54 @@ def test_a_task_saved_for_a_later_day_can_be_removed_from_the_draft():
     assert len(draft.deferred_tasks) == 1  # the source draft is not mutated
     with pytest.raises(ValueError):
         apply_patch(changed, [op])
+
+
+# --- The LLM path keeps the parser's days, repetition and weekly spread ----------
+
+
+async def _plan_with_llm(message: str, tasks: list[dict]):
+    from unittest.mock import patch
+
+    from app.ai.handlers import planner
+    from app.ai.llm.budget import BudgetMode
+
+    with (
+        patch.object(planner, "get_budget_mode", AsyncMock(return_value=BudgetMode.NORMAL)),
+        patch.object(planner, "available_routes", AsyncMock(return_value="groq:small")),
+        patch.object(planner.llm_provider, "call", AsyncMock(return_value={"tasks": tasks})),
+    ):
+        return await planner.plan_day(message, _ctx(), "vi")
+
+
+@pytest.mark.asyncio
+async def test_llm_plan_keeps_each_tasks_day():
+    response = await _plan_with_llm("Thứ 2 học toán 1h, thứ 4 họp nhóm 30p", [
+        {"title": "Học toán", "duration_min": 60, "duration_is_explicit": True},
+        {"title": "Họp nhóm", "duration_min": 30, "duration_is_explicit": True},
+    ])
+    assert response.tier == "LLM"
+    assert response.draft.planDate == date(2026, 9, 28)
+    assert [(d.task.title, d.targetDate) for d in response.draft.deferred_tasks] == [
+        ("Họp nhóm", date(2026, 9, 30))
+    ]
+
+
+@pytest.mark.asyncio
+async def test_llm_plan_keeps_repetition_and_weekly_spread():
+    repeating = await _plan_with_llm("Mỗi ngày học tiếng Anh 30 phút", [
+        {"title": "Học tiếng Anh", "duration_min": 30, "duration_is_explicit": True},
+    ])
+    assert repeating.draft.tasks[0].recurrence.freq == "DAILY"
+    spread = await _plan_with_llm("Tuần này ôn thi 10 tiếng", [
+        {"title": "Ôn thi", "duration_min": 480, "duration_is_explicit": True},
+    ])
+    sessions = spread.draft.tasks + [d.task for d in spread.draft.deferred_tasks]
+    assert sum(t.durationMin for t in sessions) == 600
+
+
+def test_ambiguous_model_titles_borrow_no_day():
+    from app.ai.handlers.planner import _matching_parser_task
+
+    parsed = parse("Thứ 2 học toán 1h, thứ 4 học lý 1h").tasks
+    assert _matching_parser_task("Học", parsed) is None
+    assert _matching_parser_task("Học toán cao cấp", parsed).title == "học toán"
