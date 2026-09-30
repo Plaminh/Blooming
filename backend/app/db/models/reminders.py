@@ -57,6 +57,7 @@ class Reminder(Base):
             " OR status <> 'DISMISSED'",
             name="reminders_dismissal_valid",
         ),
+        Index("idx_reminders_user_status_due", "user_id", "status", "due_at"),
         Index(
             "reminders_user_sync_idx",
             "user_id",

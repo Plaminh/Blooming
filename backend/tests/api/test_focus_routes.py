@@ -64,7 +64,9 @@ async def test_duplicate_finish_http_flow_rewards_and_ends_once(
     first = await async_client.post(f"{PREFIX}/finish", json=payload, headers=auth_headers)
     second = await async_client.post(f"{PREFIX}/finish", json=payload, headers=auth_headers)
     assert first.status_code == second.status_code == 200
-    assert len((await db_session.scalars(select(RewardEvent))).all()) == 1
+    # DONE rewards the focus (Water) and completes the task (Leaves), once each.
+    rewards = (await db_session.scalars(select(RewardEvent))).all()
+    assert sorted(event.resource_type for event in rewards) == ["LEAVES", "WATER"]
     assert len((await db_session.scalars(
         select(FocusRunEvent).where(FocusRunEvent.event_type == "ENDED")
     )).all()) == 1
