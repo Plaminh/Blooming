@@ -41,6 +41,13 @@
     }
   }
 
+  function registrationCode(error: APIError): string | null {
+    const detail = error.detail?.detail;
+    return detail && typeof detail === 'object' && 'code' in detail && typeof detail.code === 'string'
+      ? detail.code
+      : null;
+  }
+
   async function handleRegister(data: any) {
     if (state.isLoading) return;
     state.isLoading = true;
@@ -53,7 +60,12 @@
       state.isAwaitingVerification = true;
     } catch (error) {
       if (error instanceof APIError) {
-        if (error.status === 409) {
+        if (error.status === 409 && registrationCode(error) === 'EMAIL_NOT_VERIFIED') {
+          // An earlier sign-up was never verified: offer to resend instead of a dead end.
+          state.emailDeliveryFailed = false;
+          state.isAwaitingVerification = true;
+          state.setFieldError('general', error.message);
+        } else if (error.status === 409) {
           state.setFieldError('email', 'Email already exists.');
         } else if (error.status === 502 || error.status === 503) {
           // Registration is committed before the verification email is sent.

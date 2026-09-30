@@ -39,8 +39,12 @@ dropdb blooming_restore_check
 1. Build and push the backend image tagged with `GIT_SHA`.
 2. Deploy one backend worker using the app-role URL.
 3. Gate traffic on `GET /api/v1/health/ready`; use `/api/v1/health` for liveness.
-4. Replace `PUBLIC_API_BASE_URL` and staging CSP `connect-src` with the exact hosted API origin, then run `npm run build -- --mode staging` and the Tauri staging build.
-5. Verify CORS from `http://tauri.localhost`, hosted verification, login, and assistant chat.
+4. In `frontend/`, set `PUBLIC_API_BASE_URL` in `.env.staging` and the staging CSP `connect-src` in `src-tauri/tauri.staging.conf.json` to the same exact HTTPS API origin. Then run `npm run tauri build -- --config src-tauri/tauri.staging.conf.json`. The staging config runs `npm run build:staging`, which checks that both values agree (the build fails if they do not) and builds the frontend with `--mode staging`. A plain `npm run build` ignores `.env.staging`.
+5. Verify registration, hosted verification, login, and assistant chat from the installed app.
+
+## CORS
+
+The API always allows the packaged desktop app's own webview origins: `http://tauri.localhost` (Windows), `tauri://localhost` (macOS/Linux) and `https://tauri.localhost`. `FRONTEND_URLS` only needs the web origins, such as the hosted verification page and the dev server. It accepts a JSON list or a comma-separated string. Before this was built in, an installed app whose origin was missing from `FRONTEND_URLS` failed every request, starting with registration, as a generic "Network error".
 
 ## CSP status
 
