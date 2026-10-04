@@ -663,7 +663,10 @@ async def test_overloaded_schedule_preview(
 
     reasons = data["reasons"]
     assert len(reasons) > 0
-    assert reasons == actual_reasons
+    # The response schema always carries dependency_id, null when absent.
+    def present(items):
+        return [{k: v for k, v in r.items() if v is not None} for r in items]
+    assert present(reasons) == present(actual_reasons)
     assert {reason["code"] for reason in reasons} == {"INSUFFICIENT_TIME"}
 
     plan_res = await db_session.execute(
@@ -682,10 +685,7 @@ async def test_overloaded_schedule_preview(
     )
     assert saved.status_code == 200, saved.text
     assert saved.json()["unscheduled_tasks"] == unsched
-    assert [
-        {key: value for key, value in reason.items() if value is not None}
-        for reason in saved.json()["reasons"]
-    ] == reasons
+    assert present(saved.json()["reasons"]) == present(reasons)
 
     restored = await async_client.get("/api/v1/today", headers=auth_headers)
     assert restored.status_code == 200

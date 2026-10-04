@@ -57,7 +57,7 @@ def _cors_headers_for(request: Request) -> dict[str, str]:
     500 response as a generic CORS/network failure.
     """
     origin = request.headers.get("origin")
-    if origin not in settings.FRONTEND_URLS:
+    if origin not in settings.cors_origins:
         return {}
     return {
         "Access-Control-Allow-Origin": origin,
@@ -78,7 +78,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.FRONTEND_URLS,
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

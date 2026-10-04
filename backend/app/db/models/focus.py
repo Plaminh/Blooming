@@ -77,6 +77,7 @@ class FocusRun(Base):
             name="focus_runs_ended_state_valid",
         ),
         Index("focus_runs_user_recent_idx", "user_id", text("created_at DESC")),
+        Index("idx_focus_runs_user_status", "user_id", "status"),
         Index(
             "focus_runs_user_active_idx",
             "user_id",

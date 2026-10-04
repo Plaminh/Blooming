@@ -50,10 +50,6 @@ def preview_token_claims(
     return {"exp": int(expiry), "plan_version": version}
 
 
-def verify_hmac_token(user_id: UUID, draft_json: str, token: str) -> bool:
-    return preview_token_claims(user_id, draft_json, token) is not None
-
-
 async def plan_version(db: AsyncSession, plan_id: UUID | None) -> str:
     if plan_id is None:
         return "none"

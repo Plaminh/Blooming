@@ -39,7 +39,8 @@ def roadmap(message: str, lang: str, *, today: date) -> ChatResponse:
         return missing_goal_target_date(lang)
     title = message.replace(date_text, "") if date_text else message
     title = re.sub(
-        r"(?i)\b(i want to|create|goal|roadmap|target|by|mục tiêu|tạo|đến ngày)\b",
+        r"(?i)\b(i want to|create|goal|roadmap|target|by|mục tiêu( của (tôi|mình))? là|mục tiêu"
+        r"|tạo|(tôi|mình|em) muốn|trước( ngày)?|đến ngày|vào ngày|hạn)(?!\w)",
         " ",
         title,
     )
@@ -48,7 +49,11 @@ def roadmap(message: str, lang: str, *, today: date) -> ChatResponse:
     )
     total_days = max(0, (target - today).days)
     milestone_count = 3
-    labels = ["Define scope", "Build momentum", "Complete"]
+    labels = (
+        ["Xác định phạm vi", "Tăng tốc", "Hoàn thành"]
+        if lang == "vi"
+        else ["Define scope", "Build momentum", "Complete"]
+    )
     milestones = []
     for index in range(1, milestone_count + 1):
         offset = round(total_days * index / milestone_count)
@@ -69,7 +74,11 @@ def roadmap(message: str, lang: str, *, today: date) -> ChatResponse:
         milestones=milestones,
     )
     return ChatResponse(
-        reply="I created a roadmap draft. Review it before saving.",
+        reply=(
+            "Mình đã tạo lộ trình nháp. Bạn xem lại rồi lưu nhé."
+            if lang == "vi"
+            else "I created a roadmap draft. Review it before saving."
+        ),
         intent="CREATE_GOAL",
         tier="RULES",
         draft=draft,

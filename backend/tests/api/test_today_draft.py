@@ -1,5 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
-from uuid import uuid4
+from zoneinfo import ZoneInfo
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,13 +20,13 @@ async def test_today_draft_round_trip(
 
     # Create a task with complex scheduling constraints
     task1 = Task(
-        user_id=test_user["id"],
+        user_id=test_user.id,
         title="Complex Task",
         estimated_duration_minutes=60,
-        category="Deep Work",
+        category="Work",
         priority="HIGH",
         importance="CORE",
-        source="USER",
+        source="MANUAL",
         preferred_break_duration_minutes=15,
         deadline_at=datetime.now(timezone.utc) + timedelta(days=2),
         scheduling_type="FIXED",
@@ -41,13 +41,13 @@ async def test_today_draft_round_trip(
     db_session.add(task1)
 
     task2 = Task(
-        user_id=test_user["id"],
+        user_id=test_user.id,
         title="Dependent Task",
         estimated_duration_minutes=30,
-        category="Admin",
+        category="Personal",
         priority="LOW",
         importance="OPTIONAL",
-        source="USER",
+        source="MANUAL",
         scheduling_type="FLEXIBLE",
         is_splittable=False,
     )
@@ -60,9 +60,10 @@ async def test_today_draft_round_trip(
 
     # Create the daily plan
     plan = DailyPlan(
-        user_id=test_user["id"],
+        user_id=test_user.id,
         plan_date=today,
         status="ACTIVE",
+        confirmed_at=datetime.now(timezone.utc),
         timezone_snapshot="America/New_York",
     )
     db_session.add(plan)
@@ -117,8 +118,10 @@ async def test_today_draft_round_trip(
 
     windows = data["windows"]
     assert len(windows) == 1
-    assert windows[0]["start"] == w_start.isoformat().replace("+00:00", "Z")
-    assert windows[0]["end"] == w_end.isoformat().replace("+00:00", "Z")
+    # Draft windows are wall-clock HH:MM in the plan's timezone.
+    new_york = ZoneInfo("America/New_York")
+    assert windows[0]["start"] == w_start.astimezone(new_york).strftime("%H:%M")
+    assert windows[0]["end"] == w_end.astimezone(new_york).strftime("%H:%M")
 
     tasks = data["tasks"]
     assert len(tasks) == 2
@@ -128,7 +131,7 @@ async def test_today_draft_round_trip(
     assert t1_draft["durationMin"] == 60
     assert t1_draft["priority"] == "HIGH"
     assert t1_draft["importance"] == "CORE"
-    assert t1_draft["category"] == "Deep Work"
+    assert t1_draft["category"] == "Work"
     assert t1_draft["schedulingType"] == "FIXED"
     assert t1_draft["splittable"] is True
     assert t1_draft["fixedStart"] == task1.fixed_start_at.isoformat().replace(
@@ -143,7 +146,7 @@ async def test_today_draft_round_trip(
     assert t2_draft["durationMin"] == 30
     assert t2_draft["priority"] == "LOW"
     assert t2_draft["importance"] == "OPTIONAL"
-    assert t2_draft["category"] == "Admin"
+    assert t2_draft["category"] == "Personal"
     assert t2_draft["schedulingType"] == "FLEXIBLE"
     assert t2_draft["splittable"] is False
     assert t2_draft["dependencies"] == [str(task1.id)]
@@ -163,14 +166,16 @@ async def test_today_draft_no_plan(
 
 
 async def test_today_draft_other_user_plan(
-    async_client: AsyncClient, auth_headers: dict[str, str], db_session: AsyncSession
+    async_client: AsyncClient, auth_headers: dict[str, str], db_session: AsyncSession,
+    test_user_two,
 ):
     today = date.today()
-    other_user_id = uuid4()
+    other_user_id = test_user_two.id
 
     # Create plan for another user
     plan = DailyPlan(
-        user_id=other_user_id, plan_date=today, status="ACTIVE", timezone_snapshot="UTC"
+        user_id=other_user_id, plan_date=today, status="ACTIVE",
+        confirmed_at=datetime.now(timezone.utc), timezone_snapshot="UTC"
     )
     db_session.add(plan)
     await db_session.commit()
@@ -183,3 +188,41 @@ async def test_today_draft_other_user_plan(
     assert data["type"] == "today"
     assert data["tasks"] == []
     assert data["windows"] == []
+
+
+async def test_today_draft_leaves_finished_work_out(
+    async_client: AsyncClient, auth_headers: dict[str, str], test_user, db_session: AsyncSession,
+):
+    """Adjusting a plan must not put finished tasks back into the schedule."""
+    today = date.today()
+    now = datetime.now(timezone.utc)
+    done = Task(user_id=test_user.id, title="Done", estimated_duration_minutes=30,
+                status="COMPLETED", completed_at=now)
+    open_task = Task(user_id=test_user.id, title="Open", estimated_duration_minutes=30)
+    db_session.add_all([done, open_task])
+    await db_session.flush()
+    db_session.add(TaskDependency(task_id=open_task.id, depends_on_task_id=done.id))
+    plan = DailyPlan(user_id=test_user.id, plan_date=today, status="ACTIVE",
+                     confirmed_at=now, timezone_snapshot="UTC")
+    db_session.add(plan)
+    await db_session.flush()
+    start = now.replace(hour=9, minute=0, second=0, microsecond=0)
+    db_session.add_all([
+        PlanBlock(daily_plan_id=plan.id, block_type="TASK", task_id=done.id, position=0,
+                  status="COMPLETED", completed_at=now, planned_start_at=start,
+                  planned_end_at=start + timedelta(minutes=30)),
+        # A split task has two blocks but is one draft task.
+        PlanBlock(daily_plan_id=plan.id, block_type="TASK", task_id=open_task.id, position=1,
+                  status="PLANNED", planned_start_at=start + timedelta(minutes=30),
+                  planned_end_at=start + timedelta(minutes=45)),
+        PlanBlock(daily_plan_id=plan.id, block_type="TASK", task_id=open_task.id, position=2,
+                  status="PLANNED", planned_start_at=start + timedelta(minutes=50),
+                  planned_end_at=start + timedelta(minutes=65)),
+    ])
+    await db_session.commit()
+
+    resp = await async_client.get(f"/api/v1/today/draft?date={today.isoformat()}", headers=auth_headers)
+    assert resp.status_code == 200, resp.text
+    tasks = resp.json()["tasks"]
+    assert [t["title"] for t in tasks] == ["Open"]
+    assert tasks[0]["dependencies"] == []

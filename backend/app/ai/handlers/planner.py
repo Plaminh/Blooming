@@ -126,6 +126,30 @@ def is_pure_plan_command(message: str) -> bool:
     return bool(PURE_PLAN_COMMAND_RE.match(message.strip()))
 
 
+def _title_tokens(value: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", normalize(value)))
+
+
+def _matching_parser_task(
+    title: str, candidates: tuple[ParsedTask, ...]
+) -> ParsedTask | None:
+    """The parsed task a model title refers to ("Họp" -> "Họp nhóm"), if unique.
+
+    Titles match when one's words contain the other's; the closest match wins
+    and a tie matches nothing, so ambiguous tasks borrow no day or repetition.
+    """
+    wanted = _title_tokens(title)
+    scored = []
+    for task in candidates:
+        tokens = _title_tokens(task.title)
+        if wanted and tokens and (tokens <= wanted or wanted <= tokens):
+            scored.append((len(tokens & wanted) / len(tokens | wanted), task))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    if not scored or (len(scored) > 1 and scored[0][0] == scored[1][0]):
+        return None
+    return scored[0][1]
+
+
 def _parsed_from_llm(value: LLMDayPlan, ctx: ChatContext, message: str) -> ParsedPlan:
     parser_plan = parse(message)
     parser_by_title = {normalize(t.title): t for t in parser_plan.tasks}
@@ -150,6 +174,12 @@ def _parsed_from_llm(value: LLMDayPlan, ctx: ChatContext, message: str) -> Parse
         )
         assert l_task.duration_min is not None  # Enforced by LLMTask validation.
         duration = max(5, min(l_task.duration_min, 480))
+        # The model is never asked for days or repetition; the parser reads them
+        # from the user's words ("thứ 2 ...", "mỗi ngày ..."), so take them from
+        # the parsed task this one corresponds to.
+        evidence = p_match or _matching_parser_task(l_task.title, parser_plan.tasks)
+        if evidence is not None and evidence.spread and evidence.duration_min:
+            duration = evidence.duration_min  # A weekly total, split on assembly.
         final_tasks.append(
             ParsedTask(
                 title=l_task.title.strip()[:200],
@@ -163,9 +193,9 @@ def _parsed_from_llm(value: LLMDayPlan, ctx: ChatContext, message: str) -> Parse
                 fixed_start=l_task.fixed_start,
                 fixed_end=l_task.fixed_end,
                 deadline=l_task.deadline,
-                day=parser_plan.day,
-                recurrence=None,
-                spread=None,
+                day=(evidence.day if evidence else None) or parser_plan.day,
+                recurrence=evidence.recurrence if evidence else None,
+                spread=evidence.spread if evidence else None,
             )
         )
 

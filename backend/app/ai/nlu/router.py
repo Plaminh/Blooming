@@ -179,7 +179,16 @@ def is_explicit_goal_request(message: str) -> bool:
         r"(?:finish|complete|achieve|build|learn|launch|become|earn|write|deliver)\b",
         text,
     )
-    return bool(goal_opening and re.search(rf"\bby\s+{GOAL_TARGET_DATE_RE}\b", text))
+    if goal_opening and re.search(rf"\bby\s+{GOAL_TARGET_DATE_RE}\b", text):
+        return True
+    # "Tôi muốn học xong IELTS trước 31/12/2026": a wish with a deadline.
+    vi_opening = re.search(
+        r"\b(?:toi|minh|em)\s+muon\b|\bmuc tieu (?:cua (?:toi|minh) )?la\b", text
+    )
+    return bool(
+        vi_opening
+        and re.search(rf"\b(?:truoc|den|vao|han|by)\s+(?:ngay\s+)?{GOAL_TARGET_DATE_RE}\b", text)
+    )
 
 
 def route(
