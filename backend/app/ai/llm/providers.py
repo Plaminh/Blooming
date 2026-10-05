@@ -189,23 +189,48 @@ class LLMProvider:
             if not p.strip():
                 continue
             parts = [part.strip() for part in p.split(":", 1)]
-            if len(parts) != 2 or parts[0] not in {"groq", "ollama"} or not parts[1]:
+            if (
+                len(parts) != 2
+                or parts[0] not in {"groq", "gemini", "ollama"}
+                or not parts[1]
+            ):
                 raise LLMError("config", status_code=503)
             routes.append((parts[0], parts[1]))
         if not routes:
             raise LLMError("config", status_code=503)
         return routes
 
+    @staticmethod
+    def _api_key(provider: str) -> str:
+        secret = {
+            "groq": settings.GROQ_API_KEY,
+            "gemini": settings.GEMINI_API_KEY,
+        }.get(provider)
+        return secret.get_secret_value().strip() if secret else ""
+
+    def _is_configured(self, provider: str) -> bool:
+        if provider == "ollama":
+            return True
+        api_key = self._api_key(provider)
+        placeholders = {
+            "groq": "your_groq_api_key_here",
+            "gemini": "your_gemini_api_key_here",
+        }
+        return bool(api_key) and api_key != placeholders.get(provider)
+
     def _get_base_url_and_headers(self, provider: str) -> tuple[str, dict]:
         if provider == "groq":
-            api_key = (
-                settings.GROQ_API_KEY.get_secret_value()
-                if settings.GROQ_API_KEY
-                else ""
-            )
-            if not api_key.strip() or api_key == "your_groq_api_key_here":
+            api_key = self._api_key(provider)
+            if not self._is_configured(provider):
                 raise LLMError("config", status_code=503)
             return settings.GROQ_BASE_URL.rstrip("/"), {
+                "Authorization": f"Bearer {api_key}"
+            }
+        elif provider == "gemini":
+            api_key = self._api_key(provider)
+            if not self._is_configured(provider):
+                raise LLMError("config", status_code=503)
+            return settings.GEMINI_BASE_URL.rstrip("/"), {
                 "Authorization": f"Bearer {api_key}"
             }
         elif provider == "ollama":
@@ -324,10 +349,18 @@ class LLMProvider:
         user_id: UUID | None = None,
         purpose: str = "PLANNER",
     ) -> dict:
-        routes = self.parse_route(route_str)
+        routes = [
+            route
+            for route in self.parse_route(route_str)
+            if self._is_configured(route[0])
+        ]
+        if not routes:
+            raise LLMError("config", status_code=503)
         last_error = None
 
-        for provider, model in routes:
+        route_index = 0
+        while route_index < len(routes):
+            provider, model = routes[route_index]
             response_format = None
             request_messages = messages
             if require_json:
@@ -430,7 +463,19 @@ class LLMProvider:
                     "Provider %s/%s failed: %s", provider, model, type(e).__name__
                 )
                 if str(e) in {"rate_limit", "upstream", "timeout", "budget"}:
+                    route_index += 1
                     continue
+                if str(e) in {"config", "bad_output"}:
+                    # Credentials/configuration and malformed provider output
+                    # are provider-level failures. Skip sibling models that
+                    # share the same failure domain and try the next provider.
+                    route_index += 1
+                    while (
+                        route_index < len(routes) and routes[route_index][0] == provider
+                    ):
+                        route_index += 1
+                    if route_index < len(routes):
+                        continue
                 raise
 
         if last_error:

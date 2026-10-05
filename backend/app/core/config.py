@@ -67,12 +67,20 @@ class Settings(BaseSettings):
 
     GROQ_API_KEY: SecretStr | None = None
     GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+    GEMINI_API_KEY: SecretStr | None = None
+    GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
-    AI_ROUTE_ROUTER: str = "groq:llama-3.1-8b-instant"
-    AI_ROUTE_CHITCHAT: str = "groq:llama-3.1-8b-instant"
-    AI_ROUTE_PLANNER_LITE: str = "groq:openai/gpt-oss-20b"
-    AI_ROUTE_PLANNER: str = "groq:openai/gpt-oss-120b"
-    AI_ROUTE_EDITOR: str = "groq:openai/gpt-oss-20b,groq:openai/gpt-oss-120b"
+    AI_ROUTE_ROUTER: str = "groq:llama-3.1-8b-instant,gemini:gemini-3.5-flash-lite"
+    AI_ROUTE_CHITCHAT: str = "groq:llama-3.1-8b-instant,gemini:gemini-3.5-flash-lite"
+    # LEAN mode selects this route alone, so its uncapped fallback must remain
+    # available when the capped Groq model has exhausted its rolling budget.
+    AI_ROUTE_PLANNER_LITE: str = "groq:openai/gpt-oss-20b,gemini:gemini-3.5-flash-lite"
+    AI_ROUTE_PLANNER: str = (
+        "groq:openai/gpt-oss-20b,groq:openai/gpt-oss-120b,gemini:gemini-3.5-flash-lite"
+    )
+    AI_ROUTE_EDITOR: str = (
+        "groq:openai/gpt-oss-20b,groq:openai/gpt-oss-120b,gemini:gemini-3.5-flash-lite"
+    )
     AI_STRICT_MODELS: list[str] = ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]
     AI_TOKEN_BUDGET_24H: dict[str, int] = {
         "openai/gpt-oss-20b": 1_600_000,

@@ -21,7 +21,7 @@ def _purpose_routes(purpose: str) -> str:
     if purpose == "EDITOR":
         return settings.AI_ROUTE_EDITOR
     if purpose == "PLANNER":
-        return f"{settings.AI_ROUTE_PLANNER_LITE},{settings.AI_ROUTE_PLANNER}"
+        return settings.AI_ROUTE_PLANNER
     if purpose == "CHITCHAT":
         return settings.AI_ROUTE_CHITCHAT
     return settings.AI_ROUTE_ROUTER

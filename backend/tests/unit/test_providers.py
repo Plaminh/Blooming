@@ -43,6 +43,9 @@ def test_parse_route_and_retry_after():
         ("ollama", "qwen2.5:7b"),
         ("groq", "openai/gpt-oss-20b"),
     ]
+    assert provider.parse_route("gemini:gemini-3.5-flash-lite") == [
+        ("gemini", "gemini-3.5-flash-lite")
+    ]
     assert parse_retry_after("120.5") == 120.5
     assert parse_retry_after("9999") == 900
     assert parse_retry_after("invalid") == 60
@@ -193,6 +196,140 @@ async def test_bad_json_does_not_cascade(monkeypatch):
     with pytest.raises(LLMError, match="bad_output"):
         await provider.call("groq:small,groq:large", [], require_json=True)
     assert calls == ["small"]
+    await provider.close_client()
+
+
+@pytest.mark.asyncio
+async def test_groq_success_does_not_call_gemini(monkeypatch):
+    monkeypatch.setattr(settings, "GROQ_API_KEY", SecretStr("groq-secret"))
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", SecretStr("gemini-secret"))
+    hosts = []
+
+    def respond(request):
+        hosts.append(request.url.host)
+        return httpx.Response(200, json=envelope('{"provider":"groq"}'))
+
+    provider = LLMProvider(httpx.AsyncClient(transport=httpx.MockTransport(respond)))
+    result = await provider.call(
+        "groq:small,gemini:gemini-3.5-flash-lite", [], require_json=True
+    )
+    assert result == {"provider": "groq"}
+    assert hosts == ["api.groq.com"]
+    await provider.close_client()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["rate_limit", "timeout", "upstream"])
+async def test_transient_groq_failure_falls_back_to_gemini(monkeypatch, failure):
+    monkeypatch.setattr(settings, "GROQ_API_KEY", SecretStr("groq-secret"))
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", SecretStr("gemini-secret"))
+    calls = []
+
+    def respond(request):
+        calls.append(request.url.host)
+        if request.url.host == "api.groq.com":
+            if failure == "timeout":
+                raise httpx.ReadTimeout("timed out")
+            return httpx.Response(
+                429 if failure == "rate_limit" else 503,
+                json={"error": failure},
+            )
+        return httpx.Response(200, json=envelope('{"provider":"gemini"}'))
+
+    provider = LLMProvider(httpx.AsyncClient(transport=httpx.MockTransport(respond)))
+    result = await provider.call(
+        "groq:small,gemini:gemini-3.5-flash-lite", [], require_json=True
+    )
+    assert result == {"provider": "gemini"}
+    assert calls == ["api.groq.com", "generativelanguage.googleapis.com"]
+    await provider.close_client()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["credentials", "bad_output"])
+async def test_provider_failure_skips_remaining_groq_models(monkeypatch, failure):
+    monkeypatch.setattr(settings, "GROQ_API_KEY", SecretStr("groq-secret"))
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", SecretStr("gemini-secret"))
+    calls = []
+
+    def respond(request):
+        body = json.loads(request.content)
+        calls.append((request.url.host, body["model"]))
+        if request.url.host == "api.groq.com":
+            if failure == "credentials":
+                return httpx.Response(401, json={"error": "invalid key"})
+            return httpx.Response(200, json=envelope("not JSON"))
+        return httpx.Response(200, json=envelope('{"ok":true}'))
+
+    provider = LLMProvider(httpx.AsyncClient(transport=httpx.MockTransport(respond)))
+    result = await provider.call(settings.AI_ROUTE_EDITOR, [], require_json=True)
+    assert result == {"ok": True}
+    assert calls == [
+        ("api.groq.com", "openai/gpt-oss-20b"),
+        ("generativelanguage.googleapis.com", "gemini-3.5-flash-lite"),
+    ]
+    await provider.close_client()
+
+
+@pytest.mark.asyncio
+async def test_missing_gemini_key_is_skipped_and_groq_only_still_works(monkeypatch):
+    monkeypatch.setattr(settings, "GROQ_API_KEY", SecretStr("groq-secret"))
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", None)
+    calls = []
+
+    def respond(request):
+        calls.append(request.url.host)
+        return httpx.Response(200, json=envelope('{"ok":true}'))
+
+    provider = LLMProvider(httpx.AsyncClient(transport=httpx.MockTransport(respond)))
+    assert await provider.call("gemini:flash,groq:small", [], require_json=True) == {
+        "ok": True
+    }
+    assert calls == ["api.groq.com"]
+    await provider.close_client()
+
+
+@pytest.mark.asyncio
+async def test_no_configured_provider_raises_semantic_config_error(monkeypatch):
+    monkeypatch.setattr(settings, "GROQ_API_KEY", None)
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", None)
+    provider = LLMProvider()
+    with pytest.raises(LLMError, match="config") as exc_info:
+        await provider.call("groq:small,gemini:flash", [])
+    assert exc_info.value.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_gemini_openai_payload_preserves_structured_json_and_max_tokens(
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", SecretStr("gemini-secret"))
+    captured = []
+
+    def respond(request):
+        captured.append(request)
+        return httpx.Response(200, json=envelope('{"tasks":[]}'))
+
+    provider = LLMProvider(httpx.AsyncClient(transport=httpx.MockTransport(respond)))
+    result = await provider.call(
+        "gemini:gemini-3.5-flash-lite",
+        [{"role": "user", "content": "plan"}],
+        max_tokens=321,
+        require_json=True,
+        json_schema={"type": "object", "properties": {"tasks": {"type": "array"}}},
+    )
+    request = captured[0]
+    body = json.loads(request.content)
+    assert result == {"tasks": []}
+    assert request.url == httpx.URL(
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    )
+    assert request.headers["Authorization"] == "Bearer gemini-secret"
+    assert body["max_tokens"] == 321
+    assert "max_completion_tokens" not in body
+    assert "reasoning_effort" not in body
+    assert body["response_format"] == {"type": "json_object"}
+    assert "schema" in body["messages"][0]["content"]
     await provider.close_client()
 
 

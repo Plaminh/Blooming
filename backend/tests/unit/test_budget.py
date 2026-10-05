@@ -34,7 +34,18 @@ async def test_budget_thresholds_are_evaluated_per_model():
         for model, capacity in settings.AI_TOKEN_BUDGET_24H.items()
     ]
     db = _db_with_usage(exhausted)
-    assert await get_budget_mode(db, uuid4(), "PLANNER") == BudgetMode.RULES_ONLY
+    # Gemini is an uncapped route in both planner tiers, so exhausting every
+    # capped Groq model degrades to LEAN instead of disabling AI entirely.
+    assert await get_budget_mode(db, uuid4(), "PLANNER") == BudgetMode.LEAN
+
+
+@pytest.mark.asyncio
+async def test_planner_lite_keeps_uncapped_fallback_when_groq_is_exhausted():
+    small = "openai/gpt-oss-20b"
+    db = _db_with_usage([(small, settings.AI_TOKEN_BUDGET_24H[small])])
+    routes = await available_routes(db, settings.AI_ROUTE_PLANNER_LITE)
+    assert routes == "gemini:gemini-3.5-flash-lite"
+    assert await get_budget_mode(db, uuid4(), "PLANNER") == BudgetMode.LEAN
 
 
 @pytest.mark.asyncio

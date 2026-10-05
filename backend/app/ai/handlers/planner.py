@@ -438,7 +438,7 @@ async def plan_day(
     mode = await get_budget_mode(ctx.db, ctx.user_id, "PLANNER", now=ctx.now)
     configured_routes = settings.AI_ROUTE_PLANNER_LITE
     if mode == BudgetMode.NORMAL:
-        configured_routes = f"{configured_routes},{settings.AI_ROUTE_PLANNER}"
+        configured_routes = settings.AI_ROUTE_PLANNER
     routes = await available_routes(ctx.db, configured_routes, now=ctx.now)
     if not routes:
         mode = BudgetMode.RULES_ONLY
