@@ -28,10 +28,15 @@ from pydantic import model_validator
 
 
 class ReminderActionType(str, Enum):
+    VIEWED = "VIEWED"
+    START_FOCUS = "START_FOCUS"
     REMIND_LATER = "REMIND_LATER"
+    OPEN_BLOOMING = "OPEN_BLOOMING"
     CREATE_PLAN = "CREATE_PLAN"
     MARK_COMPLETED = "MARK_COMPLETED"
     MOVE_MILESTONE = "MOVE_MILESTONE"
+    DISMISS = "DISMISS"
+    COMPLETE = "COMPLETE"
 
 
 class ReminderActionRequest(BaseModel):

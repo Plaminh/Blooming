@@ -250,3 +250,72 @@ async def test_focus_outcome_need_more_time_keeps_plan_active(
     await db_session.refresh(test_daily_plan)
     assert test_daily_plan.status == "ACTIVE"
     assert test_daily_plan.completed_at is None
+
+async def test_focus_duration_sanity_cap(
+    db_session, test_user, test_task, clock
+):
+    """FOCUS-05: Do not silently award hours of Water because a session was left open overnight."""
+    run = await start(db_session, test_user, test_task)
+    
+    # Simulate leaving the app open for 10 hours
+    clock.advance(36000)
+    
+    request = FocusSessionFinish(run_id=run.id, outcome="DONE")
+    run = await focus_service.finish_session(db_session, test_user.id, request)
+    
+    assert run.actual_duration_seconds == run.planned_focus_seconds
+    assert run.actual_duration_seconds == 1500  # Default planned in fixtures
+
+
+async def test_focus_reward_farming_protection(
+    db_session, test_user, test_task, clock
+):
+    """FOCUS-04: Do not award Water for near-zero sessions."""
+    run = await start(db_session, test_user, test_task)
+    
+    # Simulate finishing immediately (e.g. 5 seconds)
+    clock.advance(5)
+    
+    request = FocusSessionFinish(run_id=run.id, outcome="DONE")
+    run = await focus_service.finish_session(db_session, test_user.id, request)
+    
+    assert run.actual_duration_seconds == 5
+    
+    # Check that no water was awarded
+    garden = await db_session.get(GardenState, test_user.id)
+    assert garden is None or garden.water_balance == 0
+    rewards = (
+        await db_session.scalars(
+            select(RewardEvent).where(RewardEvent.resource_type == "WATER")
+        )
+    ).all()
+    assert len(rewards) == 0
+
+async def test_focus_invalid_transitions(
+    db_session, test_user, test_task, clock
+):
+    """FOCUS-12: Explicitly test transitions like ENDED -> PAUSE, PAUSED -> PAUSE."""
+    run = await start(db_session, test_user, test_task)
+    
+    # FOCUSING -> START again is already tested in test_focus_start_and_second_active_session_conflict
+    
+    # FOCUSING -> RESUME
+    with pytest.raises(InvalidStatusTransitionError, match="Cannot resume session in FOCUSING state"):
+        await focus_service.resume_session(db_session, test_user.id)
+        
+    await focus_service.pause_session(db_session, test_user.id)
+    
+    # PAUSED -> PAUSE
+    with pytest.raises(InvalidStatusTransitionError, match="Cannot pause session in PAUSED state"):
+        await focus_service.pause_session(db_session, test_user.id)
+        
+    request = FocusSessionFinish(run_id=run.id, outcome="DONE")
+    run = await focus_service.finish_session(db_session, test_user.id, request)
+    
+    # ENDED -> PAUSE
+    with pytest.raises(ResourceNotFoundError, match="No active focus session to pause"):
+        await focus_service.pause_session(db_session, test_user.id)
+        
+    # ENDED -> RESUME
+    with pytest.raises(ResourceNotFoundError, match="No active focus session to resume"):
+        await focus_service.resume_session(db_session, test_user.id)

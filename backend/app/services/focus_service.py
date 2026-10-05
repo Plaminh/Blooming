@@ -172,9 +172,12 @@ class FocusService:
         if run.started_at is None:
             raise InvalidStatusTransitionError("Focus session has no start time")
         total_elapsed = int((now - run.started_at).total_seconds())
-        run.actual_duration_seconds = max(0, total_elapsed - run.total_paused_seconds)
+        calculated_duration = max(0, total_elapsed - run.total_paused_seconds)
+        
+        # Duration sanity / offline finish
+        run.actual_duration_seconds = min(calculated_duration, run.planned_focus_seconds)
 
-        if total_elapsed < 0 or run.actual_duration_seconds > 86400:
+        if total_elapsed < 0 or calculated_duration > 86400:
             logger.warning(
                 "abnormal_server_focus_duration",
                 extra={"run_id": str(run.id), "elapsed_seconds": total_elapsed},
@@ -185,15 +188,17 @@ class FocusService:
         )
 
         if obj_in.outcome in ("DONE", "FINISHED_EARLY", "NEED_MORE_TIME"):
-            await award_resources(
-                db,
-                user_id,
-                "WATER",
-                WATER_PER_POMODORO,
-                "FOCUS_COMPLETED",
-                f"focus_completed_{run.id}",
-                run.id,
-            )
+            # Reward farming protection
+            if run.actual_duration_seconds >= 60:
+                await award_resources(
+                    db,
+                    user_id,
+                    "WATER",
+                    WATER_PER_POMODORO,
+                    "FOCUS_COMPLETED",
+                    f"focus_completed_{run.id}",
+                    run.id,
+                )
         if run.task_id and obj_in.outcome in ("DONE", "FINISHED_EARLY", "SKIP"):
             from typing import Literal
 

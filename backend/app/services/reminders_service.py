@@ -144,22 +144,31 @@ class RemindersService:
         if reminder.user_id != user_id:
             raise UnauthorizedOwnershipError()
 
-        if reminder.status in ("COMPLETED", "DISMISSED", "CANCELLED"):
-            # Idempotent return or error, the spec says "prevent duplicate execution"
-            # Return current state to be idempotent
-            return reminder
-
+        # Removing blanket early return so action-specific handlers can process state overrides
         action_type = obj_in.action_type
         now = datetime.now(timezone.utc)
 
+        VALID_ACTIONS = {"VIEWED", "START_FOCUS", "REMIND_LATER", "OPEN_BLOOMING", "CREATE_PLAN", "MARK_COMPLETED", "MOVE_MILESTONE", "DISMISS", "COMPLETE"}
+        if action_type not in VALID_ACTIONS:
+            from app.core.errors import ValidationError
+            raise ValidationError(f"Invalid action type: {action_type}")
+
         if action_type in ("REMIND_LATER", "MOVE_MILESTONE") and not obj_in.new_due_at:
             from app.core.errors import ValidationError
-
             raise ValidationError(f"{action_type} requires new_due_at")
 
         # Deduplicate identical semantic operations
         if action_type == "REMIND_LATER" and reminder.due_at == obj_in.new_due_at:
             return reminder
+            
+        # A terminal reminder must not be changed into another state.
+        if reminder.status in ("COMPLETED", "DISMISSED", "CANCELLED"):
+            return reminder
+            
+        if action_type == "REMIND_LATER" and obj_in.new_due_at and obj_in.new_due_at < reminder.due_at:
+            from app.core.errors import ValidationError
+            raise ValidationError("new_due_at must be after previous due_at")
+
         if action_type == "MOVE_MILESTONE" and reminder.milestone_id:
             from app.db.models.goals import Milestone
 
@@ -211,6 +220,14 @@ class RemindersService:
                         f"milestone_completed_{ms.id}",
                         ms.id,
                     )
+                    
+        elif action_type == "COMPLETE":
+            reminder.status = "COMPLETED"
+            reminder.completed_at = now
+
+        elif action_type == "DISMISS":
+            reminder.status = "DISMISSED"
+            reminder.dismissed_at = now
 
         elif action_type == "MOVE_MILESTONE" or action_type == "REMIND_LATER":
             if action_type == "MOVE_MILESTONE" and reminder.milestone_id:
