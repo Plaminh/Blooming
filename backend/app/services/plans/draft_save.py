@@ -314,7 +314,6 @@ async def save_today_draft(
                 from uuid import UUID
 
                 from app.db.models.focus import FocusRun
-                from sqlalchemy import func
 
                 prev_task_ids = [
                     UUID(pid) if isinstance(pid, str) else pid
