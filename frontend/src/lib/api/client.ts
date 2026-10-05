@@ -99,6 +99,9 @@ export const api = {
       }
     }
 
+    // Configuration owns the API prefix: PUBLIC_API_BASE_URL must already end
+    // in /api/v1. Endpoint callers provide only resource paths such as
+    // /auth/login or /me.
     let urlStr = PUBLIC_API_BASE_URL;
     if (urlStr.endsWith('/')) {
       urlStr = urlStr.slice(0, -1);

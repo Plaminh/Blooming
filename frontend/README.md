@@ -27,8 +27,14 @@ Tauri creates the `main` window at `/auth` and the `companion-widget` window at
 `frontend/.env.example` documents public frontend configuration:
 
 ```text
-PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1
 ```
+
+The API client appends endpoint paths such as `/auth/login` and `/me`; it does
+not append the backend API prefix. Therefore every environment must set
+`PUBLIC_API_BASE_URL` to a base URL ending in exactly `/api/v1`. Hosted builds
+(including Vercel) additionally require a public HTTPS URL and fail if they
+would otherwise ship a local loopback address.
 
 Public frontend environment variables are embedded in the client bundle and must never contain secrets.
 

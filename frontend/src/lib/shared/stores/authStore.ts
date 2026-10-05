@@ -122,7 +122,13 @@ const createAuthStore = () => {
           }));
         } catch (error) {
           console.error("Failed to fetch user during auth initialization", error);
-          store.clearAuth();
+          if (error instanceof APIError && (error.status === 401 || error.status === 403)) {
+            store.clearAuth();
+          } else {
+            // A transport failure or server outage does not invalidate a
+            // locally persisted token. Keep it so initialization can retry.
+            update(s => ({ ...s, isInitialized: true }));
+          }
         }
       } else {
         update(s => ({ ...s, isInitialized: true }));

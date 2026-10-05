@@ -39,7 +39,7 @@ dropdb blooming_restore_check
 1. Build and push the backend image tagged with `GIT_SHA`.
 2. Deploy one backend worker using the app-role URL.
 3. Gate traffic on `GET /api/v1/health/ready`; use `/api/v1/health` for liveness.
-4. In `frontend/`, set `PUBLIC_API_BASE_URL` in `.env.staging` and the staging CSP `connect-src` in `src-tauri/tauri.staging.conf.json` to the same exact HTTPS API origin. Then run `npm run tauri build -- --config src-tauri/tauri.staging.conf.json`. The staging config runs `npm run build:staging`, which checks that both values agree (the build fails if they do not) and builds the frontend with `--mode staging`. A plain `npm run build` ignores `.env.staging`.
+4. In `frontend/`, set `PUBLIC_API_BASE_URL` in `.env.staging` to the HTTPS backend URL ending in exactly `/api/v1`, and set the staging CSP `connect-src` in `src-tauri/tauri.staging.conf.json` to that URL's origin. Then run `npm run tauri build -- --config src-tauri/tauri.staging.conf.json`. The staging config runs `npm run build:staging`, which checks the `/api/v1` contract and that the CSP allows the backend origin, then builds with `--mode staging`. A plain `npm run build` ignores `.env.staging`.
 5. Verify registration, hosted verification, login, and assistant chat from the installed app.
 
 ## CORS

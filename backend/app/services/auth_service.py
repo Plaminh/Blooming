@@ -1,3 +1,4 @@
+import asyncio
 import secrets
 import hashlib
 import logging
@@ -33,10 +34,12 @@ async def authenticate(db: AsyncSession, form_data: OAuth2PasswordRequestForm) -
     email = form_data.username.strip().casefold()
     user = await get_user_by_email(db, email)
     if not user:
-        dummy_verify()
+        await asyncio.to_thread(dummy_verify)
         raise generic_error
 
-    if not verify_password(form_data.password, user.password_hash):
+    if not await asyncio.to_thread(
+        verify_password, form_data.password, user.password_hash
+    ):
         raise generic_error
 
     if not user.email_verified_at:
@@ -78,7 +81,7 @@ async def register_user(
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered."
         )
 
-    hashed_password = get_password_hash(user_in.password)
+    hashed_password = await asyncio.to_thread(get_password_hash, user_in.password)
 
     db_user = User(
         email=email, password_hash=hashed_password, display_name=user_in.display_name

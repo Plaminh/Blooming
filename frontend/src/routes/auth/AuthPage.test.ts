@@ -37,6 +37,13 @@ describe('registration page', () => {
     expect(await screen.findByText('Check your email')).toBeInTheDocument();
   });
 
+  it('does not claim a second email was sent during the server cooldown', async () => {
+    vi.mocked(authStore.register).mockResolvedValueOnce(true);
+    await submitRegistration();
+    await userEvent.click(screen.getByRole('button', { name: 'RESEND VERIFICATION' }));
+    expect(await screen.findByText(/Please wait \d+s before resending/)).toBeInTheDocument();
+  });
+
   it('leads an unverified re-registration to verification instead of a dead end', async () => {
     vi.mocked(authStore.register).mockRejectedValueOnce(new APIError(409, {
       detail: { code: 'EMAIL_NOT_VERIFIED', message: 'This email is registered but not verified yet.' },

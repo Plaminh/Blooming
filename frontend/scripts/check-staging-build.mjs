@@ -35,7 +35,12 @@ export function checkStagingBuild(envText, tauriConfig) {
   }
   let origin;
   try {
-    origin = new URL(apiUrl).origin;
+    const parsed = new URL(apiUrl);
+    origin = parsed.origin;
+    const apiPath = parsed.pathname.replace(/\/+$/, '');
+    if (apiPath !== '/api/v1' || parsed.search || parsed.hash) {
+      errors.push('PUBLIC_API_BASE_URL must end with exactly /api/v1.');
+    }
   } catch {
     errors.push(`PUBLIC_API_BASE_URL is not a valid URL: ${apiUrl}`);
     return { errors, warnings };

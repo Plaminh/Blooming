@@ -56,6 +56,8 @@
     try {
       // Backend does not accept display_name in /register, it's set via settings
       await authStore.register(data.email, data.password);
+      // Registration already sent a message and started the server cooldown.
+      lastResend = Date.now();
       state.emailDeliveryFailed = false;
       state.isAwaitingVerification = true;
     } catch (error) {
@@ -99,7 +101,7 @@
       await api.post('/auth/resend-verification', { email });
       lastResend = Date.now();
       state.emailDeliveryFailed = false;
-      state.setFieldError('general', 'Verification email sent successfully.');
+      state.setFieldError('general', 'If the account is eligible, a verification email has been sent.');
     } catch (error) {
        if (error instanceof APIError) {
          state.setFieldError('general', error.message || 'Failed to resend verification email.');

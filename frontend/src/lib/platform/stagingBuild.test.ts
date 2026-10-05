@@ -30,6 +30,17 @@ describe('staging build guard', () => {
     expect(checkStagingBuild('# nothing here', csp('https://x')).errors[0]).toContain('missing');
   });
 
+  it('rejects a missing or duplicated API prefix', () => {
+    expect(checkStagingBuild(
+      'PUBLIC_API_BASE_URL=https://api.staging.example',
+      csp('https://api.staging.example')
+    ).errors).toContain('PUBLIC_API_BASE_URL must end with exactly /api/v1.');
+    expect(checkStagingBuild(
+      'PUBLIC_API_BASE_URL=https://api.staging.example/api/v1/api/v1',
+      csp('https://api.staging.example')
+    ).errors).toContain('PUBLIC_API_BASE_URL must end with exactly /api/v1.');
+  });
+
   it('keeps the checked-in staging configuration consistent', () => {
     const { envText, tauriConfig } = readStagingInputs();
     expect(checkStagingBuild(envText, tauriConfig).errors).toEqual([]);
