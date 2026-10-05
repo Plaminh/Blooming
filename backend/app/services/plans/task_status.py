@@ -29,7 +29,7 @@ async def sync_daily_plan_completion(db: AsyncSession, plan_id: UUID) -> None:
         .options(selectinload(DailyPlan.plan_blocks))
         .where(DailyPlan.id == plan_id)
     )
-    if not plan or plan.status in ("DRAFT", "ARCHIVED", "COMPLETED"):
+    if not plan or plan.status in ("DRAFT", "ARCHIVED"):
         return
 
     has_unfinished = any(
@@ -40,8 +40,13 @@ async def sync_daily_plan_completion(db: AsyncSession, plan_id: UUID) -> None:
     has_actionable_tasks = any(b.block_type == "TASK" for b in plan.plan_blocks)
 
     if not has_unfinished and has_actionable_tasks:
-        plan.status = "COMPLETED"
-        plan.completed_at = datetime.now(timezone.utc)
+        if plan.status != "COMPLETED":
+            plan.status = "COMPLETED"
+            plan.completed_at = datetime.now(timezone.utc)
+            db.add(plan)
+    elif has_unfinished and plan.status == "COMPLETED":
+        plan.status = "ACTIVE"
+        plan.completed_at = None
         db.add(plan)
 
 

@@ -690,3 +690,96 @@ async def test_overloaded_schedule_preview(
     restored = await async_client.get("/api/v1/today", headers=auth_headers)
     assert restored.status_code == 200
     assert restored.json()["unscheduled_tasks"] == unsched
+
+async def test_removed_task_with_focus_preserves_task_but_drops_dependencies(
+    async_client: AsyncClient,
+    auth_headers: dict[str, str],
+    test_user: dict,
+    db_session: AsyncSession,
+):
+    from app.db.models.focus import FocusRun
+    
+    # 1. Create a first draft with two dependent tasks
+    draft_1 = TodayDraft(
+        type="today",
+        planDate=date.today().isoformat(),
+        timezone="UTC",
+        windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
+        tasks=[
+            TaskDraft(id="t1", title="Task 1", durationMin=30, dependencies=[]),
+            TaskDraft(id="t2", title="Task 2", durationMin=30, dependencies=["t1"]),
+        ],
+    )
+    token_1 = await get_preview_token(async_client, auth_headers, draft_1.model_dump(mode="json"))
+    save_resp_1 = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": token_1, "draft": draft_1.model_dump(mode="json")},
+    )
+    assert save_resp_1.status_code == 200
+
+    plan_1_data = save_resp_1.json()
+    blocks = plan_1_data["blocks"]
+    
+    # Map draft IDs to real Task IDs
+    task1_id = next(b["task_id"] for b in blocks if b["draft_task_id"] == "t1")
+    task2_id = next(b["task_id"] for b in blocks if b["draft_task_id"] == "t2")
+    
+    now = datetime.now(timezone.utc)
+    
+    # 2. Add a FocusRun to Task 1
+    run = FocusRun(
+        user_id=test_user.id,
+        task_id=task1_id,
+        planned_focus_seconds=1500,
+        status="ENDED",
+        outcome="NEED_MORE_TIME",
+        started_at=now - timedelta(minutes=25),
+        ended_at=now,
+        actual_duration_seconds=1500
+    )
+    db_session.add(run)
+    await db_session.commit()
+    
+    # 3. Create a second draft that drops Task 1 (the one with the FocusRun) but keeps Task 2
+    # The new draft does not carry 't1' in, so it counts as removed.
+    draft_2 = TodayDraft(
+        type="today",
+        planDate=date.today().isoformat(),
+        timezone="UTC",
+        windows=[AvailabilityWindowDraft(start="09:00", end="17:00")],
+        tasks=[
+            TaskDraft(id="t2", sourceTaskId=str(task2_id), title="Task 2", durationMin=30, dependencies=[]),
+        ],
+    )
+    token_2 = await get_preview_token(async_client, auth_headers, draft_2.model_dump(mode="json"))
+    save_resp_2 = await async_client.post(
+        "/api/v1/today/save",
+        headers=auth_headers,
+        json={"preview_token": token_2, "draft": draft_2.model_dump(mode="json")},
+    )
+    assert save_resp_2.status_code == 200
+    
+    # 4. Verify outcomes
+    await db_session.expire_all()
+    
+    # historical task remains in DB as CANCELLED
+    task1 = await db_session.get(Task, task1_id)
+    assert task1 is not None
+    assert task1.status == "CANCELLED"
+    
+    # FocusRun remains valid
+    runs = (await db_session.execute(select(FocusRun).where(FocusRun.task_id == task1_id))).scalars().all()
+    assert len(runs) == 1
+    
+    # obsolete TaskDependency row is gone
+    deps = (await db_session.execute(
+        select(TaskDependency)
+        .where((TaskDependency.task_id == task1_id) | (TaskDependency.depends_on_task_id == task1_id))
+    )).scalars().all()
+    assert len(deps) == 0
+    
+    # remaining task is kept
+    task2 = await db_session.get(Task, task2_id)
+    assert task2 is not None
+    assert task2.status != "CANCELLED"

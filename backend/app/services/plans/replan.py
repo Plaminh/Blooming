@@ -86,7 +86,12 @@ async def replan_today(
         terminal = block.status in ("COMPLETED", "SKIPPED", "CANCELLED") or (
             task and task.status in ("COMPLETED", "SKIPPED", "CANCELLED")
         )
-        historical = block.planned_start_at < now
+        historical = block.planned_start_at < now and (
+            block.block_type == "FIXED_EVENT"
+            or (task and task.scheduling_type == "FIXED")
+            or block.status != "PLANNED"
+            or block.is_locked
+        )
         fixed_remaining = block.planned_end_at > now and (
             block.is_locked
             or block.status == "ACTIVE"
@@ -136,29 +141,46 @@ async def replan_today(
     )
     schedule_tasks = []
     candidate_ids = {b.task_id for b in eligible if b.task_id} | pending_ids
+    
+    # Query focus runs to find actual time spent
+    from app.db.models.focus import FocusRun
+    focus_run_records = await db.execute(
+        select(FocusRun.task_id, FocusRun.actual_duration_seconds)
+        .where(
+            FocusRun.user_id == user_id,
+            FocusRun.task_id.in_(candidate_ids),
+            FocusRun.status == "ENDED",
+            FocusRun.outcome != "SKIP"
+        )
+    )
+    task_focus_minutes = {}
+    for t_id, duration_secs in focus_run_records:
+        if duration_secs:
+            task_focus_minutes[t_id] = task_focus_minutes.get(t_id, 0) + (duration_secs // 60)
+
     for task_id in sorted(candidate_ids, key=str):
         task = tasks.get(task_id)
         if not task or task.status not in ("DRAFT", "PENDING", "IN_PROGRESS"):
             continue
-        reserved_minutes = sum(
-            max(
-                0,
-                int(
-                    (
-                        b.planned_end_at
-                        - (
-                            b.planned_start_at
-                            if b.status == "COMPLETED"
-                            else max(b.planned_start_at, now)
-                        )
-                    ).total_seconds()
-                    // 60
-                ),
-            )
+        
+        # Time taken up by future locked/active blocks
+        reserved_future = sum(
+            max(0, int((b.planned_end_at - max(b.planned_start_at, now)).total_seconds() // 60))
             for b in preserved
-            if b.task_id == task_id
+            if b.task_id == task_id and b.planned_end_at > now
         )
-        remaining_minutes = max(0, task.estimated_duration_minutes - reserved_minutes)
+
+        # Time taken up by COMPLETED blocks (if the user manually completes a block without focus mode)
+        completed_blocks_duration = sum(
+            max(0, int((b.planned_end_at - b.planned_start_at).total_seconds() // 60))
+            for b in preserved
+            if b.task_id == task_id and b.status == "COMPLETED"
+        )
+        
+        focused_minutes = task_focus_minutes.get(task_id, 0)
+        progress_minutes = max(focused_minutes, completed_blocks_duration)
+        
+        remaining_minutes = max(0, task.estimated_duration_minutes - reserved_future - progress_minutes)
         if remaining_minutes == 0:
             continue
         schedule_tasks.append(

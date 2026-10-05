@@ -313,6 +313,9 @@ async def save_today_draft(
             if prev_task_ids_str:
                 from uuid import UUID
 
+                from app.db.models.focus import FocusRun
+                from sqlalchemy import func
+
                 prev_task_ids = [
                     UUID(pid) if isinstance(pid, str) else pid
                     for pid in prev_task_ids_str
@@ -323,6 +326,11 @@ async def save_today_draft(
                 for t in tasks_res.scalars():
                     # A task the new draft carries in again is reused below.
                     if t.status != "COMPLETED" and str(t.id) not in carried_source_ids:
+                        has_focus = await db.scalar(
+                            select(func.count(FocusRun.id)).where(
+                                FocusRun.task_id == t.id
+                            )
+                        )
                         deps_res = await db.execute(
                             select(TaskDependency).where(
                                 (TaskDependency.task_id == t.id)
@@ -331,7 +339,12 @@ async def save_today_draft(
                         )
                         for dep in deps_res.scalars():
                             await db.delete(dep)
-                        await db.delete(t)
+
+                        if not has_focus:
+                            await db.delete(t)
+                        else:
+                            t.status = "CANCELLED"
+                            db.add(t)
 
         existing_plan.reality_check = reality_check
         existing_plan.timezone_snapshot = str(tz)

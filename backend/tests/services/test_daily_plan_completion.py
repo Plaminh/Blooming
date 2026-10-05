@@ -240,3 +240,55 @@ async def test_replan_preserves_completed_history(db_session, test_user):
     # With mocked generate_timeline returning empty, it would clear all unfinished work.
     # Therefore it will complete the plan since only COMPLETED blocks remain.
     assert plan.status == "COMPLETED"
+
+
+async def test_reopen_completed_plan_on_uncomplete(db_session, test_user):
+    user_id = test_user.id
+    now = datetime.now(timezone.utc)
+
+    plan = DailyPlan(
+        user_id=user_id,
+        plan_date=now.date(),
+        status="ACTIVE",
+        confirmed_at=now,
+        timezone_snapshot="UTC",
+    )
+    db_session.add(plan)
+    await db_session.flush()
+
+    t1 = Task(
+        user_id=user_id,
+        title="T1",
+        status="PENDING",
+        estimated_duration_minutes=30,
+        source="MANUAL",
+    )
+    db_session.add(t1)
+    await db_session.flush()
+
+    b1 = PlanBlock(
+        daily_plan_id=plan.id,
+        block_type="TASK",
+        task_id=t1.id,
+        planned_start_at=now,
+        planned_end_at=now + timedelta(minutes=30),
+        position=1,
+        status="COMPLETED",
+        completed_at=now,
+    )
+    db_session.add(b1)
+    await db_session.commit()
+
+    # Complete the plan
+    await today_service.sync_daily_plan_completion(db_session, plan.id)
+    await db_session.refresh(plan)
+    assert plan.status == "COMPLETED"
+
+    # Now un-complete the task (set to PENDING)
+    await today_service.update_task_status_from_today(
+        db_session, user_id, t1.id, TodayTaskStatusUpdate(status="PENDING")
+    )
+    
+    await db_session.refresh(plan)
+    assert plan.status == "ACTIVE"
+    assert plan.completed_at is None
